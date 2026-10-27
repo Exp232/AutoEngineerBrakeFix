@@ -61,7 +61,7 @@
     <PropertyGroup>
       <StageDir>$(MSBuildProjectDirectory)\dist\stage\AutoEngineerBrakeFix</StageDir>
       <ZipFile>$(MSBuildProjectDirectory)\dist\AutoEngineerBrakeFix-$(ReleaseVersion).zip</ZipFile>
-      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">1.12.0</ReleaseVersion>
+      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">1.13.1</ReleaseVersion>
     </PropertyGroup>
     <RemoveDir Directories="$(MSBuildProjectDirectory)\dist" />
     <MakeDir Directories="$(StageDir)" />

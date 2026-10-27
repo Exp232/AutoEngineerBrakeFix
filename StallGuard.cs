@@ -26,6 +26,7 @@ namespace AutoEngineerBrakeFix
         private const float MinUphillPercent = 1f;
         private const float StandMaxMph = 0.5f;
         private const float StandMinThrottle = 0.5f;
+        private const float StandGainMph = 0.15f;
 
         private sealed class State
         {
@@ -37,6 +38,10 @@ namespace AutoEngineerBrakeFix
             public float Trend;
             public float LatchTime;
             public float StandTimer;
+            public float StandSmooth;
+            public float StandRef;
+            public string LatchMode = "";
+            public int LatchSign;
             public float StillSince = -1f;
             public bool Settled;
         }
@@ -77,6 +82,28 @@ namespace AutoEngineerBrakeFix
         }
 
 
+
+        /// <summary>The engineer's mode and direction of travel (the sign of the speed limit, which the planner signs by direction).</summary>
+        private static void ReadOrders(AutoEngineer ae, out string mode, out int sign)
+        {
+            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            mode = targets != null ? targets.Mode.ToString() : "";
+            float m = targets != null ? targets.MaxSpeedMph : 0f;
+            sign = m > 0.5f ? 1 : (m < -0.5f ? -1 : 0);
+        }
+
+        /// <summary>While latched: switching the engineer's direction or mode clears the stall.</summary>
+        private static void CheckOrdersChanged(AutoEngineer ae, State st)
+        {
+            ReadOrders(ae, out string mode, out int sign);
+            if (st.LatchSign == 0 && sign != 0) st.LatchSign = sign; // direction was not known yet
+            bool modeChanged = !string.IsNullOrEmpty(st.LatchMode) && mode != st.LatchMode;
+            bool dirChanged = st.LatchSign != 0 && sign != 0 && sign != st.LatchSign;
+            if (!modeChanged && !dirChanged) return;
+            Main.Mod.Logger.Log(dirChanged ? "Stall guard cleared: direction changed." : $"Stall guard cleared: mode changed to {mode}.");
+            Reset(ae);
+        }
+
         private static void Latch(AutoEngineer ae, State st, string logLine, string say, string notice)
         {
             float now = Time.time;
@@ -85,6 +112,7 @@ namespace AutoEngineerBrakeFix
             st.Settled = false;
             st.StillSince = -1f;
             st.StandTimer = 0f;
+            ReadOrders(ae, out st.LatchMode, out st.LatchSign);
             Main.Mod.Logger.Warning(logLine);
             try
             {
@@ -109,13 +137,33 @@ namespace AutoEngineerBrakeFix
         {
             if (!Main.Settings.StallGuard || ae == null || ae.Locomotive == null) return;
             State st = States.GetOrCreateValue(ae);
-            if (st.Latched) return;
+            if (st.Latched) { CheckOrdersChanged(ae, st); return; }
 
             float speed = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
+            float frameDt = Mathf.Clamp(Time.deltaTime, 0f, 0.25f);
+            st.StandSmooth = st.StandTimer <= 0f ? speed : Mathf.Lerp(st.StandSmooth, speed, 1f - Mathf.Exp(-frameDt / 0.5f));
             bool standing = speed < StandMaxMph
                 && BrakeFix.ReadThrottle(ae) >= StandMinThrottle
                 && !BrakeFix.ReadBrakeRequested(ae);
-            st.StandTimer = standing ? st.StandTimer + Time.deltaTime : 0f;
+            if (!standing)
+            {
+                st.StandTimer = 0f;
+            }
+            else
+            {
+                // A train that is still gaining speed, however slowly, is starting, not stuck: gaining more than
+                // StandGainMph from its lowest point restarts the clock.
+                if (st.StandTimer <= 0f || st.StandSmooth > st.StandRef + StandGainMph)
+                {
+                    st.StandRef = st.StandSmooth;
+                    st.StandTimer = 0f;
+                }
+                else
+                {
+                    st.StandRef = Mathf.Min(st.StandRef, st.StandSmooth);
+                }
+                st.StandTimer += frameDt;
+            }
 
             if (st.StandTimer < Mathf.Max(3f, Main.Settings.StallSeconds)) return;
 

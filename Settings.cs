@@ -65,6 +65,15 @@ namespace AutoEngineerBrakeFix
         /// <summary>Release the train brake when the speed it is heading for this many seconds ahead reaches the target (0 = stock).</summary>
         public float BrakeReleaseLeadSeconds = 3f;
 
+        /// <summary>Count the speed the brake cylinders will still take off while they bleed down: release the train brake once that covers the reduction needed, and do not apply more.</summary>
+        public bool BrakeResidual = true;
+
+        /// <summary>Speed lost after a release is about (cylinder psi squared) / this, in mph. 60 fits a 52-car train; lower brakes less, higher brakes more.</summary>
+        public float BrakeResidualDivisor = 60f;
+
+        /// <summary>The brake is released once the train is expected to settle within this many mph of the limit.</summary>
+        public float BrakeResidualMarginMph = 0.5f;
+
         /// <summary>Detect a stall on a grade (full throttle, almost stopped, climbing): brake, stay put and announce it.</summary>
         public bool StallGuard = true;
 

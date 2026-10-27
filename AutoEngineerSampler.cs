@@ -139,6 +139,8 @@ namespace AutoEngineerBrakeFix
                 .Add("brakePath", BrakePath())
                 .Add("locoCylPsi", SafeLocoCylinder(loco))
                 .Add("carCylAvgPsi", SafeCarCylinderAverage())
+                .Add("resMph", DecelHold.DebugResidual(_ae))
+                .Add("resNeedMph", DecelHold.DebugNeed(_ae))
                 .Add("overlap", overlap ? 1 : 0)
                 .Add("fixBlocked", BrakeFix.GetBlockedApplies(_ae))
                 .Add("fixReleased", BrakeFix.GetForcedReleases(_ae))

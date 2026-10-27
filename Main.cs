@@ -147,6 +147,18 @@ namespace AutoEngineerBrakeFix
             float rel = GUILayout.HorizontalSlider(Settings.BrakeReleaseLeadSeconds, 0f, 6f, GUILayout.Width(200));
             Settings.BrakeReleaseLeadSeconds = Mathf.Round(rel * 2f) / 2f;
             GUILayout.EndHorizontal();
+            Settings.BrakeResidual = GUILayout.Toggle(Settings.BrakeResidual,
+                "Brake with the bleed-down in mind: release once the cylinders will carry the train to the limit, no more");
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"Speed lost after release = psi squared / {Settings.BrakeResidualDivisor:0}", GUILayout.Width(300));
+            float rdiv = GUILayout.HorizontalSlider(Settings.BrakeResidualDivisor, 30f, 120f, GUILayout.Width(200));
+            Settings.BrakeResidualDivisor = Mathf.Round(rdiv / 5f) * 5f;
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"Settle within: {Settings.BrakeResidualMarginMph:0.0} mph of the limit", GUILayout.Width(300));
+            float rmar = GUILayout.HorizontalSlider(Settings.BrakeResidualMarginMph, 0f, 3f, GUILayout.Width(200));
+            Settings.BrakeResidualMarginMph = Mathf.Round(rmar * 10f) / 10f;
+            GUILayout.EndHorizontal();
             Settings.StallGuard = GUILayout.Toggle(Settings.StallGuard,
                 "Stall guard: when the train stalls on a grade, hold it with the brakes and announce it");
 

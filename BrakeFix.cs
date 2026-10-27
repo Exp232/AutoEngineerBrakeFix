@@ -143,8 +143,12 @@ namespace AutoEngineerBrakeFix
                 if (StallGuard.IsLatched(owner.Engineer)) { result = owner.Kind == PidKind.TrainBrake ? StallGuard.BrakeLevel(owner.Engineer) : 1f; return; }
                 {
                     var cfg = FConfig?.GetValue(owner.Engineer) as AutoEngineerConfig;
-                    if (owner.Kind == PidKind.TrainBrake) DecelHold.HoldBrake(owner.Engineer, cfg, ref result);
-                    DecelHold.HoldCoast(owner.Engineer, cfg, error, owner.Kind == PidKind.TrainBrake, ref result);
+                    bool covered = owner.Kind == PidKind.TrainBrake && DecelHold.ResidualCover(owner.Engineer, cfg, ref result);
+                    if (!covered)
+                    {
+                        if (owner.Kind == PidKind.TrainBrake) DecelHold.HoldBrake(owner.Engineer, cfg, ref result);
+                        DecelHold.HoldCoast(owner.Engineer, cfg, error, owner.Kind == PidKind.TrainBrake, ref result);
+                    }
                 }
 
                 if (!Main.Settings.FixEnabled) return;

@@ -34,6 +34,10 @@ namespace AutoEngineerBrakeFix
 
         private static readonly FieldInfo FCtx = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
+        private static readonly MethodInfo MAvgCylinder = AccessTools.Method(typeof(AutoEngineer), "AverageTrainBrakeCylinder");
+
+        internal static float DebugResidual(AutoEngineer ae) => States.TryGetValue(ae, out State st) ? st.Residual : float.NaN;
+        internal static float DebugNeed(AutoEngineer ae) => States.TryGetValue(ae, out State st) ? st.Need : float.NaN;
 
         internal static bool IsFalling(AutoEngineer ae) => States.TryGetValue(ae, out State st) && st.Falling;
 
@@ -47,6 +51,12 @@ namespace AutoEngineerBrakeFix
             public float MarkTime;
             public bool Falling;
             public float LastBrakeTime = -100f;
+            public float CylPrev;
+            public float CylTime = -100f;
+            public float CylRate;      // psi per second, smoothed
+            public float LowerTime = -100f;
+            public float Residual = float.NaN;
+            public float Need = float.NaN;
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States =
@@ -141,6 +151,63 @@ namespace AutoEngineerBrakeFix
             if (speedMph + st.Trend * lead > ctxMph) return false;
             result = config.trainBrakeReleaseBelowOutput - 0.01f;
             return true;
+        }
+
+
+        /// <summary>
+        /// A long train's brake cylinders bleed down slowly after a release (about 2 psi/s above 30 psi, under 1 psi/s
+        /// below that), and until they are empty they keep taking speed off: roughly cylinder-psi squared / 60 mph
+        /// from a 52-car train. The stock logic ignores that and keeps the brake on until the train is at the limit, so
+        /// it ends up well under it (a 5 mph reduction became 9-12 mph in the logs).
+        ///
+        /// While slowing for a lower limit (and for 45 s after), this compares the speed the cylinders will still take
+        /// off with the reduction still needed. Once they cover it, the train brake is released if it is on, and a new
+        /// application is held off. Not near a stop, not while the train is gaining speed (a descent).
+        /// Returns true when it has taken over the output.
+        /// </summary>
+        internal static bool ResidualCover(AutoEngineer ae, AutoEngineerConfig config, ref float result)
+        {
+            if (!Main.Settings.BrakeResidual || Main.Settings.BrakeResidualDivisor <= 1f) return false;
+            if (config == null || ae.Locomotive == null || MAvgCylinder == null || FCtx == null) return false;
+            State st = States.GetOrCreateValue(ae);
+            st.Residual = float.NaN; st.Need = float.NaN;
+
+            float cyl;
+            try { cyl = (float)MAvgCylinder.Invoke(ae, null); } catch { return false; }
+            if (float.IsNaN(cyl) || cyl < 0f) return false;
+
+            float now = Time.time;
+            if (now - st.CylTime > 3f) { st.CylRate = 0f; st.CylPrev = cyl; st.CylTime = now; }
+            else if (now - st.CylTime >= 0.3f)
+            {
+                st.CylRate = Mathf.Lerp(st.CylRate, (cyl - st.CylPrev) / (now - st.CylTime), 0.5f);
+                st.CylPrev = cyl; st.CylTime = now;
+            }
+
+            float speedMph = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
+            float ctxMph = ((float)FCtx.GetValue(ae)) * MpsToMph;
+            if (ctxMph < 8f || DistanceToStopTarget(ae) < 150f) return false;
+            if (st.Trend > 0.1f) return false;                       // gaining speed: not for us to hold the brake off
+
+            float limit;
+            if (LowerLimitAhead(ae, ctxMph, out float ahead)) { st.LowerTime = now; limit = ahead; }
+            else if (now - st.LowerTime <= 45f) limit = ctxMph;       // just passed it: the new limit
+            else return false;
+
+            // Cylinders still filling will peak a little higher than they read now.
+            float peak = cyl + 0.5f * Mathf.Max(0f, st.CylRate);
+            float residual = peak * peak / Main.Settings.BrakeResidualDivisor;
+            float need = speedMph - (limit + Main.Settings.BrakeResidualMarginMph);
+            st.Residual = residual; st.Need = need;
+            if (residual < need) return false;                         // still has to brake: stock logic
+
+            if (BrakeFix.ReadControl(ae, "TrainBrake") > 0.001f)
+            {
+                result = config.trainBrakeReleaseBelowOutput - 0.01f;  // release
+                return true;
+            }
+            if (result > 0f) { result = 0f; return true; }             // hold off a new application
+            return false;
         }
 
         /// <summary>
