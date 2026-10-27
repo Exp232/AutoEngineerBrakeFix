@@ -1,0 +1,329 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
+using System.Text;
+using HarmonyLib;
+using Model;
+using Model.AI;
+using Model.Physics;
+using Railroader.Modding;
+
+namespace AutoEngineerBrakeFix
+{
+    /// <summary>
+    /// Start-up self-check. The game can move things under us in any update, so before patching, every method,
+    /// field and property a feature relies on is looked up with the exact signature we use. A feature with a
+    /// missing target is switched off (in memory only; Settings.xml is not touched) and the rest still load.
+    /// Each patch class is applied on its own, so one failing patch never stops the others.
+    ///
+    /// It does not guess renamed members, show anything in game, write files or throw: a failure is a log
+    /// line and a disabled feature. Everything goes to the game log in one summary block.
+    /// </summary>
+    internal static class SelfCheck
+    {
+        internal const string GameRequirement = "rr/game >=0.6.0";
+
+        private const BindingFlags All = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+
+        private sealed class Feature
+        {
+            public string Name;
+            public Func<bool> On;
+            public Action TurnOff;
+            public string[] Needs;
+            public Type[] Patches;
+            public string Status;
+        }
+
+        // ---- Targets ----
+
+        private static readonly Type AE = typeof(AutoEngineer);
+        private static readonly Type Targets = typeof(AutoEngineer.Targets);
+
+        private static Dictionary<string, Func<bool>> Probes()
+        {
+            Type planner = SignalPlanning.PlannerType;
+            Type element = AccessTools.Inner(typeof(IntegrationSet), "Element");
+            return new Dictionary<string, Func<bool>>
+            {
+                ["AutoEngineer.OnEnable()"] = () => Method(AE, "OnEnable", Type.EmptyTypes, typeof(void)),
+                ["AutoEngineer.CalculateLookaheadDistance()"] = () => Method(AE, "CalculateLookaheadDistance", Type.EmptyTypes, typeof(float)),
+                ["AutoEngineer.CalculateMaxVelocityToSlowToSpeedAtDistance(float, float, float totalAvailableBraking)"] =
+                    () => Method(AE, "CalculateMaxVelocityToSlowToSpeedAtDistance", new[] { typeof(float), typeof(float), typeof(float) }, typeof(float), null, null, "totalAvailableBraking"),
+                ["AutoEngineer.ContextualTargetVelocity()"] = () => Method(AE, "ContextualTargetVelocity", Type.EmptyTypes, typeof(float)),
+                ["AutoEngineer.SetTargets(Targets)"] = () => Method(AE, "SetTargets", new[] { Targets }, typeof(void)),
+                ["AutoEngineer.StartMovement()"] = () => Method(AE, "StartMovement", Type.EmptyTypes, typeof(IEnumerator)),
+                ["AutoEngineer.AverageTrainBrakeCylinder()"] = () => Method(AE, "AverageTrainBrakeCylinder", Type.EmptyTypes, typeof(float)),
+                ["AutoEngineer._targets"] = () => Field(AE, "_targets", Targets),
+                ["AutoEngineer._control"] = () => Field(AE, "_control", null),
+                ["AutoEngineer._config"] = () => Field(AE, "_config", typeof(AutoEngineerConfig)),
+                ["AutoEngineer._debugContextualTargetVelocity"] = () => Field(AE, "_debugContextualTargetVelocity", typeof(float)),
+                ["AutoEngineer.throttleController"] = () => Field(AE, "throttleController", typeof(PIDController)),
+                ["AutoEngineer.trainBrakeController"] = () => Field(AE, "trainBrakeController", typeof(PIDController)),
+                ["AutoEngineer.independentController"] = () => Field(AE, "independentController", typeof(PIDController)),
+
+                ["Targets.Mode"] = () => Field(Targets, "Mode", typeof(Game.Messages.AutoEngineerMode)),
+                ["Targets.MaxSpeedMph"] = () => Field(Targets, "MaxSpeedMph", typeof(float)),
+                ["Targets.AllTargets"] = () => Field(Targets, "AllTargets", typeof(List<AutoEngineer.Targets.Target>)),
+                ["Targets.AverageGradeUnder"] = () => Field(Targets, "AverageGradeUnder", typeof(float)),
+                ["Targets.AverageGradeAhead"] = () => Field(Targets, "AverageGradeAhead", typeof(float)),
+
+                ["PIDController.Compute(float error, float)"] =
+                    () => Method(typeof(PIDController), "Compute", new[] { typeof(float), typeof(float) }, typeof(float), "error"),
+                ["IntegrationSet.Element"] = () => element != null,
+                ["IntegrationSet.Element.car"] = () => element != null && (AccessTools.Field(element, "car") != null || AccessTools.Property(element, "car") != null),
+                ["IntegrationSet.CalculateRetardingForce(Element, float absVelocity)"] =
+                    () => element != null && Method(typeof(IntegrationSet), "CalculateRetardingForce", new[] { element, typeof(float) }, typeof(float), null, "absVelocity"),
+                ["SteamEngine.UpdateConsumption(float)"] = () => Method(typeof(SteamEngine), "UpdateConsumption", new[] { typeof(float) }, typeof(void)),
+                ["SteamEngine._estimatedGrateSqFt"] = () => Field(typeof(SteamEngine), "_estimatedGrateSqFt", typeof(float)),
+                ["SteamEngine.WaterConsumptionRate (set)"] = () => AccessTools.PropertySetter(typeof(SteamEngine), "WaterConsumptionRate") != null,
+                ["SteamEngine.CoalConsumptionRate (set)"] = () => AccessTools.PropertySetter(typeof(SteamEngine), "CoalConsumptionRate") != null,
+                ["SteamLocomotive.CutoffSettingForVelocity(float velocityMps)"] =
+                    () => Method(typeof(SteamLocomotive), "CutoffSettingForVelocity", new[] { typeof(float) }, typeof(float), "velocityMps"),
+
+                ["AutoEngineerPlanner"] = () => planner != null,
+                ["AutoEngineerPlanner.Say(string)"] = () => planner != null && Method(planner, "Say", new[] { typeof(string) }, typeof(void)),
+                ["AutoEngineerPlanner.UpdateTargets(float, int)"] =
+                    () => planner != null && Method(planner, "UpdateTargets", new[] { typeof(float), typeof(int) }, typeof(void)),
+                ["AutoEngineerPlanner.DistanceToNextSignalAfter(..., float) : float?"] =
+                    () => planner != null && planner.GetMethods(All).Any(m => m.Name == "DistanceToNextSignalAfter"
+                        && m.ReturnType == typeof(float?) && m.GetParameters().Length == 2 && m.GetParameters()[1].ParameterType == typeof(float)),
+            };
+        }
+
+        // ---- Features ----
+
+        private static List<Feature> Features()
+        {
+            var s = Main.Settings;
+            string[] pidLoop = { "AutoEngineer.OnEnable()", "PIDController.Compute(float error, float)" };
+            Type[] pidPatches = { typeof(AutoEngineer_OnEnable_Patch), typeof(PIDController_Compute_Patch) };
+
+            return new List<Feature>
+            {
+                new Feature
+                {
+                    Name = "Brake-drag fix",
+                    On = () => s.FixEnabled,
+                    TurnOff = () => s.FixEnabled = false,
+                    Needs = pidLoop.Concat(new[] { "AutoEngineer._control", "AutoEngineer._config", "AutoEngineer.trainBrakeController", "AutoEngineer.independentController", "AutoEngineer.throttleController" }).ToArray(),
+                    Patches = pidPatches,
+                },
+                new Feature
+                {
+                    Name = "Throttle smoothing",
+                    On = () => s.SmoothThrottle,
+                    TurnOff = () => s.SmoothThrottle = false,
+                    Needs = pidLoop.Concat(new[] { "AutoEngineer._control", "AutoEngineer.throttleController" }).ToArray(),
+                    Patches = pidPatches,
+                },
+                new Feature
+                {
+                    Name = "Holds while slowing",
+                    On = () => s.HoldThrottleWhileSlowing || s.HoldBrakeWhileSlowing || s.AvoidPowerIntoReductions || s.BrakeStartOverMph > 0f || s.BrakeReleaseLeadSeconds > 0f,
+                    TurnOff = () => { s.HoldThrottleWhileSlowing = false; s.HoldBrakeWhileSlowing = false; s.AvoidPowerIntoReductions = false; s.BrakeStartOverMph = 0f; s.BrakeReleaseLeadSeconds = 0f; },
+                    Needs = pidLoop.Concat(new[] { "AutoEngineer._control", "AutoEngineer._config", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "AutoEngineer.trainBrakeController", "AutoEngineer.throttleController", "Targets.AllTargets", "Targets.Mode" }).ToArray(),
+                    Patches = pidPatches,
+                },
+                new Feature
+                {
+                    Name = "Residual braking",
+                    On = () => s.BrakeResidual,
+                    TurnOff = () => s.BrakeResidual = false,
+                    Needs = pidLoop.Concat(new[] { "AutoEngineer.AverageTrainBrakeCylinder()", "AutoEngineer.ContextualTargetVelocity()", "AutoEngineer._debugContextualTargetVelocity", "AutoEngineer._targets", "AutoEngineer._config", "AutoEngineer.trainBrakeController" }).ToArray(),
+                    Patches = pidPatches,
+                },
+                new Feature
+                {
+                    Name = "Stay stopped at stop targets",
+                    On = () => s.HoldStopAtStopTargets,
+                    TurnOff = () => s.HoldStopAtStopTargets = false,
+                    Needs = new[] { "AutoEngineer.ContextualTargetVelocity()", "AutoEngineer._targets", "Targets.AllTargets", "Targets.Mode" },
+                    Patches = new[] { typeof(AutoEngineer_ContextualTargetVelocity_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Stall guard",
+                    On = () => s.StallGuard,
+                    TurnOff = () => s.StallGuard = false,
+                    Needs = pidLoop.Concat(new[] { "AutoEngineer.StartMovement()", "AutoEngineer.SetTargets(Targets)", "AutoEngineer._targets", "AutoEngineer._control", "AutoEngineer.throttleController", "AutoEngineer.trainBrakeController", "Targets.Mode", "Targets.MaxSpeedMph", "Targets.AverageGradeUnder", "AutoEngineerPlanner.Say(string)" }).ToArray(),
+                    Patches = pidPatches.Concat(new[] { typeof(AutoEngineer_StartMovement_Patch), typeof(AutoEngineer_SetTargets_Patch) }).ToArray(),
+                },
+                new Feature
+                {
+                    Name = "Signal braking",
+                    On = () => s.ApproachTargetAtSignal || s.HoldApproachSpeed || s.SignalSightMeters > SignalPlanning.StockSightMeters,
+                    TurnOff = () => { s.ApproachTargetAtSignal = false; s.HoldApproachSpeed = false; s.SignalSightMeters = SignalPlanning.StockSightMeters; },
+                    Needs = new[] { "AutoEngineerPlanner", "AutoEngineerPlanner.UpdateTargets(float, int)", "AutoEngineerPlanner.DistanceToNextSignalAfter(..., float) : float?", "AutoEngineer.SetTargets(Targets)", "Targets.AllTargets" },
+                    Patches = new[] { typeof(Planner_UpdateTargets_Patch), typeof(Planner_DistanceToNextSignalAfter_Patch), typeof(AutoEngineer_SetTargets_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Early slowing for lower limits",
+                    On = () => s.SpeedReductionLeadSeconds > 0f,
+                    TurnOff = () => s.SpeedReductionLeadSeconds = 0f,
+                    Needs = new[] { "AutoEngineer.SetTargets(Targets)", "Targets.AllTargets", "Targets.MaxSpeedMph" },
+                    Patches = new[] { typeof(AutoEngineer_SetTargets_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Shorter cutoff",
+                    On = () => s.CutoffEnabled,
+                    TurnOff = () => s.CutoffEnabled = false,
+                    Needs = new[] { "SteamLocomotive.CutoffSettingForVelocity(float velocityMps)", "AutoEngineer._targets", "Targets.AverageGradeUnder", "Targets.AverageGradeAhead" },
+                    Patches = new[] { typeof(SteamLocomotive_CutoffSettingForVelocity_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Planning",
+                    On = () => s.LookaheadMultiplier > 1.001f || s.BrakePlanningFraction < 0.999f,
+                    TurnOff = () => { s.LookaheadMultiplier = 1f; s.BrakePlanningFraction = 1f; },
+                    Needs = new[] { "AutoEngineer.CalculateLookaheadDistance()", "AutoEngineer.CalculateMaxVelocityToSlowToSpeedAtDistance(float, float, float totalAvailableBraking)" },
+                    Patches = new[] { typeof(AutoEngineer_CalculateLookaheadDistance_Patch), typeof(AutoEngineer_CalculateMaxVelocityToSlowToSpeedAtDistance_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Starting resistance",
+                    On = () => s.StartingResistance,
+                    TurnOff = () => s.StartingResistance = false,
+                    Needs = new[] { "IntegrationSet.CalculateRetardingForce(Element, float absVelocity)", "IntegrationSet.Element", "IntegrationSet.Element.car" },
+                    Patches = new[] { typeof(IntegrationSet_CalculateRetardingForce_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Realistic fuel",
+                    On = () => s.RealisticFuel,
+                    TurnOff = () => s.RealisticFuel = false,
+                    Needs = new[] { "SteamEngine.UpdateConsumption(float)", "SteamEngine._estimatedGrateSqFt", "SteamEngine.WaterConsumptionRate (set)", "SteamEngine.CoalConsumptionRate (set)" },
+                    Patches = new[] { typeof(SteamEngine_UpdateConsumption_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Diagnostic logger",
+                    On = () => s.LogEnabled,
+                    TurnOff = () => s.LogEnabled = false,
+                    Needs = new[] { "AutoEngineer.OnEnable()", "AutoEngineer._control", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity" },
+                    Patches = new[] { typeof(AutoEngineer_OnEnable_Patch) },
+                },
+            };
+        }
+
+        // ---- Run ----
+
+        /// <summary>Checks, patches and logs. Returns false when nothing was applied.</summary>
+        internal static bool Run(IModContext context, Harmony harmony)
+        {
+            var log = new StringBuilder();
+            log.AppendLine($"AutoEngineerBrakeFix {Main.Mod.Info.Version} self-check, game {UnityEngine.Application.version}");
+
+            bool gameOk;
+            try { gameOk = context.CheckDependency(GameRequirement); }
+            catch (Exception e) { gameOk = false; log.AppendLine("  Game version check failed: " + e.Message); }
+            if (!gameOk)
+            {
+                context.Log.Error(log + $"  Needs {GameRequirement}. Nothing was applied.");
+                return false;
+            }
+
+            // 1. Probe every target.
+            var found = new Dictionary<string, bool>();
+            foreach (var probe in Probes())
+            {
+                bool ok;
+                try { ok = probe.Value(); }
+                catch (Exception) { ok = false; } // e.g. an ambiguous match counts as not found
+                found[probe.Key] = ok;
+            }
+
+            // 2. Decide which features can run.
+            var features = Features();
+            var wanted = new List<Type>();
+            foreach (var f in features)
+            {
+                string[] missing = f.Needs.Where(n => !found[n]).ToArray();
+                if (!f.On())
+                {
+                    f.Status = "disabled in settings";
+                }
+                else if (missing.Length > 0)
+                {
+                    f.Status = "DISABLED, not found: " + string.Join(", ", missing);
+                    f.TurnOff();
+                }
+                else
+                {
+                    f.Status = "enabled";
+                    foreach (var p in f.Patches) if (!wanted.Contains(p)) wanted.Add(p);
+                }
+            }
+
+            // 3. Apply each patch class on its own.
+            var failed = new Dictionary<Type, string>();
+            int applied = 0;
+            foreach (var patch in wanted)
+            {
+                try
+                {
+                    harmony.CreateClassProcessor(patch).Patch();
+                    applied++;
+                }
+                catch (Exception e)
+                {
+                    failed[patch] = (e.InnerException ?? e).Message;
+                }
+            }
+            foreach (var f in features.Where(f => f.Status == "enabled"))
+            {
+                var bad = f.Patches.FirstOrDefault(failed.ContainsKey);
+                if (bad == null) continue;
+                f.Status = "DISABLED, patch " + bad.Name + " failed: " + failed[bad];
+                f.TurnOff();
+            }
+
+            foreach (var f in features) log.AppendLine($"  {f.Name}: {f.Status}");
+
+            // 4. Verify: every applied patch class targets exactly one method.
+            int patched = harmony.GetPatchedMethods().Count();
+            bool countOk = patched == applied;
+            log.AppendLine($"  Patched methods: {patched} (expected {applied})");
+
+            log.AppendLine("  Effective settings: " + DescribeSettings(Main.Settings));
+
+            bool anyDisabled = features.Any(f => f.Status.StartsWith("DISABLED"));
+            string text = log.ToString().TrimEnd();
+            if (anyDisabled || !countOk) context.Log.Warning(text);
+            else context.Log.Info(text);
+            return true;
+        }
+
+        // ---- Helpers ----
+
+        /// <summary>Exact match: declared on the type, same parameter types and return type; names checked where the patch binds by name.</summary>
+        private static bool Method(Type type, string name, Type[] args, Type returns, params string[] paramNames)
+        {
+            MethodInfo m = type.GetMethod(name, All, null, args, null);
+            if (m == null || m.ReturnType != returns) return false;
+            var ps = m.GetParameters();
+            for (int i = 0; i < paramNames.Length && i < ps.Length; i++)
+            {
+                if (paramNames[i] != null && ps[i].Name != paramNames[i]) return false;
+            }
+            return true;
+        }
+
+        private static bool Field(Type type, string name, Type fieldType)
+        {
+            FieldInfo f = AccessTools.Field(type, name);
+            return f != null && (fieldType == null || f.FieldType == fieldType);
+        }
+
+        private static string DescribeSettings(Settings s)
+        {
+            return string.Join(", ", typeof(Settings).GetFields(BindingFlags.Instance | BindingFlags.Public)
+                .Select(f => f.Name + "=" + Convert.ToString(f.GetValue(s), CultureInfo.InvariantCulture)));
+        }
+    }
+}

@@ -25,7 +25,7 @@ namespace AutoEngineerBrakeFix
         private static readonly FieldInfo FIndependentPid = AccessTools.Field(typeof(AutoEngineer), "independentController");
         private static readonly FieldInfo FTrainBrakePid = AccessTools.Field(typeof(AutoEngineer), "trainBrakeController");
         private static readonly MethodInfo MShouldUseLocoBrake = AccessTools.Method(typeof(AutoEngineer), "ShouldUseLocomotiveBrake");
-        private static readonly MethodInfo MLookahead = AccessTools.Method(typeof(AutoEngineer), "CalculateLookaheadDistance");
+        private static readonly MethodInfo MLookahead = AccessTools.Method(typeof(AutoEngineer), "CalculateLookaheadDistance", Type.EmptyTypes);
         private static readonly MethodInfo MAvgTrainCylinder = AccessTools.Method(typeof(AutoEngineer), "AverageTrainBrakeCylinder");
 
         // PIDController's last output is private; the public API only exposes error and integrator terms.

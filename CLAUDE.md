@@ -1,6 +1,6 @@
 # AutoEngineerBrakeFix - notes for Claude Code
 
-A Unity Mod Manager mod for Railroader (Unity/Mono, game v2025.1.0) that improves the auto-engineer (AI): brake-drag fix, shorter cutoff, smooth throttle, gentle signal braking, speed-limit handling, stall guard, optional realistic fuel use, optional starting resistance. Namespace `AutoEngineerBrakeFix`, author Exp232.
+A mod for Railroader's built-in mod loader (Unity/Mono, game 0.6.0; entry point `ModEntryPoint` in Main.cs, asset-pack Info.json, settings in Settings.xml) that improves the auto-engineer (AI): brake-drag fix, shorter cutoff, smooth throttle, gentle signal braking, speed-limit handling, stall guard, optional realistic fuel use, optional starting resistance. Namespace `AutoEngineerBrakeFix`, author Exp232.
 
 ## Build
 - `dotnet build -c Release /p:DeployToGame=false` compiles against the game's DLLs (path set by `RailroaderDir` in the csproj; pass `/p:RailroaderDir=...` if the install is elsewhere).
@@ -8,7 +8,7 @@ A Unity Mod Manager mod for Railroader (Unity/Mono, game v2025.1.0) that improve
 - Your usual job here: build, read compile errors, fix them minimally without changing behaviour, repeat until clean, then show the diff.
 
 ## Conventions
-- Harmony patches; private game types are taken as `object __0` and read by reflection (see `StartingResistance.cs`, `SignalPlanning.cs`).
+- Harmony patches (0Harmony.dll ships with the mod). Every patch target and reflected member must be listed in `SelfCheck.cs` under the feature that needs it; private game types are taken as `object __0` and read by reflection (see `StartingResistance.cs`, `SignalPlanning.cs`).
 - Target speeds and `MaxSpeedMph` are signed by direction of travel: compare magnitudes.
 - Waypoint and Yard modes must keep the game's stopping accuracy; reduced accuracy only in Road mode.
 - Keep defaults stable. When changing behaviour or a setting, bump the version in `Info.json`, `BUILDING.md` and the csproj together and add a `CHANGELOG.md` entry (newest first, under `# Changelog`). Update `README.md` for user-visible features.

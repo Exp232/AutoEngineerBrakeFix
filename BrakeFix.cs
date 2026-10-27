@@ -161,7 +161,7 @@ namespace AutoEngineerBrakeFix
 
                 // The AI squares (brakeErrorPower) the overspeed before feeding the brake PID, and the error is
                 // negative when we are too fast. Convert the margin into the same units.
-                float power = config != null ? config.brakeErrorPower : 1f;
+                float power = BrakeErrorPower(config);
                 float marginMps = Mathf.Max(0f, Main.Settings.OverspeedMarginMph) * MpsPerMph;
                 float limit = -Mathf.Pow(marginMps, power);
                 if (error < limit) return; // genuinely overspeeding: leave the brake logic alone
@@ -170,7 +170,7 @@ namespace AutoEngineerBrakeFix
                 {
                     // The caller releases the train brake when output < trainBrakeReleaseBelowOutput, applies it when
                     // output > 0.01 (and above the current setting), and otherwise leaves it exactly as it is.
-                    float releaseBelow = config != null ? config.trainBrakeReleaseBelowOutput : -0.01f;
+                    float releaseBelow = ReleaseBelowOutput(config);
                     if (result < releaseBelow) return; // already a release
 
                     bool brakeIsOn = ReadControl(owner.Engineer, "TrainBrake") > BrakeOnThreshold;
@@ -207,6 +207,21 @@ namespace AutoEngineerBrakeFix
                 }
             }
         }
+
+        // 0.6.0 dropped the PID tuning from AutoEngineerConfig. Read it by reflection so the mod still builds;
+        // when a field is missing these give the same fallbacks used when there is no config at all.
+        private static readonly FieldInfo FBrakeErrorPower = AccessTools.Field(typeof(AutoEngineerConfig), "brakeErrorPower");
+        private static readonly FieldInfo FReleaseBelow = AccessTools.Field(typeof(AutoEngineerConfig), "trainBrakeReleaseBelowOutput");
+        private static readonly FieldInfo FPadding = AccessTools.Field(typeof(AutoEngineerConfig), "paddingForSpeedMph");
+
+        internal static float BrakeErrorPower(AutoEngineerConfig config) =>
+            config != null && FBrakeErrorPower != null ? (float)FBrakeErrorPower.GetValue(config) : 1f;
+
+        internal static float ReleaseBelowOutput(AutoEngineerConfig config) =>
+            config != null && FReleaseBelow != null ? (float)FReleaseBelow.GetValue(config) : -0.01f;
+
+        internal static AnimationCurve PaddingForSpeedMph(AutoEngineerConfig config) =>
+            config != null && FPadding != null ? FPadding.GetValue(config) as AnimationCurve : null;
 
         internal static AutoEngineerConfig GetConfig(AutoEngineer ae)
         {

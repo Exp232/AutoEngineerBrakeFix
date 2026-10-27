@@ -1,12 +1,16 @@
 {
-  "Id": "AutoEngineerBrakeFix",
-  "DisplayName": "Auto Engineer Brake Fix",
-  "Author": "Exp232",
-  "Version": "1.13.1",
-  "ManagerVersion": "0.27.4",
-  "GameVersion": "2025.1.0",
-  "AssemblyName": "AutoEngineerBrakeFix.dll",
-  "EntryMethod": "AutoEngineerBrakeFix.Main.Load",
-  "HomePage": "",
-  "Repository": ""
+  "identifier": "exp232/autoengineerbrakefix",
+  "name": "Auto Engineer Brake Fix",
+  "author": "Exp232",
+  "version": "2.0.0",
+  "description": "Improves the auto-engineer: brake-drag fix, shorter cutoff, smooth throttle, gentle signal braking, speed-limit handling, stall guard, optional realistic fuel use and starting resistance.",
+  "url": "https://github.com/Exp232/AutoEngineerBrakeFix",
+  "dependencies": {
+    "required": [
+      "rr/game >=0.6.0"
+    ]
+  },
+  "assemblies": [
+    "AutoEngineerBrakeFix.dll"
+  ]
 }

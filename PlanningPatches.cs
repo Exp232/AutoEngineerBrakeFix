@@ -1,3 +1,4 @@
+using System;
 using HarmonyLib;
 using Model.AI;
 using UnityEngine;
@@ -15,7 +16,8 @@ namespace AutoEngineerBrakeFix
     /// therefore waits until the last moment and then brakes at full effort. Scaling the braking it assumes down
     /// makes it start slowing earlier and brake more gently for targets it already knows about.
     /// </summary>
-    [HarmonyPatch(typeof(AutoEngineer), "CalculateLookaheadDistance")]
+    // 0.6.0 added a static (velocity, decel, grade) overload; the instance one is what the engineer calls.
+    [HarmonyPatch(typeof(AutoEngineer), "CalculateLookaheadDistance", new Type[0])]
     internal static class AutoEngineer_CalculateLookaheadDistance_Patch
     {
         private static void Postfix(ref float __result)

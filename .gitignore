@@ -11,3 +11,4 @@ obj/
 # Machine-specific Claude Code / MCP config
 .claude/settings.local.json
 .mcp.json
+dist/

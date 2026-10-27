@@ -3,7 +3,7 @@
 Makes the AI engineer drive like a person: no brake dragging, fewer wasted coal and water, a smooth throttle,
 gentle brake sets for signals, and no creeping past a stop.
 
-All options are on by default, except realistic fuel use, and can be switched off individually in the Unity Mod Manager window (Ctrl+F10).
+All options are on by default, except realistic fuel use, and can be switched off individually in `Settings.xml` in the mod folder (read at start-up).
 
 ## Brake fix
 In road mode the AI shares one speed setpoint between throttle and brake, with no dead zone. A tiny overspeed applies about 3% train brake, and the AI only releases it once its brake output goes clearly negative, which on a climb at full throttle may never happen: throttle and brake both on for minutes.
@@ -48,15 +48,18 @@ By design nothing is burned while the throttle is closed, so a locomotive left i
 The game uses the Davis equation for rolling resistance, which is only valid for a moving train: a standing car meets about 1.6 lb per ton, where real plain-bearing cars need 5-10 lb per ton to break away. This option adds a standing-start drag (default 5 lb per ton, fading out exponentially with speed: 37% left at 2.5 mph, about 13% at 5 mph). Standing time (on by default) scales it by how long each car has stood: a car that has just stopped still has oil in its journals and starts at about 40% of the full drag, settling back over about 10 game minutes. It uses the game clock and is not saved, so cars count as fully settled when you load a save.
 
 ## Install
-1. Install [Unity Mod Manager](https://www.nexusmods.com/site/mods/21) for Railroader.
-2. Unzip so you have `Railroader/Mods/AutoEngineerBrakeFix/AutoEngineerBrakeFix.dll` and `Info.json`.
-3. Start the game; enable it in the UMM window (Ctrl+F10).
+Needs Railroader 0.6.0 or later; uses the game's built-in mod loader (Unity Mod Manager is no longer needed).
+1. Unzip into `Documents\Railroader\Mods`, so you have `Mods\AutoEngineerBrakeFix\AutoEngineerBrakeFix.dll`, `0Harmony.dll` and `Info.json`.
+2. Start the game and enable "Auto Engineer Brake Fix" in the game's mod list.
+3. Settings: edit `Mods\AutoEngineerBrakeFix\Settings.xml` (written with the defaults on first start; an old UMM `Settings.xml` can be copied in) and restart the game.
+
+At start-up the mod checks that everything it patches is still in the game. Features whose targets are missing are switched off and the rest keep working; the result is one summary block in the game log (`Player.log`).
 
 ## Settings (summary)
-Brake fix on/off and overspeed margin; locomotive brake; shorter cutoff on/off, power given up, steep-grade limit; throttle smoothing, glide, close-on-overspeed; throttle hold, brake hold, stay stopped; speed-limit lead and release lead, stall guard; realistic fuel use (steam rate, cutoff effect, coal scale); signal sight distance, approach limit at the signal, hold after the signal; experimental planning sliders (look-ahead multiplier, assumed braking), both stock by default; diagnostic logger (off by default, writes CSVs under `Mods/AutoEngineerBrakeFix/logs`).
+Brake fix on/off and overspeed margin; locomotive brake; shorter cutoff on/off, power given up, steep-grade limit; throttle smoothing, glide, close-on-overspeed; throttle hold, brake hold, stay stopped; speed-limit lead and release lead, stall guard; realistic fuel use (steam rate, cutoff effect, coal scale); signal sight distance, approach limit at the signal, hold after the signal; experimental planning sliders (look-ahead multiplier, assumed braking), both stock by default; diagnostic logger (off by default, writes CSVs under `Mods\AutoEngineerBrakeFix\logs`).
 
 ## Compatibility
-Built for Railroader 2025.1.0. Patches the auto-engineer's PID results, its target list and contextual target speed, and the planner's signal-sight distances. Other mods patching the same code may conflict (it has been run alongside WaypointQueue). Disable it in UMM to restore stock behaviour.
+Built for Railroader 0.6.0. Patches the auto-engineer's PID results, its target list and contextual target speed, and the planner's signal-sight distances. Other mods patching the same code may conflict (it has been run alongside WaypointQueue). Disable it in the game's mod list to restore stock behaviour.
 
 ## Known limits
 Tested on a handful of steam-hauled freight runs, mostly up to 1% grades. Fuel savings depend on the route and train.

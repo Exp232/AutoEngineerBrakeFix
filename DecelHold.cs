@@ -65,7 +65,8 @@ namespace AutoEngineerBrakeFix
         private static float Padding(AutoEngineer ae, float speedMph)
         {
             var config = BrakeFix.GetConfig(ae);
-            return config != null && config.paddingForSpeedMph != null ? config.paddingForSpeedMph.Evaluate(speedMph) : 0f;
+            var padding = BrakeFix.PaddingForSpeedMph(config);
+            return padding != null ? padding.Evaluate(speedMph) : 0f;
         }
 
         /// <summary>Metres to the nearest stop (0 mph) target still ahead, or a large number.</summary>
@@ -124,12 +125,13 @@ namespace AutoEngineerBrakeFix
             if (EarlyRelease(ae, config, ref result)) return;
             if (!Main.Settings.HoldBrakeWhileSlowing) return;
             if (!States.TryGetValue(ae, out State st) || !st.Falling) return;
-            if (result >= config.trainBrakeReleaseBelowOutput) return;           // not a release
+            if (result >= BrakeFix.ReleaseBelowOutput(config)) return;           // not a release
             float level = BrakeFix.ReadControl(ae, "TrainBrake");
             if (level <= 0.001f || level > LightBrakeMax) return;                // nothing applied, or too heavy
             float speedMph = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
             float ctxMph = ((float)FCtx.GetValue(ae)) * MpsToMph;
-            float pad = config.paddingForSpeedMph != null ? config.paddingForSpeedMph.Evaluate(speedMph) : 0f;
+            var padding = BrakeFix.PaddingForSpeedMph(config);
+            float pad = padding != null ? padding.Evaluate(speedMph) : 0f;
             float margin = Mathf.Clamp(0.08f * speedMph, 0.5f, 1.2f) + 0.5f * pad;
             if (ctxMph - speedMph < margin) result = 0f;                          // 0 = neither apply nor release
         }
@@ -143,13 +145,13 @@ namespace AutoEngineerBrakeFix
         {
             float lead = Main.Settings.BrakeReleaseLeadSeconds;
             if (lead <= 0f || !States.TryGetValue(ae, out State st) || st.Trend > -0.2f) return false;
-            if (result < config.trainBrakeReleaseBelowOutput) return false;          // already a release
+            if (result < BrakeFix.ReleaseBelowOutput(config)) return false;          // already a release
             if (BrakeFix.ReadControl(ae, "TrainBrake") <= 0.001f) return false;      // nothing to release
             float speedMph = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
             float ctxMph = ((float)FCtx.GetValue(ae)) * MpsToMph;
             if (ctxMph < 8f || DistanceToStopTarget(ae) < 150f) return false;
             if (speedMph + st.Trend * lead > ctxMph) return false;
-            result = config.trainBrakeReleaseBelowOutput - 0.01f;
+            result = BrakeFix.ReleaseBelowOutput(config) - 0.01f;
             return true;
         }
 
@@ -203,7 +205,7 @@ namespace AutoEngineerBrakeFix
 
             if (BrakeFix.ReadControl(ae, "TrainBrake") > 0.001f)
             {
-                result = config.trainBrakeReleaseBelowOutput - 0.01f;  // release
+                result = BrakeFix.ReleaseBelowOutput(config) - 0.01f;  // release
                 return true;
             }
             if (result > 0f) { result = 0f; return true; }             // hold off a new application
@@ -221,7 +223,7 @@ namespace AutoEngineerBrakeFix
             if (band <= 0f || ae.Locomotive == null || config == null || error >= 0f) return;
             if (IsFalling(ae)) return;
             if (BrakeFix.ReadControl(ae, trainBrake ? "TrainBrake" : "LocomotiveBrake") > 0.001f) return;
-            float power = Mathf.Max(1f, config.brakeErrorPower);
+            float power = Mathf.Max(1f, BrakeFix.BrakeErrorPower(config));
             float overMph = Mathf.Pow(-error, 1f / power) * MpsToMph;
             if (overMph < band && result > 0f) result = 0f;
         }

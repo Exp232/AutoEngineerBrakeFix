@@ -1,8 +1,11 @@
-using UnityModManagerNet;
+using System;
+using System.IO;
+using System.Xml.Serialization;
 
 namespace AutoEngineerBrakeFix
 {
-    public class Settings : UnityModManager.ModSettings
+    /// <summary>Kept in Settings.xml in the mod folder, in the same XML layout UMM used, so old files still load.</summary>
+    public class Settings
     {
         // ---- Brake fix ----
 
@@ -144,9 +147,34 @@ namespace AutoEngineerBrakeFix
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;
 
-        public override void Save(UnityModManager.ModEntry modEntry)
+        /// <summary>Reads the file, or returns defaults (and writes them out when there is no file yet).</summary>
+        internal static Settings Load(string path, out string problem)
         {
-            Save(this, modEntry);
+            problem = null;
+            var serializer = new XmlSerializer(typeof(Settings));
+            if (File.Exists(path))
+            {
+                try
+                {
+                    using (var stream = File.OpenRead(path)) return (Settings)serializer.Deserialize(stream);
+                }
+                catch (Exception e)
+                {
+                    // Leave the user's file alone and run on defaults.
+                    problem = "could not read " + path + ", using defaults: " + e.Message;
+                    return new Settings();
+                }
+            }
+            var settings = new Settings();
+            try
+            {
+                using (var stream = File.Create(path)) serializer.Serialize(stream, settings);
+            }
+            catch (Exception e)
+            {
+                problem = "could not write " + path + ": " + e.Message;
+            }
+            return settings;
         }
     }
 }
