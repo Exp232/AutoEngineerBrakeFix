@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>AutoEngineerBrakeFix</AssemblyName>
+    <RootNamespace>AutoEngineerBrakeFix</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\</OutputPath>
+
+    <!-- Change this (or pass /p:RailroaderDir=...) if your install lives elsewhere. -->
+    <RailroaderDir Condition="'$(RailroaderDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Railroader</RailroaderDir>
+    <ManagedDir>$(RailroaderDir)\Railroader_Data\Managed</ManagedDir>
+    <!-- Where UMM keeps UnityModManager.dll and 0Harmony.dll. Verify this on your machine. -->
+    <UmmDir>$(ManagedDir)\UnityModManager</UmmDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets you build against .NET Framework 4.8 without the full targeting pack installed. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(ManagedDir)\Assembly-CSharp*.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\UnityEngine.dll" Private="false" />
+    <Reference Include="$(ManagedDir)\UnityEngine.*.dll" Private="false" />
+    <Reference Include="$(UmmDir)\UnityModManager.dll" Private="false" />
+    <Reference Include="$(UmmDir)\0Harmony.dll" Private="false" />
+    <!--
+      If the compiler complains that a type "is defined in an assembly that is not referenced",
+      add that assembly from the Managed folder here (Serilog.dll is a likely first candidate).
+    -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The game keeps some of its types (the Model.Definition.* namespaces, for one) in separate assemblies
+      beside Assembly-CSharp.dll. Reference all of them, except the ones that are already referenced above or
+      that would clash with the .NET Framework reference assemblies and UMM's own Harmony.
+    -->
+    <GameAssembly Include="$(ManagedDir)\*.dll"
+                  Exclude="$(ManagedDir)\Assembly-CSharp*.dll;$(ManagedDir)\UnityEngine*.dll;$(ManagedDir)\System*.dll;$(ManagedDir)\Microsoft*.dll;$(ManagedDir)\Mono*.dll;$(ManagedDir)\mscorlib.dll;$(ManagedDir)\netstandard.dll;$(ManagedDir)\0Harmony*.dll;$(ManagedDir)\UnityModManager*.dll" />
+    <Reference Include="@(GameAssembly)" Private="false" />
+  </ItemGroup>
+
+  <!-- Copies the built mod straight into the game's Mods folder. Disable with /p:DeployToGame=false -->
+  <Target Name="DeployToGame" AfterTargets="Build" Condition="Exists('$(RailroaderDir)\Mods') And '$(DeployToGame)' != 'false'">
+    <ItemGroup>
+      <DeployFiles Include="$(OutDir)AutoEngineerBrakeFix.dll" />
+      <DeployFiles Include="$(MSBuildProjectDirectory)\Info.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DeployFiles)" DestinationFolder="$(RailroaderDir)\Mods\AutoEngineerBrakeFix" />
+    <Message Importance="high" Text="Deployed AutoEngineerBrakeFix to $(RailroaderDir)\Mods\AutoEngineerBrakeFix" />
+  </Target>
+
+  <!-- dotnet build -c Release /p:Package=true  ->  dist\AutoEngineerBrakeFix-<version>.zip containing AutoEngineerBrakeFix\{dll,Info.json} -->
+  <Target Name="PackageRelease" AfterTargets="Build" Condition="'$(Package)' == 'true'">
+    <PropertyGroup>
+      <StageDir>$(MSBuildProjectDirectory)\dist\stage\AutoEngineerBrakeFix</StageDir>
+      <ZipFile>$(MSBuildProjectDirectory)\dist\AutoEngineerBrakeFix-$(ReleaseVersion).zip</ZipFile>
+      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">1.12.0</ReleaseVersion>
+    </PropertyGroup>
+    <RemoveDir Directories="$(MSBuildProjectDirectory)\dist" />
+    <MakeDir Directories="$(StageDir)" />
+    <Copy SourceFiles="$(OutDir)AutoEngineerBrakeFix.dll;$(MSBuildProjectDirectory)\Info.json" DestinationFolder="$(StageDir)" />
+    <ZipDirectory SourceDirectory="$(MSBuildProjectDirectory)\dist\stage" DestinationFile="$(MSBuildProjectDirectory)\dist\AutoEngineerBrakeFix-$(ReleaseVersion).zip" />
+    <Message Importance="high" Text="Packaged dist\AutoEngineerBrakeFix-$(ReleaseVersion).zip" />
+  </Target>
+
+</Project>
