@@ -46,6 +46,13 @@ namespace AutoEngineerBrakeFix
         private static readonly object Lock = new object();
         private static StreamWriter _writer;
 
+        // Rows that could not be written (another program briefly locked the file, e.g. OneDrive or a viewer) wait
+        // here and go out ahead of the next row, so a short lock loses nothing. Capped so a permanent lock cannot
+        // grow without bound.
+        private const int MaxPending = 6000;
+        private static readonly List<string> Pending = new List<string>();
+        private static bool _warned;
+
         internal static string LogDir => Path.Combine(Main.Mod.Path, "logs");
 
         internal static void Write(RowBuilder row)
@@ -56,11 +63,32 @@ namespace AutoEngineerBrakeFix
                 {
                     Directory.CreateDirectory(LogDir);
                     string path = Path.Combine(LogDir, $"ae_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-                    _writer = new StreamWriter(path, false, new UTF8Encoding(false)) { AutoFlush = true };
+                    var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                    _writer = new StreamWriter(stream, new UTF8Encoding(false)) { AutoFlush = true };
                     _writer.WriteLine(string.Join(",", row.Names));
                     Main.Mod.Logger.Log("Logging to " + path);
                 }
-                _writer.WriteLine(string.Join(",", row.Values));
+
+                Pending.Add(string.Join(",", row.Values));
+                try
+                {
+                    while (Pending.Count > 0)
+                    {
+                        _writer.WriteLine(Pending[0]);
+                        Pending.RemoveAt(0);
+                    }
+                    _warned = false;
+                }
+                catch (IOException e)
+                {
+                    // Keep the rows and try again on the next sample.
+                    if (Pending.Count > MaxPending) Pending.RemoveRange(0, Pending.Count - MaxPending);
+                    if (!_warned)
+                    {
+                        _warned = true;
+                        Main.Mod.Logger.Warning("Log file is locked by another program; rows are held and written when it is free: " + e.Message);
+                    }
+                }
             }
         }
 
@@ -78,7 +106,15 @@ namespace AutoEngineerBrakeFix
             {
                 if (_writer != null)
                 {
-                    _writer.Dispose();
+                    try
+                    {
+                        foreach (string line in Pending) _writer.WriteLine(line);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                    Pending.Clear();
+                    try { _writer.Dispose(); } catch (IOException) { }
                     _writer = null;
                 }
             }

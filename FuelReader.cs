@@ -31,6 +31,12 @@ namespace AutoEngineerBrakeFix
         // FuelCar() is not necessarily public, so it is called by reflection.
         private static readonly MethodInfo MFuelCar = AccessTools.Method(typeof(SteamLocomotive), "FuelCar");
 
+        // 0.6.0 prefixes load identifiers with their pack ("rr/coal"); 0.5.x used the bare name ("coal").
+        private static bool IsLoad(string identifier, string name)
+        {
+            return identifier == name || (identifier != null && identifier.EndsWith("/" + name));
+        }
+
         internal static Reading Read(BaseLocomotive loco)
         {
             Reading result = Reading.Empty();
@@ -41,8 +47,8 @@ namespace AutoEngineerBrakeFix
             var tender = MFuelCar.Invoke(steam, null) as Car;
             if (tender == null) return result;
 
-            int coalSlot = tender.Definition.LoadSlots.FindIndex((LoadSlot loadSlot) => loadSlot.RequiredLoadIdentifier == "coal");
-            int waterSlot = tender.Definition.LoadSlots.FindIndex((LoadSlot loadSlot) => loadSlot.RequiredLoadIdentifier == "water");
+            int coalSlot = tender.Definition.LoadSlots.FindIndex((LoadSlot loadSlot) => IsLoad(loadSlot.RequiredLoadIdentifier, "coal"));
+            int waterSlot = tender.Definition.LoadSlots.FindIndex((LoadSlot loadSlot) => IsLoad(loadSlot.RequiredLoadIdentifier, "water"));
 
             result.Tenders = 1;
             result.FuelId = "coal";
