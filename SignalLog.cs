@@ -40,7 +40,7 @@ namespace AutoEngineerBrakeFix
             if (sig == null) return;
             id = sig.id ?? "";
             name = sig.DisplayName ?? "";
-            aspect = sig.LastShownAspect.ToString();
+            aspect = HarmonyLib.AccessTools.Property(typeof(CTCSignal), "LastShownAspect")?.GetValue(sig, null)?.ToString() ?? "";   // internal getter
         }
 
         /// <summary>Metres from the train to the tracked signal, from the target list. A stop target sits 15 m short of its signal.</summary>
