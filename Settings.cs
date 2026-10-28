@@ -137,12 +137,31 @@ namespace AutoEngineerBrakeFix
         /// <summary>Fraction of the train's available braking the AI assumes when planning (1 = stock; lower = earlier, gentler).</summary>
         public float BrakePlanningFraction = 1f;
 
+        // ---- Brake guidance (0.6.0 rollout controller) ----
+
+        /// <summary>
+        /// While the train is moving with no speed order and nothing ahead to stop for (what a direction change on a
+        /// moving train leaves), cap the train brake at this fraction of a full pipe reduction (0.15 is about 13 psi;
+        /// the game allows about 0.29 on a charged train). 0 = off. Ends when a target or speed limit appears again.
+        /// </summary>
+        public float DirectionStopBrakeLimit = 0.15f;
+
+        /// <summary>Multipliers on the rollout controller's score weights (1 = the game's own value).</summary>
+        public float PlanOverspeedScale = 1f;
+        public float PlanUndershootScale = 1f;
+        public float PlanUndershootDeadbandScale = 1f;
+        public float PlanCeilingScale = 1f;
+        public float PlanIndependentUseScale = 1f;
+
         // ---- Logger ----
 
         public bool LogEnabled = false;
 
         /// <summary>Also log coal and water aboard a steam locomotive's tender (see FuelReader).</summary>
         public bool LogFuel = false;
+
+        /// <summary>Also log what the rollout controller decided each tick (action, its cost, the cost of holding, and the cost of each first action).</summary>
+        public bool LogDecisions = true;
 
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;

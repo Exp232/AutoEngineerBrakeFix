@@ -29,6 +29,12 @@ The stock AI can flip the throttle between 0 and 25% every half second. The mod 
 - **Brake hold**: while slowing for a falling target, a light brake application is not released until the train is clearly under the target, so it builds steadily instead of flickering.
 - **Stay stopped**: within 2.5 m of a stop target the AI now holds the stop; the stock AI can treat a train stopped 1-3 m short of a signal as "should be moving" and creep past it.
 
+## Gentle direction-change stop (0.6.0)
+Changing direction on a moving train clears the engineer's speed order and targets, so it plans a stop with no distance and brakes at the game's maximum (about 0.29 of a full pipe reduction). While the train is moving with no speed order and nothing ahead to stop for, the mod lowers the brake limit the planner works with to 0.15 (about 13 psi), so it plans a longer, gentler stop. The limit lifts as soon as a new order, target or signal appears, or when the train is almost stopped (under 2 mph). `DirectionStopBrakeLimit` in Settings.xml; 0 turns it off.
+
+## Planner weights (0.6.0)
+The auto-engineer's speed controller scores simulated plans. Five multipliers in Settings.xml scale its weights (1 = the game's value): `PlanOverspeedScale`, `PlanUndershootScale`, `PlanUndershootDeadbandScale`, `PlanCeilingScale`, `PlanIndependentUseScale`. For example a higher undershoot scale or a smaller deadband scale makes it hold closer to a limit it is slowing for. All 1 by default.
+
 ## Speed limits
 - **No power into a reduction**: while a lower limit is in the AI's sight and the train is at or above that speed, the throttle stays closed. Power returns once the train is a mph under the lower limit.
 - **Earlier, lighter braking**: a lower limit is treated as starting 6 s of travel sooner (adjustable), and the train brake is released when the speed 3 s ahead reaches the target. Speeds land on the limit instead of under it.
@@ -56,7 +62,7 @@ Needs Railroader 0.6.0 or later; uses the game's built-in mod loader (Unity Mod 
 At start-up the mod checks that everything it patches is still in the game. Features whose targets are missing are switched off and the rest keep working; the result is one summary block in the game log (`Player.log`).
 
 ## Settings (summary)
-Brake fix on/off and overspeed margin; locomotive brake; shorter cutoff on/off, power given up, steep-grade limit; throttle smoothing, glide, close-on-overspeed; throttle hold, brake hold, stay stopped; speed-limit lead and release lead, stall guard; realistic fuel use (steam rate, cutoff effect, coal scale); signal sight distance, approach limit at the signal, hold after the signal; experimental planning sliders (look-ahead multiplier, assumed braking), both stock by default; diagnostic logger (off by default, writes CSVs under `Mods\AutoEngineerBrakeFix\logs`).
+Brake fix on/off and overspeed margin; locomotive brake; shorter cutoff on/off, power given up, steep-grade limit; throttle smoothing, glide, close-on-overspeed; throttle hold, brake hold, stay stopped; speed-limit lead and release lead, stall guard; direction-change brake limit and the five planner weight multipliers; realistic fuel use (steam rate, cutoff effect, coal scale); signal sight distance, approach limit at the signal, hold after the signal; experimental planning sliders (look-ahead multiplier, assumed braking), both stock by default; diagnostic logger (off by default, writes CSVs under the mod folder's `logs`; with decision logging on, each row also has the controller's chosen action, its cost, the cost of holding, and the cost of each first action).
 
 ## Compatibility
 Built for Railroader 0.6.0. Patches the auto-engineer's PID results, its target list and contextual target speed, and the planner's signal-sight distances. Other mods patching the same code may conflict (it has been run alongside WaypointQueue). Disable it in the game's mod list to restore stock behaviour.
