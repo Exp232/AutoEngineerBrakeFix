@@ -115,6 +115,7 @@ namespace AutoEngineerBrakeFix
             }
 
             LogWriter.Close();
+            SignalLog.Close();
         }
 
         private static string ReadVersion(string modDirectory)

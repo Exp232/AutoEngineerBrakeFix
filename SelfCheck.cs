@@ -11,6 +11,7 @@ using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using Model.Physics;
 using Railroader.Modding;
+using Track.Signals;
 
 namespace AutoEngineerBrakeFix
 {
@@ -83,6 +84,9 @@ namespace AutoEngineerBrakeFix
                 ["Targets.AllTargets"] = () => Field(Targets, "AllTargets", typeof(List<AutoEngineer.Targets.Target>)),
                 ["Targets.AverageGradeUnder"] = () => Field(Targets, "AverageGradeUnder", typeof(float)),
                 ["Targets.AverageGradeAhead"] = () => Field(Targets, "AverageGradeAhead", typeof(float)),
+                ["Targets.NextSignal"] = () => Field(Targets, "NextSignal", typeof(CTCSignal)),
+                ["CTCSignal.id, LastShownAspect, DisplayName"] =
+                    () => Member(typeof(CTCSignal), "id") && Member(typeof(CTCSignal), "LastShownAspect") && Member(typeof(CTCSignal), "DisplayName"),
 
                 ["PIDController.Compute(float error, float)"] =
                     () => Method(typeof(PIDController), "Compute", new[] { typeof(float), typeof(float) }, typeof(float), "error"),
@@ -168,8 +172,8 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Signal braking",
-                    On = () => s.ApproachTargetAtSignal || s.HoldApproachSpeed || s.SignalSightMeters > SignalPlanning.StockSightMeters,
-                    TurnOff = () => { s.ApproachTargetAtSignal = false; s.HoldApproachSpeed = false; s.SignalSightMeters = SignalPlanning.StockSightMeters; },
+                    On = () => s.ApproachTargetAtSignal || s.HoldApproachSpeed || s.SignalSightMeters > SignalPlanning.StockSightMeters || (s.ApproachNoNextSignalMph >= 5f && s.ApproachNoNextSignalMph < 25f),
+                    TurnOff = () => { s.ApproachTargetAtSignal = false; s.HoldApproachSpeed = false; s.SignalSightMeters = SignalPlanning.StockSightMeters; s.ApproachNoNextSignalMph = 25f; },
                     Needs = new[] { "AutoEngineerPlanner", "AutoEngineerPlanner.UpdateTargets(float, int)", "AutoEngineerPlanner.DistanceToNextSignalAfter(..., float) : float?", "AutoEngineer.SetTargets(Targets)", "Targets.AllTargets" },
                     Patches = new[] { typeof(Planner_UpdateTargets_Patch), typeof(Planner_DistanceToNextSignalAfter_Patch), typeof(AutoEngineer_SetTargets_Patch) },
                 },
@@ -235,6 +239,14 @@ namespace AutoEngineerBrakeFix
                     On = () => s.LogEnabled && s.LogDecisions,
                     TurnOff = () => s.LogDecisions = false,
                     Needs = new[] { "AutoEngineer._speedControlLoop", "AutoEngineer.SpeedControlLoop._rolloutController", "RolloutController.Result", "RolloutController.DescribeRootCosts()" },
+                    Patches = new Type[0],
+                },
+                new Feature
+                {
+                    Name = "Signal logging",
+                    On = () => s.LogEnabled && s.LogSignals,
+                    TurnOff = () => s.LogSignals = false,
+                    Needs = new[] { "AutoEngineer._targets", "Targets.AllTargets", "Targets.NextSignal", "CTCSignal.id, LastShownAspect, DisplayName" },
                     Patches = new Type[0],
                 },
                 new Feature
@@ -349,6 +361,11 @@ namespace AutoEngineerBrakeFix
                 if (paramNames[i] != null && ps[i].Name != paramNames[i]) return false;
             }
             return true;
+        }
+
+        private static bool Member(Type type, string name)
+        {
+            return AccessTools.Field(type, name) != null || AccessTools.Property(type, name) != null;
         }
 
         private static bool Field(Type type, string name, Type fieldType)

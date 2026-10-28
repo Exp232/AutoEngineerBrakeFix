@@ -133,6 +133,7 @@ namespace AutoEngineerBrakeFix
                     SignalPlanning.Warn("SetTargets: AllTargets is not an editable list; signal fixes disabled.");
                     return;
                 }
+                if (fresh && SignalPlanning.Gap <= 0f) LimitApproachWithoutNext(list);
                 if (fresh && Main.Settings.ApproachTargetAtSignal) MoveApproachTarget(list);
                 if (Main.Settings.HoldApproachSpeed) HoldApproach(__instance, list);
                 if (Main.Settings.SpeedReductionLeadSeconds > 0f) ShiftReductions(__instance, __0, list);
@@ -151,6 +152,27 @@ namespace AutoEngineerBrakeFix
                 if (list[i].Reason == reason) return i;
             }
             return -1;
+        }
+
+        /// <summary>
+        /// The game sets 25 mph at an Approach signal when it finds no signal after it. With ApproachNoNextSignalMph
+        /// below 25 this lowers that limit (both the "Approach Signal" and "Signal" targets). At the default of 25
+        /// nothing changes. Speeds are signed by direction of travel, so only the magnitude is compared.
+        /// </summary>
+        private static void LimitApproachWithoutNext(IList<AutoEngineer.Targets.Target> list)
+        {
+            float limit = Main.Settings.ApproachNoNextSignalMph;
+            if (limit < 5f || limit >= 25f) return;
+            bool changed = false;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var t = list[i];
+                if (t.Reason != "Approach Signal" && t.Reason != "Signal") continue;
+                if (Mathf.Abs(t.SpeedMph) <= limit) continue;
+                list[i] = new AutoEngineer.Targets.Target(Mathf.Sign(t.SpeedMph) * limit, t.Distance, t.Reason);
+                changed = true;
+            }
+            if (changed) SortByDistance(list);
         }
 
         private static void MoveApproachTarget(IList<AutoEngineer.Targets.Target> list)

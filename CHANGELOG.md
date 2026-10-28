@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0
+- Logger: signal events. With `LogSignals` on (default; needs `LogEnabled`) a new file `logs\signals_*.csv` gets one line each time the signal an engineer is tracking, or the aspect it shows, changes: game time, wall-clock time (matches `Player.log`), locomotive, event (`seen`, `aspect`, `next`, `passed`), signal id and name, the aspect before and after, speed, the distance to the signal, the first target and the full target list. It is checked every physics tick and also while the train stands still. The main CSV gets three columns, `sigId`, `sigAspect` and `sigDistM`. This is for catching a signal that drops from Approach to Stop while a train is still approaching it (reported for Sylva West eastbound on 0.6.1: Approach, then Stop 4-5 s later, then the game's emergency stop from about 25 mph).
+- New setting `ApproachNoNextSignalMph` (default 25, which is what the game does, so nothing changes). When the game finds no signal after an Approach signal it sets 25 mph there; a lower value (for example 15) lowers that limit so the AI slows sooner for a Stop signal it cannot see. Only ever lowers; 25 or more, or below 5, change nothing.
+- Self-check: new feature "Signal logging", and the signal-braking feature also covers the new setting.
+- Known, not changed: the main CSV skips rows while the train is standing still, which is why a stop at a red signal shows as a gap in the log (the 250 s hole at 2509-2760 s in the 28 Oct run). The signal log is not affected.
+- Known, not changed: the game's `EmergencyStop` (target distance below -3 m on a stop target) sets the consist's velocity to 0 outright, so a Stop signal that appears closer than the braking distance ends in a dead stop whatever the AI does.
+
 ## 2.1.0
 - Gentle direction-change stop: changing direction on a moving train leaves the engineer with no speed order and no targets, and it stops at the game's maximum brake application (a 28 mph train stopped in 143 m). While the train is moving with no speed order and nothing ahead, the brake limit the planner uses (`TrainBrake.CalculateMaxEffectiveApplication`) is capped at `DirectionStopBrakeLimit` (default 0.15, about 13 psi; 0 = off). The cap ends when a target or speed limit appears again, or below 2 mph.
 - Planner weights: five multipliers (`PlanOverspeedScale`, `PlanUndershootScale`, `PlanUndershootDeadbandScale`, `PlanCeilingScale`, `PlanIndependentUseScale`) scale the rollout controller's score weights through a postfix on `RolloutController.WeightsFor`. All 1 (the game's values) by default.

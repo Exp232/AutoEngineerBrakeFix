@@ -65,6 +65,10 @@ namespace AutoEngineerBrakeFix
         {
             if (!Main.Active || !Main.Settings.LogEnabled || _ae == null) return;
             if (!_ae.isActiveAndEnabled || !_ae.Run) return;
+
+            // Signal changes are watched every tick, standing still or not (the main sample below is skipped at rest).
+            if (Main.Settings.LogSignals) ObserveSignal();
+
             if (Time.fixedTime < _nextSampleTime) return;
 
             _nextSampleTime = Time.fixedTime + Mathf.Max(0.05f, Main.Settings.SampleIntervalSeconds);
@@ -84,6 +88,37 @@ namespace AutoEngineerBrakeFix
             }
         }
 
+        private bool _loggedSignalError;
+
+        private void ObserveSignal()
+        {
+            try
+            {
+                var targets = FTargets?.GetValue(_ae) as AutoEngineer.Targets;
+                float mph = _ae.Locomotive != null ? _ae.Locomotive.velocity * MpsToMph : 0f;
+                SignalLog.Observe(_ae, targets, mph);
+            }
+            catch (Exception e)
+            {
+                if (!_loggedSignalError)
+                {
+                    _loggedSignalError = true;
+                    Main.Mod.Logger.Log("Signal log error (further errors suppressed for this engineer):");
+                    Main.Mod.Logger.LogException(e);
+                }
+            }
+        }
+
+        /// <summary>The signal the AI is tracking: its id, the aspect it shows, and the metres to it (blank when none).</summary>
+        private static void AddSignal(RowBuilder row, AutoEngineer.Targets targets)
+        {
+            if (!Main.Settings.LogSignals) return;
+            SignalLog.Read(targets, out string id, out string name, out string aspect);
+            row.Add("sigId", id)
+               .Add("sigAspect", aspect)
+               .Add("sigDistM", id == "" ? float.NaN : SignalLog.DistanceToSignal(targets));
+        }
+
         private float LookaheadMeters()
         {
             try { return MLookahead != null ? Convert.ToSingle(MLookahead.Invoke(_ae, null)) : float.NaN; }
@@ -91,7 +126,7 @@ namespace AutoEngineerBrakeFix
         }
 
         /// <summary>Every target the AI currently knows about, as "speed@distance:reason" joined with ';'.</summary>
-        private static string TargetList(AutoEngineer.Targets targets)
+        internal static string TargetList(AutoEngineer.Targets targets)
         {
             if (targets == null || targets.AllTargets == null) return "";
             var sb = new System.Text.StringBuilder();
@@ -165,6 +200,7 @@ namespace AutoEngineerBrakeFix
                 .Add("waterGps", SteamValue(loco, 1))
                 .Add("coalLbs", SteamValue(loco, 2));
 
+            AddSignal(row, targets);
             AddGuidance(row);
 
             AddPid(row, "thr", FThrottlePid?.GetValue(_ae) as PIDController);

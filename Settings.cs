@@ -129,6 +129,13 @@ namespace AutoEngineerBrakeFix
         /// <summary>After passing an Approach signal keep its speed limit until the next signal is registered.</summary>
         public bool HoldApproachSpeed = true;
 
+        /// <summary>
+        /// Speed (mph) of the Approach restriction when the game finds no signal after the Approach signal. The game
+        /// uses 25, which is the default here (no change). A lower value (for example 15) only ever lowers it: the AI
+        /// then slows sooner for a Stop signal it cannot see yet. Values of 25 or more, or below 5, change nothing.
+        /// </summary>
+        public float ApproachNoNextSignalMph = 25f;
+
         // ---- Planning (experimental) ----
 
         /// <summary>Multiplier on how far ahead the AI looks for targets (1 = stock).</summary>
@@ -162,6 +169,9 @@ namespace AutoEngineerBrakeFix
 
         /// <summary>Also log what the rollout controller decided each tick (action, its cost, the cost of holding, and the cost of each first action).</summary>
         public bool LogDecisions = true;
+
+        /// <summary>Also write logs\signals_*.csv: one line each time the signal an engineer is tracking, or the aspect it shows, changes (with the train's speed and distance at that moment), and add sigId, sigAspect and sigDistM to the main CSV.</summary>
+        public bool LogSignals = true;
 
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;
