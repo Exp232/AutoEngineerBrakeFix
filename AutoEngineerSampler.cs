@@ -32,6 +32,12 @@ namespace AutoEngineerBrakeFix
         // Note this is the PID's own output, before the brake fix adjusts the value returned to the AI.
         private static readonly FieldInfo FPidPreviousControl = AccessTools.Field(typeof(PIDController), "_previousControl");
 
+        // The rollout controller (0.6.0) lives inside AutoEngineer's private speed-control loop.
+        private static readonly FieldInfo FSpeedLoop = AccessTools.Field(typeof(AutoEngineer), "_speedControlLoop");
+        private static readonly FieldInfo FRollout = AccessTools.Inner(typeof(AutoEngineer), "SpeedControlLoop") != null
+            ? AccessTools.Field(AccessTools.Inner(typeof(AutoEngineer), "SpeedControlLoop"), "_rolloutController")
+            : null;
+
         private const BindingFlags Members = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
         private AutoEngineer _ae;
@@ -42,6 +48,13 @@ namespace AutoEngineerBrakeFix
         private FuelReader.Reading _fuel = FuelReader.Reading.Empty();
         private float _nextFuelTime;
         private bool _loggedFuelError;
+
+        // The controller's result is cleared while it searches, so the last valid decision is kept and its age logged.
+        private string _planKind = "";
+        private float _planCost = float.NaN;
+        private float _planHoldCost = float.NaN;
+        private float _planTime = float.NaN;
+        private string _planRoots = "";
 
         private void Awake()
         {
@@ -152,6 +165,8 @@ namespace AutoEngineerBrakeFix
                 .Add("waterGps", SteamValue(loco, 1))
                 .Add("coalLbs", SteamValue(loco, 2));
 
+            AddGuidance(row);
+
             AddPid(row, "thr", FThrottlePid?.GetValue(_ae) as PIDController);
             AddPid(row, "ind", FIndependentPid?.GetValue(_ae) as PIDController);
 
@@ -160,6 +175,47 @@ namespace AutoEngineerBrakeFix
             row.Add("tb_dGain", trainPid != null ? trainPid.derivativeGain : float.NaN);
 
             LogWriter.Write(row);
+        }
+
+        /// <summary>Brake limit state and the rollout controller's latest decision.</summary>
+        private void AddGuidance(RowBuilder row)
+        {
+            BrakeGuidance.Records.TryGetValue(_ae, out BrakeGuidance.Record cap);
+            row.Add("maxApp", cap != null ? cap.Final : float.NaN)
+               .Add("maxAppRaw", cap != null ? cap.Raw : float.NaN)
+               .Add("capActive", cap != null && cap.Active ? 1 : 0);
+
+            if (Main.Settings.LogDecisions) ReadPlan();
+            row.Add("plan", _planKind)
+               .Add("planCost", _planCost)
+               .Add("planHoldCost", _planHoldCost)
+               .Add("planAgeS", float.IsNaN(_planTime) ? float.NaN : Time.fixedTime - _planTime)
+               .Add("planRoots", _planRoots);
+        }
+
+        private void ReadPlan()
+        {
+            try
+            {
+                object loop = FSpeedLoop?.GetValue(_ae);
+                var rollout = loop != null ? FRollout?.GetValue(loop) as Model.AI.SpeedControl.Rollout.RolloutController : null;
+                if (rollout == null) return;
+
+                var result = rollout.Result;
+                if (result.Valid)
+                {
+                    _planKind = result.Kind.ToString();
+                    _planCost = result.Cost;
+                    _planHoldCost = result.HoldCost;
+                    _planTime = Time.fixedTime;
+                    string roots = rollout.DescribeRootCosts();
+                    if (!string.IsNullOrEmpty(roots)) _planRoots = roots;
+                }
+            }
+            catch (Exception)
+            {
+                // Logging only; leave the last values in place.
+            }
         }
 
         /// <summary>Steam locomotives only: 0 = tractive effort (lbf), 1 = water use (gal/s), 2 = coal use (lb/s). NaN otherwise.</summary>

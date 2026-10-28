@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0
+- Gentle direction-change stop: changing direction on a moving train leaves the engineer with no speed order and no targets, and it stops at the game's maximum brake application (a 28 mph train stopped in 143 m). While the train is moving with no speed order and nothing ahead, the brake limit the planner uses (`TrainBrake.CalculateMaxEffectiveApplication`) is capped at `DirectionStopBrakeLimit` (default 0.15, about 13 psi; 0 = off). The cap ends when a target or speed limit appears again, or below 2 mph.
+- Planner weights: five multipliers (`PlanOverspeedScale`, `PlanUndershootScale`, `PlanUndershootDeadbandScale`, `PlanCeilingScale`, `PlanIndependentUseScale`) scale the rollout controller's score weights through a postfix on `RolloutController.WeightsFor`. All 1 (the game's values) by default.
+- Logger: new columns `maxApp`, `maxAppRaw`, `capActive` (the brake limit, before and after the cap) and, with `LogDecisions` on (default), `plan`, `planCost`, `planHoldCost`, `planAgeS` and `planRoots` (the controller's latest decision, its cost, the cost of holding, how old that decision is, and the best cost of each first action).
+- Self-check covers the new targets (two new features, "Gentle direction-change stop" and "Planner weights", plus "Decision logging").
+
 ## 2.0.1
 - Logger: the tender coal and water columns (`fuelQty`, `waterQty`) were blank on 0.6.0 because load identifiers there carry the pack prefix (`rr/coal`, `rr/water`); both forms are matched now.
 - Logger: a short lock on the CSV (OneDrive sync, a viewer) no longer drops rows. The file is opened with shared access, and rows that fail to write are held and written ahead of the next row (up to 6000), with one warning in the game log.

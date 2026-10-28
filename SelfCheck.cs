@@ -8,6 +8,7 @@ using System.Text;
 using HarmonyLib;
 using Model;
 using Model.AI;
+using Model.AI.SpeedControl.Rollout;
 using Model.Physics;
 using Railroader.Modding;
 
@@ -64,6 +65,18 @@ namespace AutoEngineerBrakeFix
                 ["AutoEngineer.throttleController"] = () => Field(AE, "throttleController", typeof(PIDController)),
                 ["AutoEngineer.trainBrakeController"] = () => Field(AE, "trainBrakeController", typeof(PIDController)),
                 ["AutoEngineer.independentController"] = () => Field(AE, "independentController", typeof(PIDController)),
+
+                ["AutoEngineer.TrainBrake"] = () => BrakeGuidance.TrainBrakeType != null,
+                ["AutoEngineer.TrainBrake._ae"] = () => BrakeGuidance.TrainBrakeType != null && Field(BrakeGuidance.TrainBrakeType, "_ae", typeof(AutoEngineer)),
+                ["AutoEngineer.TrainBrake.CalculateMaxEffectiveApplication()"] =
+                    () => BrakeGuidance.TrainBrakeType != null && Method(BrakeGuidance.TrainBrakeType, "CalculateMaxEffectiveApplication", Type.EmptyTypes, typeof(float)),
+                ["RolloutController.WeightsFor(AutoEngineer)"] =
+                    () => Method(typeof(RolloutController), "WeightsFor", new[] { typeof(AutoEngineer) }, typeof(RolloutScoreWeights)),
+                ["AutoEngineer._speedControlLoop"] = () => Field(AE, "_speedControlLoop", null),
+                ["AutoEngineer.SpeedControlLoop._rolloutController"] =
+                    () => AccessTools.Inner(AE, "SpeedControlLoop") != null && Field(AccessTools.Inner(AE, "SpeedControlLoop"), "_rolloutController", typeof(RolloutController)),
+                ["RolloutController.Result"] = () => AccessTools.PropertyGetter(typeof(RolloutController), "Result") != null,
+                ["RolloutController.DescribeRootCosts()"] = () => Method(typeof(RolloutController), "DescribeRootCosts", Type.EmptyTypes, typeof(string)),
 
                 ["Targets.Mode"] = () => Field(Targets, "Mode", typeof(Game.Messages.AutoEngineerMode)),
                 ["Targets.MaxSpeedMph"] = () => Field(Targets, "MaxSpeedMph", typeof(float)),
@@ -186,6 +199,22 @@ namespace AutoEngineerBrakeFix
                 },
                 new Feature
                 {
+                    Name = "Gentle direction-change stop",
+                    On = () => s.DirectionStopBrakeLimit > 0f,
+                    TurnOff = () => s.DirectionStopBrakeLimit = 0f,
+                    Needs = new[] { "AutoEngineer.TrainBrake", "AutoEngineer.TrainBrake._ae", "AutoEngineer.TrainBrake.CalculateMaxEffectiveApplication()", "AutoEngineer._targets", "Targets.MaxSpeedMph", "Targets.AllTargets" },
+                    Patches = new[] { typeof(TrainBrake_CalculateMaxEffectiveApplication_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Planner weights",
+                    On = () => s.PlanOverspeedScale != 1f || s.PlanUndershootScale != 1f || s.PlanUndershootDeadbandScale != 1f || s.PlanCeilingScale != 1f || s.PlanIndependentUseScale != 1f,
+                    TurnOff = () => { s.PlanOverspeedScale = 1f; s.PlanUndershootScale = 1f; s.PlanUndershootDeadbandScale = 1f; s.PlanCeilingScale = 1f; s.PlanIndependentUseScale = 1f; },
+                    Needs = new[] { "RolloutController.WeightsFor(AutoEngineer)" },
+                    Patches = new[] { typeof(RolloutController_WeightsFor_Patch) },
+                },
+                new Feature
+                {
                     Name = "Starting resistance",
                     On = () => s.StartingResistance,
                     TurnOff = () => s.StartingResistance = false,
@@ -199,6 +228,14 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.RealisticFuel = false,
                     Needs = new[] { "SteamEngine.UpdateConsumption(float)", "SteamEngine._estimatedGrateSqFt", "SteamEngine.WaterConsumptionRate (set)", "SteamEngine.CoalConsumptionRate (set)" },
                     Patches = new[] { typeof(SteamEngine_UpdateConsumption_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Decision logging",
+                    On = () => s.LogEnabled && s.LogDecisions,
+                    TurnOff = () => s.LogDecisions = false,
+                    Needs = new[] { "AutoEngineer._speedControlLoop", "AutoEngineer.SpeedControlLoop._rolloutController", "RolloutController.Result", "RolloutController.DescribeRootCosts()" },
+                    Patches = new Type[0],
                 },
                 new Feature
                 {
