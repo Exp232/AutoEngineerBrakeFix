@@ -1,0 +1,192 @@
+using System;
+using UI.Builder;
+using UI.Windows;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace AutoEngineerBrakeFix
+{
+    /// <summary>
+    /// The mod's in-game settings window, built with the game's own panel builder (the same one its windows use) and
+    /// opened with a hotkey (Ctrl+F8 by default; see SettingsHotkey in Settings.xml). Sliders change the live
+    /// settings at once and every change is written back to Settings.xml. Only settings that are read while the
+    /// game runs are offered here; the ones that choose which patches are installed still need a restart.
+    /// </summary>
+    internal static class SettingsUi
+    {
+        internal const string WindowId = "exp232.autoengineerbrakefix.settings";
+
+        internal static void Toggle()
+        {
+            var windows = WindowManager.Shared;
+            if (windows == null) return;   // main menu: the window system is not up yet
+            EnsureRegistered(windows);
+            windows.ToggleWindow(WindowId);
+        }
+
+        // The game forgets custom windows when a map unloads, so register again whenever the definition is gone.
+        private static void EnsureRegistered(WindowManager windows)
+        {
+            if (windows.HasDefinition(WindowId)) return;
+            windows.RegisterCustomWindow(new CustomWindowDefinition
+            {
+                Identifier = WindowId,
+                Title = "Auto Engineer " + Main.Mod.Info.Version,
+                Config = WindowConfig.Resizable(new Vector2Int(480, 640), new Vector2Int(380, 260)),
+                BuilderAction = Build,
+            });
+        }
+
+        private static void Build(UIPanelBuilder builder)
+        {
+            try
+            {
+                var s = Main.Settings;
+                builder.VScrollView(page =>
+                {
+                    page.AddTitle("Auto Engineer", "AutoEngineerBrakeFix " + Main.Mod.Info.Version);
+
+                    page.AddSection("Fuel saving", b =>
+                    {
+                        b.AddLabel("Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
+                        Slider(b, "Brake tap limit", () => s.BrakeTapSuppressMph, v => s.BrakeTapSuppressMph = v, 0f, 5f, 0.5f,
+                            v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
+                        b.AddLabel("Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
+                        Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
+                            v => v <= 0f ? "off" : v.ToString("0") + " s");
+                        b.AddLabel("Shorter cutoff: how much power it may give up for a shorter cutoff.");
+                        Slider(b, "Cutoff tolerance", () => s.CutoffTolerancePercent, v => s.CutoffTolerancePercent = v, 0f, 10f, 0.5f,
+                            v => v.ToString("0.0") + " %");
+                    });
+
+                    page.AddSection("Planner weights (1 = the game's own)", b =>
+                    {
+                        Slider(b, "Overspeed", () => s.PlanOverspeedScale, v => s.PlanOverspeedScale = v, 0f, 3f, 0.05f, Weight);
+                        Slider(b, "Undershoot", () => s.PlanUndershootScale, v => s.PlanUndershootScale = v, 0f, 3f, 0.05f, Weight);
+                        Slider(b, "Undershoot margin", () => s.PlanUndershootDeadbandScale, v => s.PlanUndershootDeadbandScale = v, 0f, 3f, 0.05f, Weight);
+                        Slider(b, "Ceiling", () => s.PlanCeilingScale, v => s.PlanCeilingScale = v, 0f, 3f, 0.05f, Weight);
+                        Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 3f, 0.05f, Weight);
+                    });
+
+                    page.AddSection("Logging", b =>
+                    {
+                        b.AddFieldToggle("Fuel summary", () => s.LogFuelSummary, v => { s.LogFuelSummary = v; Save(); });
+                    });
+
+                    page.AddSection("", b =>
+                    {
+                        b.AddButton("Reset these to defaults", ResetDefaults);
+                        b.AddLabel("Saved to Settings.xml as you change them. Other settings, and anything that switches a feature on or off at start-up, are edited in that file and need a restart.");
+                    });
+
+                    page.AddSection("Self-check", b =>
+                    {
+                        foreach (string line in SelfCheck.Report) b.AddLabel(line);
+                    });
+                });
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.LogException(e);
+            }
+        }
+
+        private static string Weight(float v)
+        {
+            return v.ToString("0.00") + (Mathf.Abs(v - 1f) < 0.001f ? " (stock)" : "");
+        }
+
+        private static void Slider(UIPanelBuilder b, string label, Func<float> get, Action<float> set, float min, float max, float step, Func<float, string> format)
+        {
+            b.AddField(label, b.AddSliderQuantized(
+                get,
+                () => format(get()),
+                v => set(Mathf.Clamp(Mathf.Round(v / step) * step, min, max)),
+                step, min, max,
+                v => Save()));
+        }
+
+        private static void ResetDefaults()
+        {
+            var d = new Settings();
+            var s = Main.Settings;
+            s.BrakeTapSuppressMph = d.BrakeTapSuppressMph;
+            s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
+            s.CutoffTolerancePercent = d.CutoffTolerancePercent;
+            s.PlanOverspeedScale = d.PlanOverspeedScale;
+            s.PlanUndershootScale = d.PlanUndershootScale;
+            s.PlanUndershootDeadbandScale = d.PlanUndershootDeadbandScale;
+            s.PlanCeilingScale = d.PlanCeilingScale;
+            s.PlanIndependentUseScale = d.PlanIndependentUseScale;
+            Save();
+        }
+
+        private static void Save()
+        {
+            try
+            {
+                Main.Settings.Save(Main.SettingsPath);
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.Warning("Could not save settings: " + e.Message);
+            }
+        }
+    }
+
+    /// <summary>Listens for the settings hotkey. Lives on its own object for as long as the mod is loaded.</summary>
+    internal sealed class SettingsHotkey : MonoBehaviour
+    {
+        private InputAction _action;
+
+        private void OnEnable()
+        {
+            try
+            {
+                string key = Main.Settings.SettingsHotkey;
+                if (string.IsNullOrWhiteSpace(key)) return;
+
+                _action = new InputAction("AutoEngineerBrakeFix.Settings", InputActionType.Button);
+                if (Main.Settings.SettingsHotkeyCtrl)
+                {
+                    _action.AddCompositeBinding("ButtonWithOneModifier")
+                        .With("Modifier", "<Keyboard>/ctrl")
+                        .With("Button", key);
+                }
+                else
+                {
+                    _action.AddBinding(key);
+                }
+                _action.performed += OnPerformed;
+                _action.Enable();
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.Warning("Settings hotkey not available: " + e.Message);
+                _action = null;
+            }
+        }
+
+        private void OnPerformed(InputAction.CallbackContext context)
+        {
+            if (!Main.Active) return;
+            try
+            {
+                SettingsUi.Toggle();
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.LogException(e);
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (_action == null) return;
+            _action.performed -= OnPerformed;
+            _action.Disable();
+            _action.Dispose();
+            _action = null;
+        }
+    }
+}

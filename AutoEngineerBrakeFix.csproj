@@ -30,6 +30,16 @@
     <Reference Include="$(ManagedDir)\Railroader.Modding.dll" Private="false" />
     <Reference Include="$(ManagedDir)\UnityEngine.dll" Private="false" />
     <Reference Include="$(ManagedDir)\UnityEngine.*.dll" Private="false" />
+    <!-- The settings window uses the game's panel builder and the Input System; its signatures mention types from these. -->
+    <Reference Include="$(ManagedDir)\Unity.InputSystem.dll" Private="false" Condition="Exists('$(ManagedDir)\Unity.InputSystem.dll')" />
+    <Reference Include="$(ManagedDir)\Unity.TextMeshPro.dll" Private="false" Condition="Exists('$(ManagedDir)\Unity.TextMeshPro.dll')" />
+    <Reference Include="$(ManagedDir)\KeyValue.Runtime.dll" Private="false" Condition="Exists('$(ManagedDir)\KeyValue.Runtime.dll')" />
+    <Reference Include="$(ManagedDir)\Core.dll" Private="false" Condition="Exists('$(ManagedDir)\Core.dll')" />
+    <Reference Include="$(ManagedDir)\AssetPack.Common.dll" Private="false" Condition="Exists('$(ManagedDir)\AssetPack.Common.dll')" />
+    <Reference Include="$(ManagedDir)\Map.Runtime.dll" Private="false" Condition="Exists('$(ManagedDir)\Map.Runtime.dll')" />
+    <Reference Include="$(ManagedDir)\SimpleGraph.Runtime.dll" Private="false" Condition="Exists('$(ManagedDir)\SimpleGraph.Runtime.dll')" />
+    <Reference Include="$(ManagedDir)\Unity.Burst.dll" Private="false" Condition="Exists('$(ManagedDir)\Unity.Burst.dll')" />
+    <Reference Include="$(ManagedDir)\Unity.Mathematics.dll" Private="false" Condition="Exists('$(ManagedDir)\Unity.Mathematics.dll')" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,7 +56,7 @@
   <Target Name="PackageRelease" AfterTargets="Build" Condition="'$(Package)' == 'true'">
     <PropertyGroup>
       <StageDir>$(MSBuildProjectDirectory)\dist\stage\AutoEngineerBrakeFix</StageDir>
-      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">2.3.1</ReleaseVersion>
+      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">2.4.0</ReleaseVersion>
     </PropertyGroup>
     <RemoveDir Directories="$(MSBuildProjectDirectory)\dist" />
     <MakeDir Directories="$(StageDir)" />

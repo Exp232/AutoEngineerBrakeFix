@@ -14,5 +14,7 @@ A mod for Railroader's built-in mod loader (Unity/Mono, game 0.6.0; entry point 
 - Keep defaults stable. When changing behaviour or a setting, bump the version in `Info.json`, `BUILDING.md` and the csproj together and add a `CHANGELOG.md` entry (newest first, under `# Changelog`). Update `README.md` for user-visible features.
 - Game physics notes: the game uses the Davis equation for resistance, journal bearings for everything, slack of about 0.04 m per coupler, per-car static friction via `IntegrationSet.ApplyBrakes`.
 
+- In-game settings window: `SettingsUi.cs` (the game's `UIPanelBuilder` through `WindowManager.Shared.RegisterCustomWindow`, hotkey Ctrl+F8). A new setting that is read while the game runs should get a slider there. If its patch is only installed when the setting is on, set `AlwaysPatch = true` on its feature in `SelfCheck.cs` and make the patch do nothing while the setting is off.
+
 ## Workflow
 Logs (CSV) and decompiled game code come from the user in another chat. This repo is the source of truth: if you fix something here, tell the user so they can pass the diff back.

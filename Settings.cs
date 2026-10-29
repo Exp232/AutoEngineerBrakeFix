@@ -193,8 +193,23 @@ namespace AutoEngineerBrakeFix
         /// <summary>Also write logs\fuel_summary_*.csv: coal, water and distance per engineer about once a minute, split by powered, coasting, braking and "both" (throttle open while braked), with brake applications counted.</summary>
         public bool LogFuelSummary = true;
 
+        /// <summary>Opens the in-game settings window: an Input System binding path (for example &lt;Keyboard&gt;/f8), empty for none.</summary>
+        public string SettingsHotkey = "<Keyboard>/f8";
+
+        /// <summary>Hold Ctrl with SettingsHotkey (the default, so the key cannot clash with the game's own).</summary>
+        public bool SettingsHotkeyCtrl = true;
+
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;
+
+        /// <summary>Writes the file through a temporary copy, so a failed write cannot leave half a file.</summary>
+        internal void Save(string path)
+        {
+            string temp = path + ".tmp";
+            using (var stream = File.Create(temp)) new XmlSerializer(typeof(Settings)).Serialize(stream, this);
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(temp, path);
+        }
 
         /// <summary>Reads the file, or returns defaults (and writes them out when there is no file yet).</summary>
         internal static Settings Load(string path, out string problem)

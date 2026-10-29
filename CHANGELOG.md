@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.0
+- New: in-game settings window, built with the game's own panel builder and opened with **Ctrl+F8** (`SettingsHotkey` and `SettingsHotkeyCtrl` in Settings.xml change the key). It has sliders for the brake tap limit, the slowing lead, the cutoff tolerance and the five planner weights, a switch for the fuel summary log, a reset button, and the self-check result for each feature. Changes apply at once and are written to Settings.xml as they are made (through a temporary file). The window is registered again after each map load, because the game forgets custom windows when a map unloads. It does nothing at the main menu.
+- Features that the window can switch on while the game is running (brake tap suppression, early slowing, planner weights) now install their patches whenever the game members they need exist, even when the setting is off at start-up; each patch does nothing while its setting is off or at the game's value. Before this, a feature that was off at start-up needed a restart. Self-check lines for them read "off (can be switched on in the settings window)". Features that choose their patches by other settings (cutoff, realistic fuel, logging, and so on) are unchanged and are still edited in Settings.xml.
+- Build: the project also references `Unity.InputSystem.dll`, `Unity.TextMeshPro.dll` and a few of the game's other assemblies when present, because the panel builder's method signatures mention their types.
+- Behaviour with the default settings is otherwise unchanged.
+
 ## 2.3.1
 - Fix: the fuel summary counted a train brake handle at a small reduction as braking. The engineer often parks the handle at a 5 psi reduction that leaves the car cylinders empty (log: set 0.0556, cylinders 0.02 psi, throttle 1.0 for 98 s), so the "both" column and the brake and tap counts were too high. Braking, overlap and brake applications are now judged by the average cylinder pressure (above 1 psi, locomotive or cars), read four times a second of game time.
 - Fix: brake tap suppression only fired when the handle was fully released, so a handle parked at a small reduction defeated it. It now fires on the first real application: handle at most a 10 psi reduction and car cylinders at or below 1 psi. The self-check also needs `AutoEngineer.AverageTrainBrakeCylinder()` for this feature.

@@ -38,7 +38,12 @@ namespace AutoEngineerBrakeFix
             public string[] Needs;
             public Type[] Patches;
             public string Status;
+            /// <summary>Install the patches when the targets exist even while the feature is off, so the in-game window can switch it on. The patch must do nothing while the setting is off.</summary>
+            public bool AlwaysPatch;
         }
+
+        /// <summary>One line per feature (name and status) from the last check, shown in the settings window.</summary>
+        internal static readonly List<string> Report = new List<string>();
 
         // ---- Targets ----
 
@@ -185,6 +190,7 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Early slowing for lower limits",
+                    AlwaysPatch = true,
                     On = () => s.SpeedReductionLeadSeconds > 0f,
                     TurnOff = () => s.SpeedReductionLeadSeconds = 0f,
                     Needs = new[] { "AutoEngineer.SetTargets(Targets)", "Targets.AllTargets", "Targets.MaxSpeedMph" },
@@ -217,6 +223,7 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Planner weights",
+                    AlwaysPatch = true,
                     On = () => s.PlanOverspeedScale != 1f || s.PlanUndershootScale != 1f || s.PlanUndershootDeadbandScale != 1f || s.PlanCeilingScale != 1f || s.PlanIndependentUseScale != 1f,
                     TurnOff = () => { s.PlanOverspeedScale = 1f; s.PlanUndershootScale = 1f; s.PlanUndershootDeadbandScale = 1f; s.PlanCeilingScale = 1f; s.PlanIndependentUseScale = 1f; },
                     Needs = new[] { "RolloutController.WeightsFor(AutoEngineer)" },
@@ -249,6 +256,7 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Brake tap suppression",
+                    AlwaysPatch = true,
                     On = () => s.BrakeTapSuppressMph > 0f,
                     TurnOff = () => s.BrakeTapSuppressMph = 0f,
                     Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer.AverageTrainBrakeCylinder()", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets" },
@@ -316,7 +324,15 @@ namespace AutoEngineerBrakeFix
                 string[] missing = f.Needs.Where(n => !found[n]).ToArray();
                 if (!f.On())
                 {
-                    f.Status = "disabled in settings";
+                    if (f.AlwaysPatch && missing.Length == 0)
+                    {
+                        f.Status = "off (can be switched on in the settings window)";
+                        foreach (var p in f.Patches) if (!wanted.Contains(p)) wanted.Add(p);
+                    }
+                    else
+                    {
+                        f.Status = "disabled in settings";
+                    }
                 }
                 else if (missing.Length > 0)
                 {
@@ -354,6 +370,8 @@ namespace AutoEngineerBrakeFix
             }
 
             foreach (var f in features) log.AppendLine($"  {f.Name}: {f.Status}");
+            Report.Clear();
+            foreach (var f in features) Report.Add(f.Name + ": " + f.Status);
 
             // 4. Verify: every applied patch class targets exactly one method.
             int patched = harmony.GetPatchedMethods().Count();

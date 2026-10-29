@@ -61,6 +61,9 @@ Needs Railroader 0.6.0 or later; uses the game's built-in mod loader (Unity Mod 
 
 At start-up the mod checks that everything it patches is still in the game. Features whose targets are missing are switched off and the rest keep working; the result is one summary block in the game log (`Player.log`).
 
+## Settings window
+Press **Ctrl+F8** in game (not at the main menu) to open the settings window: sliders for the brake tap limit, slowing lead, cutoff tolerance and planner weights, a switch for the fuel summary log, and the self-check result per feature. Changes apply immediately and are saved to `Settings.xml`. Everything else is still edited in that file.
+
 ## Settings (summary)
 Brake fix on/off and overspeed margin; locomotive brake; shorter cutoff on/off, power given up, steep-grade limit; throttle smoothing, glide, close-on-overspeed; throttle hold, brake hold, stay stopped; speed-limit lead and release lead, stall guard; direction-change brake limit and the five planner weight multipliers; realistic fuel use (steam rate, cutoff effect, coal scale); brake tap suppression (`BrakeTapSuppressMph`, off at 0; try 2) and the fuel summary log (`LogFuelSummary`); signal sight distance, approach limit at the signal, hold after the signal, approach speed when no signal follows (25 = stock), `CtcDropBlocks` (temporary map workaround for Sylva West eastbound, `signalId:blockId` pairs, empty = off); experimental planning sliders (look-ahead multiplier, assumed braking), both stock by default; diagnostic logger (off by default, writes CSVs under the mod folder's `logs`, including `signals_*.csv` with one line per signal or aspect change and `ctc_dump_*.txt`, a once-per-session list of every CTC block span and signal (read-only); with decision logging on, each row also has the controller's chosen action, its cost, the cost of holding, and the cost of each first action).
 

@@ -72,6 +72,7 @@ namespace AutoEngineerBrakeFix
         internal static string SettingsPath => Path.Combine(Mod.Path, "Settings.xml");
 
         private static HarmonyLib.Harmony _harmony;
+        private static UnityEngine.GameObject _hotkey;
 
         internal static void Load(IModContext context)
         {
@@ -88,6 +89,17 @@ namespace AutoEngineerBrakeFix
             _harmony = new HarmonyLib.Harmony(context.ModIdentifier);
             Active = SelfCheck.Run(context, _harmony);
             if (!Active) return;
+
+            try
+            {
+                _hotkey = new UnityEngine.GameObject("AutoEngineerBrakeFix.Hotkey");
+                UnityEngine.Object.DontDestroyOnLoad(_hotkey);
+                _hotkey.AddComponent<SettingsHotkey>();
+            }
+            catch (Exception e)
+            {
+                Mod.Logger.Warning("Settings window hotkey could not be set up: " + e.Message);
+            }
 
             // Engineers that already exist (none at start-up, normally) get their helpers now.
             foreach (var engineer in UnityEngine.Object.FindObjectsByType<Model.AI.AutoEngineer>(UnityEngine.FindObjectsSortMode.None))
@@ -112,6 +124,12 @@ namespace AutoEngineerBrakeFix
             foreach (var glider in UnityEngine.Object.FindObjectsByType<ThrottleGlider>(UnityEngine.FindObjectsSortMode.None))
             {
                 UnityEngine.Object.Destroy(glider);
+            }
+
+            if (_hotkey != null)
+            {
+                UnityEngine.Object.Destroy(_hotkey);
+                _hotkey = null;
             }
 
             LogWriter.Close();
