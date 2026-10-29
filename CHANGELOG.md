@@ -1,8 +1,12 @@
 # Changelog
 
+## 2.2.5
+- Fix: the 2.2.4 CTC block workaround did not run on game 0.6.1. It was gated on `FixEnabled`, and the self-check switches `FixEnabled` off on 0.6.1 (the brake-drag members `trainBrakeController`, `independentController` and `throttleController` are not found, see the self-check in `Player.log`). The workaround now depends only on `CtcDropBlocks` being set. The statement in 2.2.4 that it applies with `FixEnabled` on is wrong.
+- Behaviour is otherwise unchanged.
+
 ## 2.2.4
 - Temporary workaround for the Sylva West eastbound signal (`sy-w-eb`) dropping to Stop about 45 m before a train, which makes the auto-engineer's emergency stop fire from 25 mph. Cause (from `ctc_dump_*.txt` and `Player.log`): the signal's protected-block list contains only block `sy-w`, whose span lies 12.9 to 50.6 m short of the signal, and the block goes occupied as the train enters it (the same second as the signal change in two runs). Every other signal with protected blocks has them starting 5 to 7 m ahead of it. New setting `CtcDropBlocks` (default `sy-w-eb:sy-w`; comma-separated `signalId:blockId` pairs; empty = off) takes the named block off the named signal's list at runtime each time a map loads, then asks the signal to recalculate. Nothing in the map or save is changed, and the pair is ignored if it is not on the map. Remove the setting when the game fixes the block (the game's own earlier fixes for the same kind of fault, RR-178, RR-783 and RR-787, moved block boundaries in the map).
-- Applies with `FixEnabled` on, and does not need the logger. Self-check: new feature "CTC block fix".
+- Does not need the logger. Self-check: new feature "CTC block fix".
 
 ## 2.2.3
 - Logger: new file `logs\ctc_dump_*.txt`, written once per game session when the first engineer is enabled (`LogCtc`, default on; needs `LogEnabled`). It lists every CTC block with its track spans (segment, end, distance, position, length) and every signal with its position, its aspect, the blocks it protects and the distance from the signal to each span end of those blocks. Read-only; nothing in the game is changed.

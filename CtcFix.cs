@@ -25,7 +25,7 @@ namespace AutoEngineerBrakeFix
         internal static void Apply()
         {
             string spec = Main.Settings.CtcDropBlocks;
-            if (!Main.Settings.FixEnabled || string.IsNullOrWhiteSpace(spec)) return;
+            if (string.IsNullOrWhiteSpace(spec)) return;   // not tied to FixEnabled: the self-check switches that off on 0.6.x
 
             var pairs = new List<KeyValuePair<string, string>>();
             foreach (string item in spec.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
