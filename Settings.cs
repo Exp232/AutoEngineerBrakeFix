@@ -160,6 +160,13 @@ namespace AutoEngineerBrakeFix
         /// </summary>
         public float DirectionStopBrakeLimit = 0.15f;
 
+        /// <summary>
+        /// Fuel saving, off at 0. When the train is no more than this many mph over its target, is not gaining speed and
+        /// nothing ahead needs it to slow, the controller's first train-brake application is turned into a coast. Road mode
+        /// only. 2 is a reasonable first value.
+        /// </summary>
+        public float BrakeTapSuppressMph = 0f;
+
         /// <summary>Multipliers on the rollout controller's score weights (1 = the game's own value).</summary>
         public float PlanOverspeedScale = 1f;
         public float PlanUndershootScale = 1f;
@@ -182,6 +189,9 @@ namespace AutoEngineerBrakeFix
 
         /// <summary>Also write logs\ctc_dump_*.txt once per session: every CTC block's track spans and every signal's position and protected blocks (read-only; for tracking down signals that drop to Stop early).</summary>
         public bool LogCtc = true;
+
+        /// <summary>Also write logs\fuel_summary_*.csv: coal, water and distance per engineer about once a minute, split by powered, coasting, braking and "both" (throttle open while braked), with brake applications counted.</summary>
+        public bool LogFuelSummary = true;
 
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;

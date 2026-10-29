@@ -46,7 +46,7 @@
   <Target Name="PackageRelease" AfterTargets="Build" Condition="'$(Package)' == 'true'">
     <PropertyGroup>
       <StageDir>$(MSBuildProjectDirectory)\dist\stage\AutoEngineerBrakeFix</StageDir>
-      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">2.2.6</ReleaseVersion>
+      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">2.3.0</ReleaseVersion>
     </PropertyGroup>
     <RemoveDir Directories="$(MSBuildProjectDirectory)\dist" />
     <MakeDir Directories="$(StageDir)" />

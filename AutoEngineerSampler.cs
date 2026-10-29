@@ -73,6 +73,8 @@ namespace AutoEngineerBrakeFix
                 ObserveSignal();
             }
 
+            if (Main.Settings.LogFuelSummary) TickFuelSummary();
+
             if (Time.fixedTime < _nextSampleTime) return;
 
             _nextSampleTime = Time.fixedTime + Mathf.Max(0.05f, Main.Settings.SampleIntervalSeconds);
@@ -87,6 +89,29 @@ namespace AutoEngineerBrakeFix
                 {
                     _loggedError = true;
                     Main.Mod.Logger.Log("Sampler error (further errors suppressed for this engineer):");
+                    Main.Mod.Logger.LogException(e);
+                }
+            }
+        }
+
+        private bool _loggedFuelSummaryError;
+
+        private void TickFuelSummary()
+        {
+            try
+            {
+                var loco = _ae.Locomotive;
+                if (loco == null) return;
+                object control = FControl?.GetValue(_ae);
+                FuelSummary.Tick(_ae, Time.fixedDeltaTime, loco.velocity, ReadFloat(control, "Throttle"), ReadFloat(control, "TrainBrake"),
+                    ReadFloat(control, "LocomotiveBrake"), SteamValue(loco, 2), SteamValue(loco, 1));
+            }
+            catch (Exception e)
+            {
+                if (!_loggedFuelSummaryError)
+                {
+                    _loggedFuelSummaryError = true;
+                    Main.Mod.Logger.Log("Fuel summary error (further errors suppressed for this engineer):");
                     Main.Mod.Logger.LogException(e);
                 }
             }

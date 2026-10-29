@@ -85,6 +85,9 @@ namespace AutoEngineerBrakeFix
                 ["Targets.AverageGradeUnder"] = () => Field(Targets, "AverageGradeUnder", typeof(float)),
                 ["Targets.AverageGradeAhead"] = () => Field(Targets, "AverageGradeAhead", typeof(float)),
                 ["Targets.NextSignal"] = () => Field(Targets, "NextSignal", typeof(CTCSignal)),
+                ["AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)"] =
+                    () => BrakeTaps.LoopType != null && AccessTools.Method(BrakeTaps.LoopType, "ApplyRolloutCommand") != null,
+                ["AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel"] = () => BrakeTaps.Available,
                 ["CTCAutoSignal.blocks"] = () => Field(typeof(CTCAutoSignal), "blocks", typeof(List<CTCBlock>)),
                 ["CTCSignal.SetNeedsUpdate()"] = () => AccessTools.Method(typeof(CTCSignal), "SetNeedsUpdate") != null,
                 ["CTCSignal.id, LastShownAspect, DisplayName"] =
@@ -242,6 +245,14 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.LogDecisions = false,
                     Needs = new[] { "AutoEngineer._speedControlLoop", "AutoEngineer.SpeedControlLoop._rolloutController", "RolloutController.Result", "RolloutController.DescribeRootCosts()" },
                     Patches = new Type[0],
+                },
+                new Feature
+                {
+                    Name = "Brake tap suppression",
+                    On = () => s.BrakeTapSuppressMph > 0f,
+                    TurnOff = () => s.BrakeTapSuppressMph = 0f,
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets" },
+                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
                 },
                 new Feature
                 {
