@@ -43,12 +43,36 @@ namespace AutoEngineerBrakeFix
                 {
                     if (signal.id != pair.Key) continue;
                     int removed = signal.blocks.RemoveAll(b => b != null && b.id == pair.Value);
-                    if (removed == 0) continue;
-                    Main.Mod.Logger.Log("CTC fix: block " + pair.Value + " removed from signal " + pair.Key + " (its span lies behind the signal).");
+                    int fromOutlets = RemoveFromOutlets(signal, pair.Value);
+                    if (removed + fromOutlets == 0) continue;
+                    Main.Mod.Logger.Log("CTC fix: block " + pair.Value + " removed from signal " + pair.Key + ": " + removed + " from its protected blocks, " + fromOutlets + " from the interlocking outlet(s) it reads (its span lies behind the signal).");
                     try { Refresh?.Invoke(signal, null); }
                     catch (Exception e) { Main.Mod.Logger.Warning("CTC fix: could not refresh " + pair.Key + ": " + e.Message); }
                 }
             }
+        }
+
+        /// <summary>
+        /// An interlocking signal also shows Stop when a block on the outlet its route leads into is occupied (CTCAutoSignal
+        /// reads Interlocking.BlockAndNexSignal for each route in interlockingRouteMapping). This removes the block from the
+        /// outlet used by this signal's routes in its direction of travel.
+        /// </summary>
+        private static int RemoveFromOutlets(CTCAutoSignal signal, string blockId)
+        {
+            CTCInterlocking interlocking = signal.Interlocking;
+            if (interlocking == null || interlocking.routes == null || interlocking.outlets == null || signal.interlockingRouteMapping == null) return 0;
+            var done = new HashSet<int>();
+            int removed = 0;
+            foreach (int routeIndex in signal.interlockingRouteMapping)
+            {
+                if (routeIndex < 0 || routeIndex >= interlocking.routes.Count) continue;
+                CTCInterlocking.Route route = interlocking.routes[routeIndex];
+                int outletIndex = signal.direction == CTCDirection.Right ? route.outletRight : route.outletLeft;
+                if (outletIndex < 0 || outletIndex >= interlocking.outlets.Count || !done.Add(outletIndex)) continue;
+                List<CTCBlock> list = interlocking.outlets[outletIndex].blocks;   // a reference: edited in place
+                if (list != null) removed += list.RemoveAll(b => b != null && b.id == blockId);
+            }
+            return removed;
         }
     }
 }

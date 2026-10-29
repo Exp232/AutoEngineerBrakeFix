@@ -32,14 +32,15 @@ namespace AutoEngineerBrakeFix
                 }
 
                 BrakeFix.Register(__instance);
-                try { CtcFix.Apply(); }
-                catch (Exception e) { Main.Mod.Logger.Warning("CTC fix failed: " + e.Message); }
                 if (Main.Settings.LogEnabled)
                 {
                     ConfigDump.DumpOnce(__instance);
                     ConfigDump.DumpEngineOnce(__instance);
                     if (Main.Settings.LogCtc) CtcDump.DumpOnce();
                 }
+                // After the dump, so the dump shows the map as the game made it.
+                try { CtcFix.Apply(); }
+                catch (Exception e) { Main.Mod.Logger.Warning("CTC fix failed: " + e.Message); }
             }
             catch (Exception e)
             {

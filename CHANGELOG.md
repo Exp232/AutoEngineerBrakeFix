@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.6
+- Fix: the 2.2.4/2.2.5 workaround ran (`Player.log`: "CTC fix: block sy-w removed from signal sy-w-eb") but the signal still dropped to Stop in the same second block `sy-w` went occupied (23:22:05, emergency stop 23:22:09). Taking the block off the signal's own list was not enough: an interlocking signal also shows Stop when a block on the outlet its route leads into is occupied (`Interlocking.BlockAndNexSignal`). `CtcDropBlocks` now also removes the block from the interlocking outlet(s) that the signal's routes use in its direction of travel, and the log line says how many entries came from each place.
+- Logger: `ctc_dump_*.txt` gains an interlockings section (switch sets, outlets with their blocks and next signal, routes) and each signal's interlocking and route mapping, so the outlet data can be checked.
+- Behaviour is otherwise unchanged.
+
 ## 2.2.5
 - Fix: the 2.2.4 CTC block workaround did not run on game 0.6.1. It was gated on `FixEnabled`, and the self-check switches `FixEnabled` off on 0.6.1 (the brake-drag members `trainBrakeController`, `independentController` and `throttleController` are not found, see the self-check in `Player.log`). The workaround now depends only on `CtcDropBlocks` being set. The statement in 2.2.4 that it applies with `FixEnabled` on is wrong.
 - Behaviour is otherwise unchanged.

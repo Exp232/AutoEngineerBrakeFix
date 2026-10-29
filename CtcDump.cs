@@ -54,6 +54,36 @@ namespace AutoEngineerBrakeFix
                 }
                 sb.AppendLine();
 
+                var interlockings = UnityEngine.Object.FindObjectsByType<CTCInterlocking>(FindObjectsSortMode.None);
+                Array.Sort(interlockings, (a, b) => string.CompareOrdinal(a.id, b.id));
+                sb.AppendLine("== Interlockings (" + interlockings.Length + ") ==");
+                foreach (CTCInterlocking il in interlockings)
+                {
+                    sb.AppendLine("interlocking " + il.id + "  (" + il.displayName + ")  child blocks: " + string.Join(", ", Names(il.Blocks)));
+                    if (il.switchSets != null)
+                    {
+                        for (int i = 0; i < il.switchSets.Count; i++)
+                            sb.AppendLine("    switchSet " + i + ": " + (il.switchSets[i].switchNodeIds == null ? "" : string.Join(", ", il.switchSets[i].switchNodeIds)));
+                    }
+                    if (il.outlets != null)
+                    {
+                        for (int i = 0; i < il.outlets.Count; i++)
+                        {
+                            var o = il.outlets[i];
+                            sb.AppendLine("    outlet " + i + ": direction=" + o.direction + "  blocks=[" + string.Join(", ", Names(o.Blocks)) + "]  nextSignal=" + (o.nextSignal != null ? o.nextSignal.id : "-"));
+                        }
+                    }
+                    if (il.routes != null)
+                    {
+                        for (int i = 0; i < il.routes.Count; i++)
+                        {
+                            var r = il.routes[i];
+                            sb.AppendLine("    route " + i + ": outletLeft=" + r.outletLeft + " outletRight=" + r.outletRight + "  switchFilters=[" + (r.switchFilters == null ? "" : string.Join(", ", r.switchFilters)) + "]");
+                        }
+                    }
+                }
+                sb.AppendLine();
+
                 sb.AppendLine("== Signals (" + signals.Length + ") ==");
                 foreach (CTCSignal signal in signals)
                 {
@@ -64,6 +94,7 @@ namespace AutoEngineerBrakeFix
 
                     var auto = signal as CTCAutoSignal;
                     if (auto == null || auto.blocks == null) continue;
+                    sb.AppendLine("    interlocking " + (signal.Interlocking != null ? signal.Interlocking.id : "-") + "  routeMapping=[" + (auto.interlockingRouteMapping == null ? "" : string.Join(", ", auto.interlockingRouteMapping)) + "]");
                     foreach (CTCBlock block in auto.blocks)
                     {
                         if (block == null) continue;
@@ -82,6 +113,11 @@ namespace AutoEngineerBrakeFix
                 _done = true;
                 Main.Mod.Logger.Warning("CTC dump failed: " + e.Message);
             }
+        }
+
+        private static System.Collections.Generic.IEnumerable<string> Names(System.Collections.Generic.IEnumerable<CTCBlock> blocks)
+        {
+            foreach (CTCBlock b in blocks) yield return b != null ? b.id : "<null>";
         }
 
         private static string F(float v)
