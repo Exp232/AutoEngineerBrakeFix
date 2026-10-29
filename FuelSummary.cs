@@ -25,7 +25,7 @@ namespace AutoEngineerBrakeFix
         private const float MpsToMph = 2.23694f;
         private const float CylinderPsi = 1f;   // average cylinder pressure above this counts as braking
 
-        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy";
+        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy,setup";
 
         private sealed class Tally
         {
@@ -107,7 +107,7 @@ namespace AutoEngineerBrakeFix
                 N(t.Water, "0"),
                 N(t.PhaseCoal[0], "0"), N(t.PhaseCoal[1], "0"), N(t.PhaseCoal[2], "0"), N(t.PhaseCoal[3], "0"),
                 N(t.PhaseSeconds[0] / 60.0, "0.0"), N(t.PhaseSeconds[1] / 60.0, "0.0"), N(t.PhaseSeconds[2] / 60.0, "0.0"), N(t.PhaseSeconds[3] / 60.0, "0.0"), N(t.PhaseSeconds[4] / 60.0, "0.0"),
-                t.Apps.ToString(CultureInfo.InvariantCulture), t.TapApps.ToString(CultureInfo.InvariantCulture), t.Suppressed.ToString(CultureInfo.InvariantCulture), BrakeTaps.RejectSummary());
+                t.Apps.ToString(CultureInfo.InvariantCulture), t.TapApps.ToString(CultureInfo.InvariantCulture), t.Suppressed.ToString(CultureInfo.InvariantCulture), BrakeTaps.RejectSummary(), Main.Settings.Describe());
 
             lock (Lock)
             {

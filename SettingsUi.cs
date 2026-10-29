@@ -137,6 +137,7 @@ namespace AutoEngineerBrakeFix
             try
             {
                 Main.Settings.Save(Main.SettingsPath);
+                Main.Mod.Logger.Log("Settings saved: " + Main.Settings.Describe());
             }
             catch (Exception e)
             {

@@ -202,6 +202,16 @@ namespace AutoEngineerBrakeFix
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;
 
+        /// <summary>The tuning values the settings window controls, on one line (for the logs, so every run says how it was set).</summary>
+        internal string Describe()
+        {
+            var c = System.Globalization.CultureInfo.InvariantCulture;
+            return "tap=" + BrakeTapSuppressMph.ToString("0.#", c) + ";lead=" + SpeedReductionLeadSeconds.ToString("0.#", c)
+                + ";cut=" + CutoffTolerancePercent.ToString("0.#", c) + ";over=" + PlanOverspeedScale.ToString("0.##", c)
+                + ";under=" + PlanUndershootScale.ToString("0.##", c) + ";margin=" + PlanUndershootDeadbandScale.ToString("0.##", c)
+                + ";ceil=" + PlanCeilingScale.ToString("0.##", c) + ";indep=" + PlanIndependentUseScale.ToString("0.##", c);
+        }
+
         /// <summary>Writes the file through a temporary copy, so a failed write cannot leave half a file.</summary>
         internal void Save(string path)
         {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.2
+- Logger: every `fuel_summary_*.csv` row gets a `setup` column with the settings window's values at that moment (for example `tap=2;lead=6;cut=3;over=1;under=1;margin=2;ceil=1;indep=1`), so a run records how it was set rather than relying on Settings.xml. The settings window also writes `Settings saved: ...` to `Player.log` on each save. Reason: a run meant to test Undershoot margin 2.0 left `PlanUndershootDeadbandScale` at 1 in Settings.xml and gave the same coal as the run before it, so it could not be told whether the value had been applied.
+- Behaviour is otherwise unchanged.
+
 ## 2.4.1
 - Fix: brake tap suppression never fired on a Bryson to Sylva run (`tapsSuppressed` 0 with the limit at 2 mph; 331 lb/mi against 329 without it). The run was in Waypoint mode ("Running to waypoint" in every target list) and the filter only allowed Road mode. It now allows Road and Waypoint. A stop target within the larger of 1500 m and 80 s of travel, or a lower limit within 600 m / 40 s, still leaves the application to the controller, so stopping accuracy at a waypoint is not changed. Yard mode is still left alone.
 - Logger: `fuel_summary_*.csv` gains a `tapWhy` column, a running count of why first brake applications were not suppressed (`locoBrake`, `handleDown`, `cylinders`, `mode`, `slow`, `overLimit`, `gaining`, `limitAhead`, `stopAhead`), to show which condition is holding the filter back.
