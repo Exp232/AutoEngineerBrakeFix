@@ -133,6 +133,7 @@ namespace AutoEngineerBrakeFix
                     SignalPlanning.Warn("SetTargets: AllTargets is not an editable list; signal fixes disabled.");
                     return;
                 }
+                if (Main.Settings.LogEnabled && Main.Settings.LogSignals) SignalLog.CaptureRaw(__instance, list);   // before any edit below
                 if (fresh && SignalPlanning.Gap <= 0f) LimitApproachWithoutNext(list);
                 if (fresh && Main.Settings.ApproachTargetAtSignal) MoveApproachTarget(list);
                 if (Main.Settings.HoldApproachSpeed) HoldApproach(__instance, list);

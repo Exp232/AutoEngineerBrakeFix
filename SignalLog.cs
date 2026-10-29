@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -30,7 +31,7 @@ namespace AutoEngineerBrakeFix
         private static StreamWriter _writer;
         private static bool _warned;
 
-        private const string Header = "t,clock,loco,event,signalId,signalName,from,to,mph,sigDistM,sigMastM,nextTarget,targets";
+        private const string Header = "t,clock,loco,event,signalId,signalName,from,to,mph,sigDistM,sigRawM,travelM,nextTarget,targets";
 
         /// <summary>The tracked signal's id, name and shown aspect; empty strings when the AI has no signal in view.</summary>
         internal static void Read(AutoEngineer.Targets targets, out string id, out string name, out string aspect)
@@ -47,29 +48,59 @@ namespace AutoEngineerBrakeFix
         internal static float DistanceToSignal(AutoEngineer.Targets targets)
         {
             if (targets == null || targets.AllTargets == null) return float.NaN;
-            foreach (var t in targets.AllTargets)
+            return DistanceFrom(targets.AllTargets);
+        }
+
+        private static float DistanceFrom(IEnumerable<AutoEngineer.Targets.Target> list)
+        {
+            foreach (var t in list)
             {
                 if (t.Reason == "Stop Signal") return t.Distance + 15f;
             }
-            foreach (var t in targets.AllTargets)
+            foreach (var t in list)
             {
                 if (t.Reason == "Signal") return t.Distance;
             }
             return float.NaN;
         }
 
-        /// <summary>
-        /// Straight-line metres from the locomotive's centre to the tracked signal's mast (3D, through any curve). It does not
-        /// depend on the planner's own distance, so comparing it with sigDistM shows how far the AI's distance is off.
-        /// The AI measures from the head of the train; the locomotive's centre is up to about half a locomotive length behind that.
-        /// </summary>
-        internal static float MastDistance(AutoEngineer ae, AutoEngineer.Targets targets)
+        // ---- Raw distance and distance travelled ----
+        // The mod edits the target list before the engineer sees it (for example, lower limits are moved closer by
+        // SpeedReductionLeadSeconds of travel), so the distance in the log is not the game's own. The list the game built
+        // is captured here, before any edit, and carried forward by the distance the locomotive has travelled since.
+
+        private sealed class Travel
         {
-            CTCSignal sig = targets != null ? targets.NextSignal : null;
-            if (sig == null || ae == null) return float.NaN;
-            var loco = (object)ae.Locomotive as Component;   // Car is a MonoBehaviour in the game; cast at run time so this compiles either way
-            if (loco == null) return float.NaN;
-            return Vector3.Distance(sig.transform.position, loco.transform.position);
+            public float Travelled;       // metres since the sampler started on this engineer
+            public float RawDistance = float.NaN;
+            public float TravelledAtCapture;
+        }
+
+        private static readonly ConditionalWeakTable<AutoEngineer, Travel> Travels = new ConditionalWeakTable<AutoEngineer, Travel>();
+
+        internal static void AddTravel(AutoEngineer ae, float metres)
+        {
+            Travels.GetOrCreateValue(ae).Travelled += metres;
+        }
+
+        internal static float Travelled(AutoEngineer ae)
+        {
+            return Travels.TryGetValue(ae, out Travel t) ? t.Travelled : float.NaN;
+        }
+
+        /// <summary>Called from SetTargets before the mod changes anything: remembers the signal distance as the game built it.</summary>
+        internal static void CaptureRaw(AutoEngineer ae, IList<AutoEngineer.Targets.Target> list)
+        {
+            Travel t = Travels.GetOrCreateValue(ae);
+            t.RawDistance = DistanceFrom(list);
+            t.TravelledAtCapture = t.Travelled;
+        }
+
+        /// <summary>The game's own distance to the tracked signal now: the captured value minus the distance travelled since.</summary>
+        internal static float RawDistance(AutoEngineer ae)
+        {
+            if (!Travels.TryGetValue(ae, out Travel t) || float.IsNaN(t.RawDistance)) return float.NaN;
+            return t.RawDistance - (t.Travelled - t.TravelledAtCapture);
         }
 
         internal static void Observe(AutoEngineer ae, AutoEngineer.Targets targets, float mph)
@@ -107,7 +138,7 @@ namespace AutoEngineerBrakeFix
                 first = t.SpeedMph.ToString("0", CultureInfo.InvariantCulture) + "@" + t.Distance.ToString("0", CultureInfo.InvariantCulture) + ":" + t.Reason;
             }
             float dist = DistanceToSignal(targets);
-            float mast = MastDistance(ae, targets);
+            float raw = RawDistance(ae);
 
             string line = string.Join(",",
                 Time.fixedTime.ToString("0.###", CultureInfo.InvariantCulture),
@@ -116,7 +147,8 @@ namespace AutoEngineerBrakeFix
                 kind, Csv(id), Csv(name), previous, current,
                 mph.ToString("0.#", CultureInfo.InvariantCulture),
                 float.IsNaN(dist) ? "" : dist.ToString("0", CultureInfo.InvariantCulture),
-                float.IsNaN(mast) ? "" : mast.ToString("0.#", CultureInfo.InvariantCulture),
+                float.IsNaN(raw) ? "" : raw.ToString("0", CultureInfo.InvariantCulture),
+                Travelled(ae).ToString("0", CultureInfo.InvariantCulture),
                 Csv(first), Csv(AutoEngineerSampler.TargetList(targets)));
 
             lock (Lock)

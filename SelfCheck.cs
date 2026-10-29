@@ -246,8 +246,8 @@ namespace AutoEngineerBrakeFix
                     Name = "Signal logging",
                     On = () => s.LogEnabled && s.LogSignals,
                     TurnOff = () => s.LogSignals = false,
-                    Needs = new[] { "AutoEngineer._targets", "Targets.AllTargets", "Targets.NextSignal", "CTCSignal.id, LastShownAspect, DisplayName" },
-                    Patches = new Type[0],
+                    Needs = new[] { "AutoEngineer.SetTargets(Targets)", "AutoEngineer._targets", "Targets.AllTargets", "Targets.NextSignal", "CTCSignal.id, LastShownAspect, DisplayName" },
+                    Patches = new[] { typeof(AutoEngineer_SetTargets_Patch) },
                 },
                 new Feature
                 {

@@ -67,7 +67,11 @@ namespace AutoEngineerBrakeFix
             if (!_ae.isActiveAndEnabled || !_ae.Run) return;
 
             // Signal changes are watched every tick, standing still or not (the main sample below is skipped at rest).
-            if (Main.Settings.LogSignals) ObserveSignal();
+            if (Main.Settings.LogSignals)
+            {
+                if (_ae.Locomotive != null) SignalLog.AddTravel(_ae, Mathf.Abs(_ae.Locomotive.velocity) * Time.fixedDeltaTime);
+                ObserveSignal();
+            }
 
             if (Time.fixedTime < _nextSampleTime) return;
 
@@ -109,7 +113,7 @@ namespace AutoEngineerBrakeFix
             }
         }
 
-        /// <summary>The signal the AI is tracking: its id, the aspect it shows, the AI's distance to it (sigDistM) and the straight-line distance to its mast (sigMastM); blank when none.</summary>
+        /// <summary>The signal the AI is tracking: its id, the aspect it shows, the distance to it in the target list the engineer sees (sigDistM), the same distance as the game built it before this mod's edits (sigRawM), and the metres travelled since logging began (travelM).</summary>
         private void AddSignal(RowBuilder row, AutoEngineer.Targets targets)
         {
             if (!Main.Settings.LogSignals) return;
@@ -117,7 +121,8 @@ namespace AutoEngineerBrakeFix
             row.Add("sigId", id)
                .Add("sigAspect", aspect)
                .Add("sigDistM", id == "" ? float.NaN : SignalLog.DistanceToSignal(targets))
-               .Add("sigMastM", id == "" ? float.NaN : SignalLog.MastDistance(_ae, targets));
+               .Add("sigRawM", id == "" ? float.NaN : SignalLog.RawDistance(_ae))
+               .Add("travelM", SignalLog.Travelled(_ae));
         }
 
         private float LookaheadMeters()

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.2
+- Logger: `sigMastM` is removed from the main CSV and from `signals_*.csv`. It read a constant (709.6 in the 28 Oct run) because the locomotive's `Component` transform does not follow the train, so it never measured anything.
+- Logger: two columns replace it, in both files. `sigRawM` is the signal distance as the game built it, taken in `SetTargets` before this mod edits the target list, then reduced by the distance the locomotive has travelled since. `sigDistM` is still the distance in the list the engineer acts on, which includes this mod's edits (`SpeedReductionLeadSeconds` moves lower limits closer by speed x lead, about 40 m at 25 mph). `travelM` is the cumulative distance travelled by the locomotive since logging began, so two rows (or the signal flip and the emergency stop) can be compared by distance as well as by time.
+- Why: in the Sylva West runs the signal flips from Approach to Stop about 4 s ahead of a train doing 25 mph, and the logged distance there was the shifted value, not the game's. `sigRawM` shows the true distance at the flip, so a game fault and a mod effect can be told apart from the CSV alone. A quick check without a new build: set `SpeedReductionLeadSeconds` to 0 in `Settings.xml`; then `sigDistM` and `sigRawM` should agree.
+- Self-check: the "Signal logging" feature now also needs `AutoEngineer.SetTargets(Targets)` and the SetTargets patch, which captures the raw distance.
+- Behaviour is unchanged.
+
 ## 2.2.1
 - Logger: new column `sigMastM` in the main CSV and in `signals_*.csv`: the straight-line distance (3D) from the locomotive's centre to the tracked signal's mast. It does not depend on the planner, so comparing it with `sigDistM` (the AI's own distance) shows how far off the AI's distance is when a signal drops. The AI measures from the head of the train, so expect `sigMastM` to read up to about half a locomotive length more.
 - Logger: reading a signal's shown aspect (`CTCSignal.LastShownAspect`, internal in the game) goes through reflection, as in the automatic compile fix to 2.2.0 (e1f8670).
