@@ -109,6 +109,7 @@ namespace AutoEngineerBrakeFix
                 ["SteamEngine.WaterConsumptionRate (set)"] = () => AccessTools.PropertySetter(typeof(SteamEngine), "WaterConsumptionRate") != null,
                 ["SteamEngine.CoalConsumptionRate (set)"] = () => AccessTools.PropertySetter(typeof(SteamEngine), "CoalConsumptionRate") != null,
                 ["SteamLocomotive.PeriodicUpdate(float dt)"] = () => Method(typeof(SteamLocomotive), "PeriodicUpdate", new[] { typeof(float) }, typeof(void), "dt"),
+                ["Effects.FuseeRenderer.Update()"] = () => Method(typeof(Effects.FuseeRenderer), "Update", Type.EmptyTypes, typeof(void)),
                 ["DieselLocomotive.PeriodicUpdate(float dt)"] = () => Method(typeof(DieselLocomotive), "PeriodicUpdate", new[] { typeof(float) }, typeof(void), "dt"),
                 ["SteamLocomotive.CutoffSettingForVelocity(float velocityMps)"] =
                     () => Method(typeof(SteamLocomotive), "CutoffSettingForVelocity", new[] { typeof(float) }, typeof(float), "velocityMps"),
@@ -263,6 +264,15 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.FuelFollowsTimeWarp = false,
                     Needs = new[] { "SteamLocomotive.PeriodicUpdate(float dt)", "DieselLocomotive.PeriodicUpdate(float dt)" },
                     Patches = new[] { typeof(SteamLocomotive_PeriodicUpdate_Patch), typeof(DieselLocomotive_PeriodicUpdate_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Fusee without camera",
+                    AlwaysPatch = true,
+                    On = () => s.GuardFuseeCamera,
+                    TurnOff = () => s.GuardFuseeCamera = false,
+                    Needs = new[] { "Effects.FuseeRenderer.Update()" },
+                    Patches = new[] { typeof(FuseeRenderer_Update_Patch) },
                 },
                 new Feature
                 {

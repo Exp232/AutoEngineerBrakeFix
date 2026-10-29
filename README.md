@@ -64,6 +64,9 @@ At start-up the mod checks that everything it patches is still in the game. Feat
 ## Fuel in fast-forward
 The game charges fuel and water once per second of real update, whatever the time scale, so a fast-forwarded trip used about a third of its coal. The mod charges the game time that has actually passed (`FuelFollowsTimeWarp`, on by default; normal speed is unchanged).
 
+## Fusee in fast-forward
+Fast-forward switches the main camera off, and the game's fusee code (`Effects.FuseeRenderer.Update`) then throws a `NullReferenceException` on every frame for as long as a fusee is near the train. The mod skips that update while there is no camera (`GuardFuseeCamera`, on by default). It only silences the error; nothing visible changes.
+
 ## Settings window
 Press **Ctrl+F8** in game (not at the main menu) to open the settings window: sliders for the brake tap limit, slowing lead, cutoff tolerance and planner weights, a switch for the fuel summary log, and the self-check result per feature. Changes apply immediately and are saved to `Settings.xml`. Everything else is still edited in that file.
 

@@ -206,6 +206,12 @@ namespace AutoEngineerBrakeFix
         /// </summary>
         public bool FuelFollowsTimeWarp = true;
 
+        /// <summary>
+        /// Skip a placed fusee's per-frame update while the main camera is off. Fast-forward disables the camera and the
+        /// game's FuseeRenderer.Update then throws a NullReferenceException on every frame. Does nothing otherwise.
+        /// </summary>
+        public bool GuardFuseeCamera = true;
+
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;
 

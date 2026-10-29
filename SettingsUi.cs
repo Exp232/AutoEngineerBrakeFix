@@ -78,6 +78,8 @@ namespace AutoEngineerBrakeFix
                     {
                         b.AddFieldToggle("Fuel in fast-forward", () => s.FuelFollowsTimeWarp, v => { s.FuelFollowsTimeWarp = v; Save(); });
                         Note(b, "The game charges one second of fuel per update however much time passed, so fast-forward used about a third of the coal. This charges the real game time.");
+                        b.AddFieldToggle("Fusee in fast-forward", () => s.GuardFuseeCamera, v => { s.GuardFuseeCamera = v; Save(); });
+                        Note(b, "Fast-forward switches the main camera off and the game's fusee code then throws an error on every frame. This skips the fusee update while there is no camera.");
                     });
 
                     page.AddSection("", b =>
