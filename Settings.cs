@@ -62,8 +62,8 @@ namespace AutoEngineerBrakeFix
         /// <summary>No power while a lower speed limit is in sight and the train is at or above that speed.</summary>
         public bool AvoidPowerIntoReductions = true;
 
-        /// <summary>Start slowing for a lower limit as if it began this many seconds of travel sooner (0 = stock).</summary>
-        public float SpeedReductionLeadSeconds = 6f;
+        /// <summary>Start slowing for a lower limit as if it began this many seconds of travel sooner (0 = stock). 10 since 2.4.3 (6 before): on the Bryson to Sylva round trip it used about 3% less coal than 6 for the same time; 14 gave no more.</summary>
+        public float SpeedReductionLeadSeconds = 10f;
 
         /// <summary>Release the train brake when the speed it is heading for this many seconds ahead reaches the target (0 = stock).</summary>
         public float BrakeReleaseLeadSeconds = 3f;
@@ -161,11 +161,11 @@ namespace AutoEngineerBrakeFix
         public float DirectionStopBrakeLimit = 0.15f;
 
         /// <summary>
-        /// Fuel saving, off at 0. When the train is no more than this many mph over its target, is not gaining speed and
+        /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
         /// nothing ahead needs it to slow, the controller's first train-brake application is turned into a coast. Road mode
-        /// only. 2 is a reasonable first value.
+        /// and Waypoint modes. About 1-2% less coal on downhill running, nothing measurable uphill.
         /// </summary>
-        public float BrakeTapSuppressMph = 0f;
+        public float BrakeTapSuppressMph = 2f;
 
         /// <summary>Multipliers on the rollout controller's score weights (1 = the game's own value).</summary>
         public float PlanOverspeedScale = 1f;

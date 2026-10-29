@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.3
+- Defaults changed after A/B runs of Bryson to Sylva Interchange and back (EMR 5000, about 38.4 miles, 79 minutes moving, six configurations): `SpeedReductionLeadSeconds` 6 to **10** and `BrakeTapSuppressMph` 0 to **2**. Together they used about 3% less coal on the round trip (9,474 lb against 9,747 to 9,768 lb) for the same time, with the saving on downhill running (about 8%) and none uphill. A lead of 14 gave no further gain; Undershoot margin 1.5 and 2 and cutoff tolerance 8 gave nothing more and are left at their old values (1 and 3). Run-to-run noise was about 0.5 to 1%, and it is one route and one locomotive.
+- Existing `Settings.xml` files are read as they are, so installs that already have the file keep their own values. To take the new defaults, set the two values by hand, use the window's reset button (which resets the window's values to the new defaults) or delete the file.
+- The self-check now shows "Brake tap suppression: enabled" by default; set `BrakeTapSuppressMph` to 0 to turn it off.
+
 ## 2.4.2
 - Logger: every `fuel_summary_*.csv` row gets a `setup` column with the settings window's values at that moment (for example `tap=2;lead=6;cut=3;over=1;under=1;margin=2;ceil=1;indep=1`), so a run records how it was set rather than relying on Settings.xml. The settings window also writes `Settings saved: ...` to `Player.log` on each save. Reason: a run meant to test Undershoot margin 2.0 left `PlanUndershootDeadbandScale` at 1 in Settings.xml and gave the same coal as the run before it, so it could not be told whether the value had been applied.
 - Behaviour is otherwise unchanged.
