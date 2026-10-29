@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.1
+- Logger: new column `sigMastM` in the main CSV and in `signals_*.csv`: the straight-line distance (3D) from the locomotive's centre to the tracked signal's mast. It does not depend on the planner, so comparing it with `sigDistM` (the AI's own distance) shows how far off the AI's distance is when a signal drops. The AI measures from the head of the train, so expect `sigMastM` to read up to about half a locomotive length more.
+- Logger: reading a signal's shown aspect (`CTCSignal.LastShownAspect`, internal in the game) goes through reflection, as in the automatic compile fix to 2.2.0 (e1f8670).
+- Behaviour is unchanged.
+
 ## 2.2.0
 - Logger: signal events. With `LogSignals` on (default; needs `LogEnabled`) a new file `logs\signals_*.csv` gets one line each time the signal an engineer is tracking, or the aspect it shows, changes: game time, wall-clock time (matches `Player.log`), locomotive, event (`seen`, `aspect`, `next`, `passed`), signal id and name, the aspect before and after, speed, the distance to the signal, the first target and the full target list. It is checked every physics tick and also while the train stands still. The main CSV gets three columns, `sigId`, `sigAspect` and `sigDistM`. This is for catching a signal that drops from Approach to Stop while a train is still approaching it (reported for Sylva West eastbound on 0.6.1: Approach, then Stop 4-5 s later, then the game's emergency stop from about 25 mph).
 - New setting `ApproachNoNextSignalMph` (default 25, which is what the game does, so nothing changes). When the game finds no signal after an Approach signal it sets 25 mph there; a lower value (for example 15) lowers that limit so the AI slows sooner for a Stop signal it cannot see. Only ever lowers; 25 or more, or below 5, change nothing.

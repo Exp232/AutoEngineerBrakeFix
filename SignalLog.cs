@@ -30,7 +30,7 @@ namespace AutoEngineerBrakeFix
         private static StreamWriter _writer;
         private static bool _warned;
 
-        private const string Header = "t,clock,loco,event,signalId,signalName,from,to,mph,sigDistM,nextTarget,targets";
+        private const string Header = "t,clock,loco,event,signalId,signalName,from,to,mph,sigDistM,sigMastM,nextTarget,targets";
 
         /// <summary>The tracked signal's id, name and shown aspect; empty strings when the AI has no signal in view.</summary>
         internal static void Read(AutoEngineer.Targets targets, out string id, out string name, out string aspect)
@@ -56,6 +56,20 @@ namespace AutoEngineerBrakeFix
                 if (t.Reason == "Signal") return t.Distance;
             }
             return float.NaN;
+        }
+
+        /// <summary>
+        /// Straight-line metres from the locomotive's centre to the tracked signal's mast (3D, through any curve). It does not
+        /// depend on the planner's own distance, so comparing it with sigDistM shows how far the AI's distance is off.
+        /// The AI measures from the head of the train; the locomotive's centre is up to about half a locomotive length behind that.
+        /// </summary>
+        internal static float MastDistance(AutoEngineer ae, AutoEngineer.Targets targets)
+        {
+            CTCSignal sig = targets != null ? targets.NextSignal : null;
+            if (sig == null || ae == null) return float.NaN;
+            var loco = (object)ae.Locomotive as Component;   // Car is a MonoBehaviour in the game; cast at run time so this compiles either way
+            if (loco == null) return float.NaN;
+            return Vector3.Distance(sig.transform.position, loco.transform.position);
         }
 
         internal static void Observe(AutoEngineer ae, AutoEngineer.Targets targets, float mph)
@@ -93,6 +107,7 @@ namespace AutoEngineerBrakeFix
                 first = t.SpeedMph.ToString("0", CultureInfo.InvariantCulture) + "@" + t.Distance.ToString("0", CultureInfo.InvariantCulture) + ":" + t.Reason;
             }
             float dist = DistanceToSignal(targets);
+            float mast = MastDistance(ae, targets);
 
             string line = string.Join(",",
                 Time.fixedTime.ToString("0.###", CultureInfo.InvariantCulture),
@@ -101,6 +116,7 @@ namespace AutoEngineerBrakeFix
                 kind, Csv(id), Csv(name), previous, current,
                 mph.ToString("0.#", CultureInfo.InvariantCulture),
                 float.IsNaN(dist) ? "" : dist.ToString("0", CultureInfo.InvariantCulture),
+                float.IsNaN(mast) ? "" : mast.ToString("0.#", CultureInfo.InvariantCulture),
                 Csv(first), Csv(AutoEngineerSampler.TargetList(targets)));
 
             lock (Lock)

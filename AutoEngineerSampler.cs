@@ -109,14 +109,15 @@ namespace AutoEngineerBrakeFix
             }
         }
 
-        /// <summary>The signal the AI is tracking: its id, the aspect it shows, and the metres to it (blank when none).</summary>
-        private static void AddSignal(RowBuilder row, AutoEngineer.Targets targets)
+        /// <summary>The signal the AI is tracking: its id, the aspect it shows, the AI's distance to it (sigDistM) and the straight-line distance to its mast (sigMastM); blank when none.</summary>
+        private void AddSignal(RowBuilder row, AutoEngineer.Targets targets)
         {
             if (!Main.Settings.LogSignals) return;
             SignalLog.Read(targets, out string id, out string name, out string aspect);
             row.Add("sigId", id)
                .Add("sigAspect", aspect)
-               .Add("sigDistM", id == "" ? float.NaN : SignalLog.DistanceToSignal(targets));
+               .Add("sigDistM", id == "" ? float.NaN : SignalLog.DistanceToSignal(targets))
+               .Add("sigMastM", id == "" ? float.NaN : SignalLog.MastDistance(_ae, targets));
         }
 
         private float LookaheadMeters()
