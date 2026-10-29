@@ -199,6 +199,13 @@ namespace AutoEngineerBrakeFix
         /// <summary>Hold Ctrl with SettingsHotkey (the default, so the key cannot clash with the game's own).</summary>
         public bool SettingsHotkeyCtrl = true;
 
+        /// <summary>
+        /// Charge fuel and water for the game time that has really passed when time is sped up (fast-forward). The game
+        /// charges one second per call however much time went by, so a fast-forwarded trip used about a third of its coal.
+        /// Normal speed is not affected.
+        /// </summary>
+        public bool FuelFollowsTimeWarp = true;
+
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;
 

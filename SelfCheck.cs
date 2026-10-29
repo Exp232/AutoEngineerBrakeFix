@@ -108,6 +108,8 @@ namespace AutoEngineerBrakeFix
                 ["SteamEngine._estimatedGrateSqFt"] = () => Field(typeof(SteamEngine), "_estimatedGrateSqFt", typeof(float)),
                 ["SteamEngine.WaterConsumptionRate (set)"] = () => AccessTools.PropertySetter(typeof(SteamEngine), "WaterConsumptionRate") != null,
                 ["SteamEngine.CoalConsumptionRate (set)"] = () => AccessTools.PropertySetter(typeof(SteamEngine), "CoalConsumptionRate") != null,
+                ["SteamLocomotive.PeriodicUpdate(float dt)"] = () => Method(typeof(SteamLocomotive), "PeriodicUpdate", new[] { typeof(float) }, typeof(void), "dt"),
+                ["DieselLocomotive.PeriodicUpdate(float dt)"] = () => Method(typeof(DieselLocomotive), "PeriodicUpdate", new[] { typeof(float) }, typeof(void), "dt"),
                 ["SteamLocomotive.CutoffSettingForVelocity(float velocityMps)"] =
                     () => Method(typeof(SteamLocomotive), "CutoffSettingForVelocity", new[] { typeof(float) }, typeof(float), "velocityMps"),
 
@@ -252,6 +254,15 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.LogDecisions = false,
                     Needs = new[] { "AutoEngineer._speedControlLoop", "AutoEngineer.SpeedControlLoop._rolloutController", "RolloutController.Result", "RolloutController.DescribeRootCosts()" },
                     Patches = new Type[0],
+                },
+                new Feature
+                {
+                    Name = "Fuel use in fast-forward",
+                    AlwaysPatch = true,
+                    On = () => s.FuelFollowsTimeWarp,
+                    TurnOff = () => s.FuelFollowsTimeWarp = false,
+                    Needs = new[] { "SteamLocomotive.PeriodicUpdate(float dt)", "DieselLocomotive.PeriodicUpdate(float dt)" },
+                    Patches = new[] { typeof(SteamLocomotive_PeriodicUpdate_Patch), typeof(DieselLocomotive_PeriodicUpdate_Patch) },
                 },
                 new Feature
                 {

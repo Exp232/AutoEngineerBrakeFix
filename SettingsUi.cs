@@ -74,6 +74,12 @@ namespace AutoEngineerBrakeFix
                         b.AddFieldToggle("Fuel summary", () => s.LogFuelSummary, v => { s.LogFuelSummary = v; Save(); });
                     });
 
+                    page.AddSection("Fixes", b =>
+                    {
+                        b.AddFieldToggle("Fuel in fast-forward", () => s.FuelFollowsTimeWarp, v => { s.FuelFollowsTimeWarp = v; Save(); });
+                        Note(b, "The game charges one second of fuel per update however much time passed, so fast-forward used about a third of the coal. This charges the real game time.");
+                    });
+
                     page.AddSection("", b =>
                     {
                         b.AddButton("Reset these to defaults", ResetDefaults);
