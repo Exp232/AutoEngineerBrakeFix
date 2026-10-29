@@ -136,6 +136,13 @@ namespace AutoEngineerBrakeFix
         /// </summary>
         public float ApproachNoNextSignalMph = 25f;
 
+        /// <summary>
+        /// Temporary map-data workaround: "signalId:blockId" pairs (comma separated) naming blocks to take off a signal's
+        /// protected-block list. The default fixes Sylva West eastbound, whose block lies behind the signal and drops it to
+        /// Stop about 45 m before a train. Empty = off. Applied at runtime; no files are changed.
+        /// </summary>
+        public string CtcDropBlocks = "sy-w-eb:sy-w";
+
         // ---- Planning (experimental) ----
 
         /// <summary>Multiplier on how far ahead the AI looks for targets (1 = stock).</summary>

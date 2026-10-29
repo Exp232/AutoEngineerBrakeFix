@@ -32,6 +32,8 @@ namespace AutoEngineerBrakeFix
                 }
 
                 BrakeFix.Register(__instance);
+                try { CtcFix.Apply(); }
+                catch (Exception e) { Main.Mod.Logger.Warning("CTC fix failed: " + e.Message); }
                 if (Main.Settings.LogEnabled)
                 {
                     ConfigDump.DumpOnce(__instance);

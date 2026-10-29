@@ -85,6 +85,8 @@ namespace AutoEngineerBrakeFix
                 ["Targets.AverageGradeUnder"] = () => Field(Targets, "AverageGradeUnder", typeof(float)),
                 ["Targets.AverageGradeAhead"] = () => Field(Targets, "AverageGradeAhead", typeof(float)),
                 ["Targets.NextSignal"] = () => Field(Targets, "NextSignal", typeof(CTCSignal)),
+                ["CTCAutoSignal.blocks"] = () => Field(typeof(CTCAutoSignal), "blocks", typeof(List<CTCBlock>)),
+                ["CTCSignal.SetNeedsUpdate()"] = () => AccessTools.Method(typeof(CTCSignal), "SetNeedsUpdate") != null,
                 ["CTCSignal.id, LastShownAspect, DisplayName"] =
                     () => Member(typeof(CTCSignal), "id") && Member(typeof(CTCSignal), "LastShownAspect") && Member(typeof(CTCSignal), "DisplayName"),
 
@@ -240,6 +242,14 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.LogDecisions = false,
                     Needs = new[] { "AutoEngineer._speedControlLoop", "AutoEngineer.SpeedControlLoop._rolloutController", "RolloutController.Result", "RolloutController.DescribeRootCosts()" },
                     Patches = new Type[0],
+                },
+                new Feature
+                {
+                    Name = "CTC block fix",
+                    On = () => !string.IsNullOrWhiteSpace(s.CtcDropBlocks),
+                    TurnOff = () => s.CtcDropBlocks = "",
+                    Needs = new[] { "AutoEngineer.OnEnable()", "CTCAutoSignal.blocks", "CTCSignal.SetNeedsUpdate()" },
+                    Patches = new[] { typeof(AutoEngineer_OnEnable_Patch) },
                 },
                 new Feature
                 {
