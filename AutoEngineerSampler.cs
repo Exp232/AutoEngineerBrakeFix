@@ -95,6 +95,8 @@ namespace AutoEngineerBrakeFix
         }
 
         private bool _loggedFuelSummaryError;
+        private float _nextCylinderRead;
+        private float _trainCylPsi, _locoCylPsi;
 
         private void TickFuelSummary()
         {
@@ -103,8 +105,17 @@ namespace AutoEngineerBrakeFix
                 var loco = _ae.Locomotive;
                 if (loco == null) return;
                 object control = FControl?.GetValue(_ae);
-                FuelSummary.Tick(_ae, Time.fixedDeltaTime, loco.velocity, ReadFloat(control, "Throttle"), ReadFloat(control, "TrainBrake"),
-                    ReadFloat(control, "LocomotiveBrake"), SteamValue(loco, 2), SteamValue(loco, 1));
+                // The cylinder average walks every car, so it is refreshed a few times a second, not every step.
+                if (Time.fixedTime >= _nextCylinderRead)
+                {
+                    _nextCylinderRead = Time.fixedTime + 0.25f;
+                    float c = SafeCarCylinderAverage();
+                    _trainCylPsi = float.IsNaN(c) ? 0f : c;
+                    float l = SafeLocoCylinder(loco);
+                    _locoCylPsi = float.IsNaN(l) ? 0f : l;
+                }
+                FuelSummary.Tick(_ae, Time.fixedDeltaTime, loco.velocity, ReadFloat(control, "Throttle"), _trainCylPsi, _locoCylPsi,
+                    SteamValue(loco, 2), SteamValue(loco, 1));
             }
             catch (Exception e)
             {

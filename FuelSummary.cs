@@ -12,8 +12,7 @@ namespace AutoEngineerBrakeFix
     /// Running fuel and handling totals per engineer, written to logs\fuel_summary_*.csv about once a minute of game
     /// time. It exists so a change to the engineer can be judged by coal per mile on a repeatable run instead of by
     /// eye. Coal is split by what the locomotive was doing: powered (throttle open, no brake), coasting (throttle
-    /// closed, no brake), braking (train brake applied, throttle closed), and both (throttle open while the train
-    /// brake is applied: the waste). Brake applications are counted too; a "tap" is one that took off under 3 mph.
+    /// closed, no brake), braking (cylinders charged, throttle closed), and both (throttle open while braking: the waste). Brake applications are counted too; a "tap" is one that took off under 3 mph.
     /// Totals start when the engineer is first seen and run until the game ends, so for a trip, note the last row
     /// at the start and at the end and subtract.
     /// </summary>
@@ -24,6 +23,7 @@ namespace AutoEngineerBrakeFix
         private const float MinApplicationSeconds = 3f;
         private const float TapShedMph = 3f;
         private const float MpsToMph = 2.23694f;
+        private const float CylinderPsi = 1f;   // average cylinder pressure above this counts as braking
 
         private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed";
 
@@ -48,7 +48,7 @@ namespace AutoEngineerBrakeFix
             if (ae != null) Tallies.GetOrCreateValue(ae).Suppressed++;
         }
 
-        internal static void Tick(AutoEngineer ae, float dt, float speedMps, float throttle, float trainBrake, float locoBrake, float coalLbs, float waterGps)
+        internal static void Tick(AutoEngineer ae, float dt, float speedMps, float throttle, float trainCylPsi, float locoCylPsi, float coalLbs, float waterGps)
         {
             Tally t = Tallies.GetOrCreateValue(ae);
             float now = Time.fixedTime;
@@ -57,15 +57,17 @@ namespace AutoEngineerBrakeFix
             float v = Mathf.Abs(speedMps);
             float coal = float.IsNaN(coalLbs) ? 0f : coalLbs * dt;
             float water = float.IsNaN(waterGps) ? 0f : waterGps * dt;
-            bool trainBraking = trainBrake > 0.01f;
-            bool anyBrake = trainBraking || locoBrake > 0.01f;
+            // Braking means pressure in the cylinders, not the handle: the engineer often parks the train brake at a
+            // 5 psi reduction that fills the pipe but leaves the cylinders empty (seen: set 0.0556, cylinders 0.02 psi).
+            bool trainBraking = trainCylPsi > CylinderPsi;
+            bool anyBrake = trainBraking || locoCylPsi > CylinderPsi;
             bool powered = throttle > 0.01f;
 
             int phase = v < 0.3f ? 4 : powered && anyBrake ? 3 : anyBrake ? 2 : powered ? 0 : 1;
             t.Coal += coal; t.Water += water; t.Dist += v * dt; t.Seconds += dt;
             t.PhaseCoal[phase] += coal; t.PhaseSeconds[phase] += dt;
 
-            // Brake applications: one per spell of train brake, spells closer than BrakeGapSeconds count as one.
+            // Brake applications: one per spell of cylinder pressure, spells closer than BrakeGapSeconds count as one.
             if (trainBraking)
             {
                 if (!t.InBrake) { t.InBrake = true; t.BrakeStart = now; t.BrakeV0 = v; t.BrakeVMin = v; }

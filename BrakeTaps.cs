@@ -18,7 +18,8 @@ namespace AutoEngineerBrakeFix
     {
         private const float MpsToMph = 2.23694f;
         private const float MaxAccelMps2 = 0.03f;       // measured acceleration at or below this: not gaining speed
-        private const float AppliedSetMin = 0.02f;      // the game's own "brake is applied" threshold
+        private const float AppliedSetMax = 0.12f;      // handle at most a 10 psi reduction (the engineer parks it at 5 psi with empty cylinders)
+        private const float CylinderPsiMax = 1f;        // average car cylinder pressure at or below this: brakes not really applied
         private static bool _logged;
 
         internal static readonly Type LoopType = AccessTools.Inner(typeof(AutoEngineer), "SpeedControlLoop");
@@ -29,7 +30,9 @@ namespace AutoEngineerBrakeFix
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly FieldInfo FContextual = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
 
-        internal static bool Available => LoopType != null && FAe != null && FTrainBrake != null && FMeasuredAccel != null && PApplied != null && FTargets != null && FContextual != null;
+        private static readonly MethodInfo MCylinder = AccessTools.Method(typeof(AutoEngineer), "AverageTrainBrakeCylinder");
+
+        internal static bool Available => MCylinder != null && LoopType != null && FAe != null && FTrainBrake != null && FMeasuredAccel != null && PApplied != null && FTargets != null && FContextual != null;
 
         /// <summary>Returns true when the command was a brake tap and has been replaced by a coast.</summary>
         internal static bool Filter(object loop, ref RolloutCommand command)
@@ -40,7 +43,9 @@ namespace AutoEngineerBrakeFix
             var ae = FAe.GetValue(loop) as AutoEngineer;
             if (ae == null || ae.Locomotive == null) return false;
             float applied = Convert.ToSingle(PApplied.GetValue(FTrainBrake.GetValue(loop), null));
-            if (applied > AppliedSetMin || command.TrainBrakeSet <= applied + 0.005f) return false;   // only a first application from released
+            if (applied > AppliedSetMax || command.TrainBrakeSet <= applied + 0.005f) return false;
+            // Only the first real application: the cylinders must still be (nearly) empty.
+            if (Convert.ToSingle(MCylinder.Invoke(ae, null)) > CylinderPsiMax) return false;
 
             var targets = FTargets.GetValue(ae) as AutoEngineer.Targets;
             if (targets == null || targets.AllTargets == null || targets.Mode.ToString() != "Road") return false;

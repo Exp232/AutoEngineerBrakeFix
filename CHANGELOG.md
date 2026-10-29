@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.1
+- Fix: the fuel summary counted a train brake handle at a small reduction as braking. The engineer often parks the handle at a 5 psi reduction that leaves the car cylinders empty (log: set 0.0556, cylinders 0.02 psi, throttle 1.0 for 98 s), so the "both" column and the brake and tap counts were too high. Braking, overlap and brake applications are now judged by the average cylinder pressure (above 1 psi, locomotive or cars), read four times a second of game time.
+- Fix: brake tap suppression only fired when the handle was fully released, so a handle parked at a small reduction defeated it. It now fires on the first real application: handle at most a 10 psi reduction and car cylinders at or below 1 psi. The self-check also needs `AutoEngineer.AverageTrainBrakeCylinder()` for this feature.
+- Behaviour with `BrakeTapSuppressMph` at 0 is unchanged.
+
 ## 2.3.0
 - New: fuel summary log. `logs\fuel_summary_*.csv` gets one cumulative row per engineer about every minute of game time (`LogFuelSummary`, on by default): minutes, miles, coal, coal per mile, water, and coal and minutes split into powered, coasting, braking, "both" (throttle open while the train brake is applied) and standing, plus counts of brake applications, brake taps (an application that took off under 3 mph) and taps suppressed. For a trip, subtract the first row from the last. Use it to compare settings on the same route.
 - New: brake tap suppression (`BrakeTapSuppressMph`, default 0 = off, so defaults are unchanged). When the train is within this many mph over its target, is not gaining speed, and no lower limit or stop is near enough to matter, the controller's first train-brake application from released is replaced by a coast. If the speed climbs past the margin or something ahead comes into range, the controller's own command goes through. Road mode only. Suggested first value: 2. Does not depend on `FixEnabled`; the self-check turns it off if `SpeedControlLoop.ApplyRolloutCommand` or its fields are not found.

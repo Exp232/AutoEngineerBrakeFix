@@ -251,7 +251,7 @@ namespace AutoEngineerBrakeFix
                     Name = "Brake tap suppression",
                     On = () => s.BrakeTapSuppressMph > 0f,
                     TurnOff = () => s.BrakeTapSuppressMph = 0f,
-                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets" },
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer.AverageTrainBrakeCylinder()", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets" },
                     Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
                 },
                 new Feature
