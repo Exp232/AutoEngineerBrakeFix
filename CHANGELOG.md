@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.4.1
+- Fix: brake tap suppression never fired on a Bryson to Sylva run (`tapsSuppressed` 0 with the limit at 2 mph; 331 lb/mi against 329 without it). The run was in Waypoint mode ("Running to waypoint" in every target list) and the filter only allowed Road mode. It now allows Road and Waypoint. A stop target within the larger of 1500 m and 80 s of travel, or a lower limit within 600 m / 40 s, still leaves the application to the controller, so stopping accuracy at a waypoint is not changed. Yard mode is still left alone.
+- Logger: `fuel_summary_*.csv` gains a `tapWhy` column, a running count of why first brake applications were not suppressed (`locoBrake`, `handleDown`, `cylinders`, `mode`, `slow`, `overLimit`, `gaining`, `limitAhead`, `stopAhead`), to show which condition is holding the filter back.
+- Settings window: planner weights show as 1.00 (the "(stock)" text did not fit in the slider handle); the explanatory text and self-check lines are smaller and dimmer.
+- Behaviour with `BrakeTapSuppressMph` at 0 is unchanged.
+
 ## 2.4.0
 - New: in-game settings window, built with the game's own panel builder and opened with **Ctrl+F8** (`SettingsHotkey` and `SettingsHotkeyCtrl` in Settings.xml change the key). It has sliders for the brake tap limit, the slowing lead, the cutoff tolerance and the five planner weights, a switch for the fuel summary log, a reset button, and the self-check result for each feature. Changes apply at once and are written to Settings.xml as they are made (through a temporary file). The window is registered again after each map load, because the game forgets custom windows when a map unloads. It does nothing at the main menu.
 - Features that the window can switch on while the game is running (brake tap suppression, early slowing, planner weights) now install their patches whenever the game members they need exist, even when the setting is off at start-up; each patch does nothing while its setting is off or at the game's value. Before this, a feature that was off at start-up needed a restart. Self-check lines for them read "off (can be switched on in the settings window)". Features that choose their patches by other settings (cutoff, realistic fuel, logging, and so on) are unchanged and are still edited in Settings.xml.

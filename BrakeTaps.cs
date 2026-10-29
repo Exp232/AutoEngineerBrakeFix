@@ -12,7 +12,7 @@ namespace AutoEngineerBrakeFix
     /// brake to shed a mph or two, which spends fuel to gain the speed and then throws it away as heat. When the
     /// train is only a little over its target, is not gaining speed, and nothing ahead needs it to slow, this turns
     /// that first application into a coast; if the speed then rises past the margin or a lower limit comes into
-    /// range, the controller's brake application goes through as usual. Road mode only.
+    /// range, the controller's brake application goes through as usual. Road and Waypoint modes (a stop within about 1500 m or 80 s always stays with the controller).
     /// </summary>
     internal static class BrakeTaps
     {
@@ -34,27 +34,54 @@ namespace AutoEngineerBrakeFix
 
         internal static bool Available => MCylinder != null && LoopType != null && FAe != null && FTrainBrake != null && FMeasuredAccel != null && PApplied != null && FTargets != null && FContextual != null;
 
+        private static readonly System.Collections.Generic.SortedDictionary<string, int> Rejects = new System.Collections.Generic.SortedDictionary<string, int>();
+
+        private static bool Reject(string why)
+        {
+            lock (Rejects)
+            {
+                Rejects.TryGetValue(why, out int n);
+                Rejects[why] = n + 1;
+            }
+            return false;
+        }
+
+        /// <summary>Why first applications were left to the controller so far, as "reason:count|reason:count" (for the fuel summary).</summary>
+        internal static string RejectSummary()
+        {
+            lock (Rejects)
+            {
+                return string.Join("|", System.Linq.Enumerable.Select(Rejects, kv => kv.Key + ":" + kv.Value));
+            }
+        }
+
         /// <summary>Returns true when the command was a brake tap and has been replaced by a coast.</summary>
         internal static bool Filter(object loop, ref RolloutCommand command)
         {
             float limitMph = Main.Settings.BrakeTapSuppressMph;
-            if (limitMph <= 0f || !command.DrivesTrainBrake || command.BailOff || command.IndependentBrake01 > 0.01f) return false;
+            if (limitMph <= 0f) return false;
+            if (!command.DrivesTrainBrake) return false;
+            if (command.BailOff || command.IndependentBrake01 > 0.01f) return Reject("locoBrake");
 
             var ae = FAe.GetValue(loop) as AutoEngineer;
-            if (ae == null || ae.Locomotive == null) return false;
+            if (ae == null || ae.Locomotive == null) return Reject("noLoco");
             float applied = Convert.ToSingle(PApplied.GetValue(FTrainBrake.GetValue(loop), null));
-            if (applied > AppliedSetMax || command.TrainBrakeSet <= applied + 0.005f) return false;
+            if (command.TrainBrakeSet <= applied + 0.005f) return false;
+            if (applied > AppliedSetMax) return Reject("handleDown");
             // Only the first real application: the cylinders must still be (nearly) empty.
-            if (Convert.ToSingle(MCylinder.Invoke(ae, null)) > CylinderPsiMax) return false;
+            if (Convert.ToSingle(MCylinder.Invoke(ae, null)) > CylinderPsiMax) return Reject("cylinders");
 
             var targets = FTargets.GetValue(ae) as AutoEngineer.Targets;
-            if (targets == null || targets.AllTargets == null || targets.Mode.ToString() != "Road") return false;
+            if (targets == null || targets.AllTargets == null) return Reject("noTargets");
+            // Road and Waypoint only. In Waypoint mode the stop is protected by the distance check below, not by the mode.
+            string mode = targets.Mode.ToString();
+            if (mode != "Road" && mode != "Waypoint") return Reject("mode");
 
             float speed = Mathf.Abs(ae.Locomotive.velocity);
             float target = Mathf.Abs(Convert.ToSingle(FContextual.GetValue(ae)));
-            if (target < 3f || speed < 3f) return false;
-            if (speed - target > limitMph / MpsToMph) return false;                                   // really over: brake
-            if (Convert.ToSingle(FMeasuredAccel.GetValue(loop)) > MaxAccelMps2) return false;         // still gaining speed: brake
+            if (target < 3f || speed < 3f) return Reject("slow");
+            if (speed - target > limitMph / MpsToMph) return Reject("overLimit");                      // really over: brake
+            if (Convert.ToSingle(FMeasuredAccel.GetValue(loop)) > MaxAccelMps2) return Reject("gaining");         // still gaining speed: brake
 
             // Anything ahead that needs the train to slow (a lower limit or a stop) keeps the controller in charge.
             foreach (var t in targets.AllTargets)
@@ -63,7 +90,7 @@ namespace AutoEngineerBrakeFix
                 float tv = Mathf.Abs(t.SpeedMph) / MpsToMph;
                 if (tv >= speed - 0.9f) continue;
                 float window = tv < 0.5f ? Mathf.Max(1500f, speed * 80f) : Mathf.Max(600f, speed * 40f);
-                if (t.Distance < window) return false;
+                if (t.Distance < window) return Reject(tv < 0.5f ? "stopAhead" : "limitAhead");
             }
 
             command = new RolloutCommand(RolloutActionKind.Hold, 0f, command.IndependentBrake01, applied, false, false, command.Cost, command.HoldCost);

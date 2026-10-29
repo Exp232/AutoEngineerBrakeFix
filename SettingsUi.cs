@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UI.Builder;
 using UI.Windows;
 using UnityEngine;
@@ -48,13 +49,13 @@ namespace AutoEngineerBrakeFix
 
                     page.AddSection("Fuel saving", b =>
                     {
-                        b.AddLabel("Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
+                        Note(b, "Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
                         Slider(b, "Brake tap limit", () => s.BrakeTapSuppressMph, v => s.BrakeTapSuppressMph = v, 0f, 5f, 0.5f,
                             v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
-                        b.AddLabel("Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
+                        Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
                         Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                             v => v <= 0f ? "off" : v.ToString("0") + " s");
-                        b.AddLabel("Shorter cutoff: how much power it may give up for a shorter cutoff.");
+                        Note(b, "Shorter cutoff: how much power it may give up for a shorter cutoff.");
                         Slider(b, "Cutoff tolerance", () => s.CutoffTolerancePercent, v => s.CutoffTolerancePercent = v, 0f, 10f, 0.5f,
                             v => v.ToString("0.0") + " %");
                     });
@@ -76,12 +77,12 @@ namespace AutoEngineerBrakeFix
                     page.AddSection("", b =>
                     {
                         b.AddButton("Reset these to defaults", ResetDefaults);
-                        b.AddLabel("Saved to Settings.xml as you change them. Other settings, and anything that switches a feature on or off at start-up, are edited in that file and need a restart.");
+                        Note(b, "Saved to Settings.xml as you change them. Other settings, and anything that switches a feature on or off at start-up, are edited in that file and need a restart.");
                     });
 
                     page.AddSection("Self-check", b =>
                     {
-                        foreach (string line in SelfCheck.Report) b.AddLabel(line);
+                        foreach (string line in SelfCheck.Report) Note(b, line);
                     });
                 });
             }
@@ -91,9 +92,19 @@ namespace AutoEngineerBrakeFix
             }
         }
 
+        // Explanatory text: smaller and dimmer than the controls, so the sliders stay in view.
+        private static void Note(UIPanelBuilder b, string text)
+        {
+            b.AddLabel(text, (TMP_Text t) =>
+            {
+                t.fontSize *= 0.75f;
+                t.alpha = 0.8f;
+            });
+        }
+
         private static string Weight(float v)
         {
-            return v.ToString("0.00") + (Mathf.Abs(v - 1f) < 0.001f ? " (stock)" : "");
+            return v.ToString("0.00");
         }
 
         private static void Slider(UIPanelBuilder b, string label, Func<float> get, Action<float> set, float min, float max, float step, Func<float, string> format)
