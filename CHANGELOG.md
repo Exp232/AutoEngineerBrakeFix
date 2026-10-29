@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.3
+- Logger: new file `logs\ctc_dump_*.txt`, written once per game session when the first engineer is enabled (`LogCtc`, default on; needs `LogEnabled`). It lists every CTC block with its track spans (segment, end, distance, position, length) and every signal with its position, its aspect, the blocks it protects and the distance from the signal to each span end of those blocks. Read-only; nothing in the game is changed.
+- Why: the Sylva West eastbound signal (`sy-w-eb`) drops from Approach to Stop about 43 m before a train. `Player.log` shows block `sy-w` going occupied at the same second in two runs. A signal shows Stop whenever a block it protects is occupied, and a block is occupied when any car is on one of its spans, so the span of `sy-w` appears to start short of the signal. The game's own fixes for the same kind of fault (RR-178, RR-783, RR-787 in the release notes) moved block boundaries in the map. The dump gives the numbers needed to decide whether a runtime trim of that span is possible.
+- Behaviour is unchanged.
+
 ## 2.2.2
 - Logger: `sigMastM` is removed from the main CSV and from `signals_*.csv`. It read a constant (709.6 in the 28 Oct run) because the locomotive's `Component` transform does not follow the train, so it never measured anything.
 - Logger: two columns replace it, in both files. `sigRawM` is the signal distance as the game built it, taken in `SetTargets` before this mod edits the target list, then reduced by the distance the locomotive has travelled since. `sigDistM` is still the distance in the list the engineer acts on, which includes this mod's edits (`SpeedReductionLeadSeconds` moves lower limits closer by speed x lead, about 40 m at 25 mph). `travelM` is the cumulative distance travelled by the locomotive since logging began, so two rows (or the signal flip and the emergency stop) can be compared by distance as well as by time.

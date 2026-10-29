@@ -36,6 +36,7 @@ namespace AutoEngineerBrakeFix
                 {
                     ConfigDump.DumpOnce(__instance);
                     ConfigDump.DumpEngineOnce(__instance);
+                    if (Main.Settings.LogCtc) CtcDump.DumpOnce();
                 }
             }
             catch (Exception e)

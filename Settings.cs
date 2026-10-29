@@ -173,6 +173,9 @@ namespace AutoEngineerBrakeFix
         /// <summary>Also write logs\signals_*.csv: one line each time the signal an engineer is tracking, or the aspect it shows, changes (with the train's speed and distance at that moment), and add sigId, sigAspect and sigDistM to the main CSV.</summary>
         public bool LogSignals = true;
 
+        /// <summary>Also write logs\ctc_dump_*.txt once per session: every CTC block's track spans and every signal's position and protected blocks (read-only; for tracking down signals that drop to Stop early).</summary>
+        public bool LogCtc = true;
+
         /// <summary>Seconds between samples. The game's own control loop ticks about every 0.5 s.</summary>
         public float SampleIntervalSeconds = 0.25f;
 
