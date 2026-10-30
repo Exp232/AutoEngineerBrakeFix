@@ -31,6 +31,11 @@ namespace AutoEngineerBrakeFix
                     __instance.gameObject.AddComponent<ThrottleGlider>();
                 }
 
+                if (__instance.GetComponent<WaterStop>() == null)
+                {
+                    __instance.gameObject.AddComponent<WaterStop>();
+                }
+
                 BrakeFix.Register(__instance);
                 if (Main.Settings.LogEnabled)
                 {

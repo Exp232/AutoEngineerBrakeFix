@@ -66,6 +66,16 @@ namespace AutoEngineerBrakeFix
                         Note(b, "Steam and coal follow the engine's own power instead of the game's speed-based curve, so fast running no longer costs too much. Off = the game's own use. Takes effect at once; steam rate, efficiency and coal scale are in Settings.xml.");
                     });
 
+                    page.AddSection("Water stop (Road mode)", b =>
+                    {
+                        b.AddFieldToggle("Water stop", () => s.WaterStop, v => { s.WaterStop = v; Save(); });
+                        Note(b, "When the tender runs low, a Road-mode engineer takes water at the next column ahead on the lined route. It switches to Waypoint mode only in the column's signal block, then goes back to Road mode.");
+                        Slider(b, "Stop below", () => s.WaterStopPercent, v => s.WaterStopPercent = v, 10f, 60f, 5f,
+                            v => v.ToString("0") + " % water");
+                        Slider(b, "Approach speed", () => s.WaterStopApproachMph, v => s.WaterStopApproachMph = v, 10f, 35f, 5f,
+                            v => v.ToString("0") + " mph");
+                    });
+
                     page.AddSection("Planner weights (1 = the game's own)", b =>
                     {
                         Slider(b, "Overspeed", () => s.PlanOverspeedScale, v => s.PlanOverspeedScale = v, 0f, 3f, 0.05f, Weight);

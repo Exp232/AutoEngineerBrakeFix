@@ -1,0 +1,462 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Game.Messages;
+using Game.State;
+using KeyValue.Runtime;
+using Model;
+using Model.AI;
+using Model.Ops;
+using RollingStock;
+using Track;
+using Track.Signals;
+using UI.EngineControls;
+using UnityEngine;
+
+namespace AutoEngineerBrakeFix
+{
+    /// <summary>
+    /// Water stop for a Road-mode engineer (off by default, setting WaterStop).
+    ///
+    /// When the tender's water falls below the threshold, the engineer looks along the route as it is lined (Road mode
+    /// does not throw switches) for the nearest water column or tower ahead, says where it will take water, and
+    /// slows to the approach speed when it gets close. Only once the lead car is in the column's signal block (or,
+    /// where there is no CTC block, within the approach distance) does it switch to Waypoint mode with a waypoint
+    /// that puts the tender's water hatch under the spout, so the player's routing is kept up to that block.
+    /// Stopped there, it asks the column's own loader sequence to load (the same key value the game's loader
+    /// sequencer reads), waits until the tender is full, puts the spout away and goes back to Road mode with the
+    /// direction and speed it had.
+    ///
+    /// The spotting arithmetic and the use of CarLoaderSequencer's "wants loading" key follow the refuel feature of
+    /// the Waypoint Queue mod by PrinceOfPluto (MIT licence, https://github.com/PrinceOfPluto/WaypointQueue).
+    ///
+    /// Host only. One component per engineer; it does nothing unless the setting is on, the engine is a steam
+    /// locomotive with a tender, and the engineer is in Road mode (or in the Waypoint mode this component set).
+    /// The player changing the orders at any point cancels the stop.
+    /// </summary>
+    public class WaterStop : MonoBehaviour
+    {
+        private enum Phase { Idle, Armed, Approaching, Filling }
+
+        private const float TickSeconds = 1f;
+        private const float SearchEverySeconds = 5f;
+        private const float SlowDownWithinMeters = 1600f;
+        private const float MinAheadMeters = 30f;
+        private const float StopPastSpoutMeters = 0.5f;   // Waypoint Queue's allowance for where the engineer stops
+        private const float ApproachTimeoutSeconds = 1200f;
+        private const float NoFlowTimeoutSeconds = 90f;
+        private const float FullFraction = 0.995f;
+        private const float ColumnCooldownSeconds = 600f;
+
+        private sealed class Column
+        {
+            public CarLoadTargetLoader Loader;
+            public CarLoaderSequencer Sequencer;
+            public string Id;
+            public string Place;
+            public Location Location;
+            public CTCBlock Block;
+        }
+
+        private static List<Column> _columns;
+        private static bool _loggedColumns;
+
+        private AutoEngineer _ae;
+        private BaseLocomotive _loco;
+        private Phase _phase = Phase.Idle;
+        private float _nextTick;
+        private float _nextSearch;
+        private float _phaseStart;
+        private float _graceUntil;      // our own order changes take a moment to show in the orders
+        private bool _syncSpeed;
+
+        private Column _column;
+        private bool _origForward;
+        private int _origMaxSpeed;
+        private int _setMaxSpeed;
+        private string _waypointString;
+        private bool _requested;
+        private float _lastWater;
+        private float _lastFlow;
+        private bool _saidNoColumn;
+        private readonly Dictionary<string, float> _cooldown = new Dictionary<string, float>();
+
+        private void Awake()
+        {
+            _ae = GetComponent<AutoEngineer>();
+            _loco = GetComponent<BaseLocomotive>();
+        }
+
+        private void OnDisable()
+        {
+            if (_phase == Phase.Filling) Request(false);
+            _phase = Phase.Idle;
+        }
+
+        private void Update()
+        {
+            if (!Main.Active) return;
+            float now = Time.time;
+            if (now < _nextTick) return;
+            _nextTick = now + TickSeconds;
+
+            try
+            {
+                if (!Main.Settings.WaterStop || !StateManager.IsHost || _loco == null || _loco.AutoEngineerPlanner == null)
+                {
+                    if (_phase != Phase.Idle) Cancel("water stop switched off");
+                    return;
+                }
+                Tick(now);
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.Warning("Water stop (" + Name + ") failed: " + e.Message);
+                if (_phase == Phase.Filling) Request(false);
+                _phase = Phase.Idle;
+            }
+        }
+
+        private string Name => _loco != null ? _loco.DisplayName : "?";
+
+        private AutoEngineerOrdersHelper Helper => new AutoEngineerOrdersHelper(_loco, new AutoEngineerPersistence(_loco.KeyValueObject));
+
+        private Orders CurrentOrders => new AutoEngineerPersistence(_loco.KeyValueObject).Orders;
+
+        private void Tick(float now)
+        {
+            Orders orders = CurrentOrders;
+            Car tender = FuelReader.Tender(_loco);
+            float water = FuelReader.WaterFraction(tender);
+
+            switch (_phase)
+            {
+                case Phase.Idle:
+                {
+                    if (orders.Mode != AutoEngineerMode.Road || orders.MaxSpeedMph <= 0 || float.IsNaN(water)) return;
+                    float threshold = Mathf.Clamp(Main.Settings.WaterStopPercent, 5f, 90f) / 100f;
+                    if (water >= threshold) { _saidNoColumn = false; return; }
+                    if (now < _nextSearch) return;
+                    _nextSearch = now + SearchEverySeconds;
+
+                    if (!TryFindColumnAhead(orders.Forward, out Column column, out float distance))
+                    {
+                        if (!_saidNoColumn)
+                        {
+                            _saidNoColumn = true;
+                            Say($"Water's at {water * 100f:0}% and I don't see a water column ahead on this route.");
+                            Main.Mod.Logger.Log($"Water stop ({Name}): water {water * 100f:0}%, no column ahead within {Main.Settings.WaterStopSearchKm:0} km.");
+                        }
+                        return;
+                    }
+                    _column = column;
+                    _origForward = orders.Forward;
+                    _origMaxSpeed = orders.MaxSpeedMph;
+                    _setMaxSpeed = orders.MaxSpeedMph;
+                    _syncSpeed = false;
+                    _phase = Phase.Armed;
+                    _phaseStart = now;
+                    Say($"Water's at {water * 100f:0}%. We'll take water at {column.Place}.");
+                    Main.Mod.Logger.Log($"Water stop ({Name}): water {water * 100f:0}%, column {column.Id} at {column.Place}, {distance:0} m ahead (block {column.Block?.id ?? "none"}).");
+                    return;
+                }
+
+                case Phase.Armed:
+                {
+                    if (now < _graceUntil) return;
+                    if (_syncSpeed)
+                    {
+                        _setMaxSpeed = orders.MaxSpeedMph;   // as the game clamped it
+                        _syncSpeed = false;
+                    }
+                    if (orders.Mode != AutoEngineerMode.Road || orders.Forward != _origForward || orders.MaxSpeedMph != _setMaxSpeed)
+                    {
+                        Cancel("orders changed by the player");
+                        return;
+                    }
+                    if (now < _nextSearch) return;
+                    _nextSearch = now + SearchEverySeconds / 2f;
+
+                    if (!TryDistanceTo(_column, orders.Forward, out float distance, out Location head, out Car headCar))
+                    {
+                        // Passed it, or the route was lined away from it: give back the speed we took off.
+                        if (_setMaxSpeed != _origMaxSpeed) Helper.SetOrdersValue(null, null, _origMaxSpeed, null, null);
+                        Cancel("the column is no longer ahead on the lined route");
+                        return;
+                    }
+
+                    int approach = Mathf.Clamp(Mathf.RoundToInt(Main.Settings.WaterStopApproachMph), 5, 45);
+                    if (distance < SlowDownWithinMeters && _setMaxSpeed > approach)
+                    {
+                        _setMaxSpeed = approach;
+                        _syncSpeed = true;
+                        _graceUntil = now + 3f;
+                        Helper.SetOrdersValue(null, null, approach, null, null);
+                        Main.Mod.Logger.Log($"Water stop ({Name}): {distance:0} m from {_column.Id}, slowing to {approach} mph.");
+                        return;
+                    }
+
+                    bool inBlock = _column.Block != null
+                        ? _column.Block.CarsInBlock().Contains(headCar)
+                        : distance <= Mathf.Max(100f, Main.Settings.WaterStopApproachMeters);
+                    if (!inBlock) return;
+
+                    if (!TryWaypointFor(_column, head, out Location target, out float headToHatch))
+                    {
+                        Cancel("could not work out where to stop");
+                        return;
+                    }
+                    _waypointString = Graph.LocationToString(target.Clamped());
+                    Helper.SetOrdersValue(AutoEngineerMode.Waypoint, _origForward, Mathf.Min(_setMaxSpeed, approach), null, new OrderWaypoint(_waypointString, null));
+                    _phase = Phase.Approaching;
+                    _phaseStart = now;
+                    _graceUntil = now + 3f;
+                    Say($"Pulling up to the water column at {_column.Place}.");
+                    Main.Mod.Logger.Log($"Water stop ({Name}): in {(_column.Block != null ? "block " + _column.Block.id : "approach distance")}, {distance:0} m from {_column.Id}; Waypoint mode to {_waypointString} (lead end to hatch {headToHatch:0.0} m).");
+                    return;
+                }
+
+                case Phase.Approaching:
+                {
+                    if (now < _graceUntil) return;
+                    if (orders.Mode != AutoEngineerMode.Waypoint || (orders.Waypoint.HasValue && orders.Waypoint.Value.LocationString != _waypointString))
+                    {
+                        Cancel("orders changed by the player");
+                        return;
+                    }
+                    if (now - _phaseStart > ApproachTimeoutSeconds)
+                    {
+                        GiveUp("couldn't get to the column");
+                        return;
+                    }
+                    if (!_loco.IsStopped(3f)) return;
+                    // Stopped: either at the waypoint (the game may clear it on arrival) or held by something else.
+                    if (orders.Waypoint.HasValue && !NearWaypoint()) return;
+                    _phase = Phase.Filling;
+                    _phaseStart = now;
+                    _lastWater = water;
+                    _lastFlow = now;
+                    Request(true);
+                    Say("Taking water.");
+                    Main.Mod.Logger.Log($"Water stop ({Name}): stopped at {_column.Id}, water {water * 100f:0.0}%, loader requested.");
+                    return;
+                }
+
+                case Phase.Filling:
+                {
+                    if (orders.Mode != AutoEngineerMode.Waypoint)
+                    {
+                        Request(false);
+                        Cancel("orders changed by the player");
+                        return;
+                    }
+                    if (water >= FullFraction)
+                    {
+                        Request(false);
+                        Main.Mod.Logger.Log($"Water stop ({Name}): full ({water * 100f:0.0}%) after {now - _phaseStart:0} s at {_column.Id}.");
+                        Finish("Tender's full. Back to road orders.");
+                        return;
+                    }
+                    if (water > _lastWater + 0.0005f)
+                    {
+                        _lastWater = water;
+                        _lastFlow = now;
+                        return;
+                    }
+                    if (now - _lastFlow > NoFlowTimeoutSeconds)
+                    {
+                        Request(false);
+                        if (water >= 0.95f)   // the loader stops at its own idea of full, which can sit a little under the slot size
+                        {
+                            Main.Mod.Logger.Log($"Water stop ({Name}): flow stopped at {water * 100f:0.0}%, taken as full.");
+                            Finish("Tender's full. Back to road orders.");
+                        }
+                        else
+                        {
+                            GiveUp($"no water is coming in (tender at {water * 100f:0}%)");
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+
+        // ---- Phases ----
+
+        private void Cancel(string why)
+        {
+            Main.Mod.Logger.Log($"Water stop ({Name}): cancelled, {why}.");
+            if (_column != null) _cooldown[_column.Id] = Time.time + ColumnCooldownSeconds;
+            _phase = Phase.Idle;
+            _column = null;
+            _requested = false;
+        }
+
+        private void GiveUp(string why)
+        {
+            Main.Mod.Logger.Log($"Water stop ({Name}): giving up at {_column?.Id}, {why}.");
+            Finish($"Couldn't take water here: {why}. Back to road orders.");
+        }
+
+        private void Finish(string say)
+        {
+            if (_column != null) _cooldown[_column.Id] = Time.time + ColumnCooldownSeconds;
+            Helper.SetOrdersValue(AutoEngineerMode.Road, _origForward, _origMaxSpeed, null, null);
+            Say(say);
+            _phase = Phase.Idle;
+            _column = null;
+            _requested = false;
+        }
+
+        private void Request(bool loading)
+        {
+            if (_column?.Sequencer == null || _column.Sequencer.keyValueObject == null) return;
+            if (!loading && !_requested) return;
+            string id = _column.Sequencer.keyValueObject.RegisteredId;
+            if (string.IsNullOrEmpty(id)) return;
+            StateManager.ApplyLocal(new PropertyChange(id, _column.Sequencer.readWantsLoadingKey, new BoolPropertyValue(loading)));
+            _requested = loading;
+        }
+
+        private void Say(string text)
+        {
+            try { _loco.AutoEngineerPlanner?.Say(text); }
+            catch (Exception) { }
+        }
+
+        private bool NearWaypoint()
+        {
+            Graph graph = Graph.Shared;
+            if (graph == null || string.IsNullOrEmpty(_waypointString)) return true;
+            Location target = graph.ResolveLocationString(_waypointString);
+            Location head = HeadLocation(_origForward, out _);
+            if (!head.IsValid || !target.IsValid) return true;
+            return Vector3.Distance(graph.GetPosition(head), graph.GetPosition(target)) < 25f;
+        }
+
+        // ---- Track geometry ----
+
+        /// <summary>The leading end of the consist in the direction of travel, facing ahead (as the planner's StartLocation).</summary>
+        private Location HeadLocation(bool forward, out Car headCar)
+        {
+            Car.End end = forward ? Car.End.F : Car.End.R;
+            List<Car> cars = _loco.EnumerateCoupled(end).ToList();
+            headCar = cars.Count > 0 ? cars[0] : _loco;
+            Car.LogicalEnd logical = _loco.EndToLogical(end);
+            Location loc = headCar.LocationFor(logical);
+            return logical == Car.LogicalEnd.A ? loc : loc.Flipped();
+        }
+
+        private bool TryFindColumnAhead(bool forward, out Column best, out float bestDistance)
+        {
+            best = null;
+            bestDistance = float.MaxValue;
+            List<Column> columns = Columns();
+            if (columns.Count == 0) return false;
+
+            float now = Time.time;
+            foreach (Column c in columns)
+            {
+                if (_cooldown.TryGetValue(c.Id, out float until) && now < until) continue;
+                if (!TryDistanceTo(c, forward, out float d, out _, out _)) continue;
+                if (d < bestDistance)
+                {
+                    best = c;
+                    bestDistance = d;
+                }
+            }
+            return best != null;
+        }
+
+        /// <summary>Distance from the lead end to the column along the route as it is lined now, if it is ahead.</summary>
+        private bool TryDistanceTo(Column column, bool forward, out float distance, out Location head, out Car headCar)
+        {
+            distance = float.MaxValue;
+            head = HeadLocation(forward, out headCar);
+            Graph graph = Graph.Shared;
+            if (graph == null || !head.IsValid || column == null || !column.Location.IsValid) return false;
+
+            float maxMeters = Mathf.Clamp(Main.Settings.WaterStopSearchKm, 1f, 100f) * 1000f;
+            RouteWalker walker = graph.WalkRoute(head, maxMeters);
+            while (walker.TryNext(out WalkSegment ws))
+            {
+                if (ws.Segment != column.Location.segment) continue;
+                float fromEntry = graph.GetDistanceBetweenClose(ws.EntryLocation, column.Location);
+                float toExit = graph.GetDistanceBetweenClose(column.Location, ws.ExitLocation);
+                if (Mathf.Abs(fromEntry + toExit - ws.TraversedLength) > 1f) continue;   // on this segment but not in the walked part
+                float d = ws.EntryDistance + fromEntry;
+                if (d < MinAheadMeters) continue;
+                distance = d;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The waypoint that stops the lead end so that the tender's water hatch is under the spout: the spout's track
+        /// point moved ahead by the lead-end-to-hatch distance (plus Waypoint Queue's 0.5 m allowance).
+        /// </summary>
+        private bool TryWaypointFor(Column column, Location head, out Location target, out float headToHatch)
+        {
+            target = Location.Invalid;
+            headToHatch = 0f;
+            Graph graph = Graph.Shared;
+            Car tender = FuelReader.Tender(_loco);
+            int slot = FuelReader.WaterSlot(tender);
+            if (graph == null || tender == null || slot < 0) return false;
+
+            CarLoadTarget hatch = tender.GetComponentsInChildren<CarLoadTarget>().FirstOrDefault(t => t.slotIndex == slot);
+            if (hatch == null) return false;
+
+            // As CarLoadTargetLoader.LoadSlotFromCar: the hatch in game coordinates.
+            Matrix4x4 m = tender.GetTransformMatrix(graph);
+            Vector3 hatchGame = m.MultiplyPoint3x4(tender.transform.InverseTransformPoint(hatch.transform.position));
+            Vector3 headGame = graph.GetPosition(head);
+            headToHatch = Vector2.Distance(new Vector2(headGame.x, headGame.z), new Vector2(hatchGame.x, hatchGame.z));
+
+            Location toward = graph.LocationOrientedToward(column.Location, head);
+            target = graph.LocationByMoving(toward, -(headToHatch + StopPastSpoutMeters), false, true);
+            return target.IsValid;
+        }
+
+        // ---- Columns ----
+
+        private static List<Column> Columns()
+        {
+            if (_columns != null && _columns.All(c => c.Loader != null)) return _columns;
+
+            var list = new List<Column>();
+            Graph graph = Graph.Shared;
+            if (graph == null) return list;
+
+            CarLoadTargetLoader[] loaders = UnityEngine.Object.FindObjectsByType<CarLoadTargetLoader>(FindObjectsSortMode.None);
+            CarLoaderSequencer[] sequencers = UnityEngine.Object.FindObjectsByType<CarLoaderSequencer>(FindObjectsSortMode.None);
+            CTCBlock[] blocks = UnityEngine.Object.FindObjectsByType<CTCBlock>(FindObjectsSortMode.None);
+
+            foreach (CarLoadTargetLoader loader in loaders)
+            {
+                if (loader == null || !loader.enabled || loader.keyValueObject == null) continue;
+                if (!string.Equals(loader.loadId, "rr/water", StringComparison.OrdinalIgnoreCase)) continue;
+                string id = loader.keyValueObject.RegisteredId;
+                if (!graph.TryGetLocationFromWorldPoint(loader.transform.position, 10f, out Location loc)) continue;
+
+                CarLoaderSequencer sequencer = sequencers.FirstOrDefault(s => s != null && s.keyValueObject != null && s.keyValueObject.RegisteredId == id);
+                if (sequencer == null) continue;
+
+                Vector3 game = graph.GetPosition(loc);
+                string place = OpsController.Shared?.ClosestAreaForGamePosition(game)?.name ?? id;
+                CTCBlock block = blocks.FirstOrDefault(b => b != null && b.GetComponentsInChildren<TrackSpan>(true).Any(s => s != null && s.IsValid && s.Contains(loc)));
+                list.Add(new Column { Loader = loader, Sequencer = sequencer, Id = id, Place = place, Location = loc, Block = block });
+            }
+
+            _columns = list;
+            if (!_loggedColumns && list.Count > 0)
+            {
+                _loggedColumns = true;
+                Main.Mod.Logger.Log("Water stop: " + list.Count + " water columns found: " + string.Join(", ", list.Select(c =>
+                    $"{c.Id} ({c.Place}, block {c.Block?.id ?? "none"}, rate {c.Loader.outputRate}/s, reach {c.Loader.radius} m, max {c.Loader.maximumSpeedInMph} mph, key {c.Sequencer.readWantsLoadingKey})")));
+            }
+            return list;
+        }
+    }
+}

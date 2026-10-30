@@ -114,6 +114,7 @@ namespace AutoEngineerBrakeFix
                 ["SteamLocomotive.CutoffSettingForVelocity(float velocityMps)"] =
                     () => Method(typeof(SteamLocomotive), "CutoffSettingForVelocity", new[] { typeof(float) }, typeof(float), "velocityMps"),
 
+                ["SteamLocomotive.FuelCar()"] = () => Method(typeof(SteamLocomotive), "FuelCar", Type.EmptyTypes, typeof(Car)),
                 ["AutoEngineerPlanner"] = () => planner != null,
                 ["AutoEngineerPlanner.Say(string)"] = () => planner != null && Method(planner, "Say", new[] { typeof(string) }, typeof(void)),
                 ["AutoEngineerPlanner.UpdateTargets(float, int)"] =
@@ -265,6 +266,15 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.FuelFollowsTimeWarp = false,
                     Needs = new[] { "SteamLocomotive.PeriodicUpdate(float dt)", "DieselLocomotive.PeriodicUpdate(float dt)" },
                     Patches = new[] { typeof(SteamLocomotive_PeriodicUpdate_Patch), typeof(DieselLocomotive_PeriodicUpdate_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Water stop (Road mode)",
+                    AlwaysPatch = true,
+                    On = () => s.WaterStop,
+                    TurnOff = () => s.WaterStop = false,
+                    Needs = new[] { "AutoEngineer.OnEnable()", "SteamLocomotive.FuelCar()", "AutoEngineerPlanner.Say(string)" },
+                    Patches = new[] { typeof(AutoEngineer_OnEnable_Patch) },
                 },
                 new Feature
                 {

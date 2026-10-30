@@ -121,6 +121,29 @@ namespace AutoEngineerBrakeFix
         /// <summary>Multiplier on coal burned (1 = the evaporation curve as is).</summary>
         public float CoalScale = 1f;
 
+        // ---- Water stop (Road mode) ----
+
+        /// <summary>
+        /// Road-mode engineers stop at the next water column or tower ahead on the lined route when the tender runs low:
+        /// they slow to the approach speed near it, switch to Waypoint mode only once the lead car is in the column's
+        /// signal block (or within the approach distance where there is no CTC block), take water with the column's own
+        /// loader, and go back to Road mode with the speed and direction they had. Off by default; switchable in the
+        /// settings window while the game runs.
+        /// </summary>
+        public bool WaterStop = false;
+
+        /// <summary>Tender water (percent of capacity) below which the engineer plans a water stop.</summary>
+        public float WaterStopPercent = 30f;
+
+        /// <summary>How far ahead along the lined route to look for a water column (km).</summary>
+        public float WaterStopSearchKm = 30f;
+
+        /// <summary>Road-mode speed limit (mph) once within about a mile of the column, and the Waypoint-mode limit for the stop itself.</summary>
+        public float WaterStopApproachMph = 20f;
+
+        /// <summary>Where the column is not in a CTC block: distance (m) from the column at which the engineer switches to Waypoint mode.</summary>
+        public float WaterStopApproachMeters = 600f;
+
         // ---- Signals ----
 
         /// <summary>How far ahead (m) the AI reacts to a signal's aspect. The game uses 200.</summary>

@@ -125,6 +125,10 @@ namespace AutoEngineerBrakeFix
             {
                 UnityEngine.Object.Destroy(glider);
             }
+            foreach (var stop in UnityEngine.Object.FindObjectsByType<WaterStop>(UnityEngine.FindObjectsSortMode.None))
+            {
+                UnityEngine.Object.Destroy(stop);
+            }
 
             if (_hotkey != null)
             {

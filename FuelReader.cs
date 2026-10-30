@@ -37,6 +37,31 @@ namespace AutoEngineerBrakeFix
             return identifier == name || (identifier != null && identifier.EndsWith("/" + name));
         }
 
+        /// <summary>The steam locomotive's tender (its fuel car), or null.</summary>
+        internal static Car Tender(BaseLocomotive loco)
+        {
+            var steam = loco as SteamLocomotive;
+            if (steam == null || MFuelCar == null) return null;
+            return MFuelCar.Invoke(steam, null) as Car;
+        }
+
+        /// <summary>Index of the tender's water slot, or -1.</summary>
+        internal static int WaterSlot(Car tender)
+        {
+            if (tender == null) return -1;
+            return tender.Definition.LoadSlots.FindIndex((LoadSlot loadSlot) => IsLoad(loadSlot.RequiredLoadIdentifier, "water"));
+        }
+
+        /// <summary>Water aboard the tender as a fraction of its capacity (0 to 1), or NaN when it cannot be read.</summary>
+        internal static float WaterFraction(Car tender)
+        {
+            int slot = WaterSlot(tender);
+            if (slot < 0) return float.NaN;
+            float capacity = tender.Definition.LoadSlots[slot].MaximumCapacity;
+            if (capacity <= 0f) return float.NaN;
+            return (tender.GetLoadInfo(slot)?.Quantity ?? 0f) / capacity;
+        }
+
         internal static Reading Read(BaseLocomotive loco)
         {
             Reading result = Reading.Empty();

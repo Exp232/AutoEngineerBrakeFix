@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0
+- New, off by default: **water stop for Road-mode engineers** (setting `WaterStop`; switch and sliders in the settings window under "Water stop (Road mode)", effective at once).
+  - When the tender's water falls below `WaterStopPercent` (default 30%), the engineer looks ahead along the route as it is lined (up to `WaterStopSearchKm`, default 30 km) for the nearest water column or tower, says where it will take water, and slows to `WaterStopApproachMph` (default 20 mph) within about a mile of it.
+  - It switches to Waypoint mode only once the lead car is in the column's CTC signal block, so the player's routing and signals are kept up to that block (Waypoint mode may throw switches inside it). Where the column is not in a CTC block it switches within `WaterStopApproachMeters` (default 600 m).
+  - The waypoint puts the tender's water hatch (the tender's `LoadTarget`) under the spout. Stopped there, it asks the column's own loader to load (the `CarLoaderSequencer` "wants loading" key, as the game's own sequence uses), waits until the tender is full, puts the spout away and returns to Road mode with the direction and speed it had.
+  - The player changing the orders cancels it. If it cannot reach the column within 20 game minutes, or no water flows for 90 seconds, it gives up and returns to Road mode. A column it gave up on or cancelled is skipped for 10 game minutes. Host only.
+  - `Player.log` lists the water columns found (id, place, block, fill rate, reach) once per session and every step of each stop.
+  - The spotting arithmetic and the loader request follow the refuel feature of PrinceOfPluto's Waypoint Queue mod (MIT licence).
+
 ## 2.4.10
 - Realistic fuel use (off by default): new evaporation curve, so less coal for the same steam. Water per pound of coal is now 8 at light firing, 7 at moderate firing (about 650 lb of water per sq ft of grate per hour) and 5.5 at heavy firing (935), falling slowly to 5 beyond; it was 7.5 at light firing falling to 5 at 1,000. The new points sit between Ralph Johnson's road figures (6.5 at 100 lb of coal per sq ft per hour, 5.5 above 170) and Goss's superheated test-plant result (about 7.3 at 200 psi; *Superheated Steam in Locomotive Service*, 1910). Water use is unchanged. Replayed over the logged Bryson to Sylva round trip (EMR 5000, about 1,931 tons), coal falls about 8% (9,247 to 8,505 lb; 126 to 116 lb per 1,000 gross ton-miles; 3.7 to 3.4 lb per indicated horsepower-hour) and water per pound of coal rises from 6.3 to 6.8. No setting or default changed; `CoalScale` still multiplies the result.
 - README: the realistic fuel section now compares with Goss's test-plant figures and the ICC's Class I fuel statistics (1921-1943) instead of the second-hand McAuliffe figures.
