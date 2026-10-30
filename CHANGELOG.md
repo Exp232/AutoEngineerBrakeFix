@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.4.9
+- Documentation only, no change in behaviour. The README and the `SteamLbPerIhpHour` comment no longer claim a realistic range or "about 112 lb" for realistic fuel. They now give the measured figures (about 126 lb of coal and 95 gal of water per 1,000 gross ton-miles on the Bryson to Sylva round trip, against 172 and 153 with the game's own use) and cite the only outside figures found, McAuliffe's *Railway Fuel* (1927) as quoted on a Trains.com forum: 139, 161 and 159 lb of coal per 1,000 gross ton-miles for Union Pacific 1925, Santa Fe 1923 and all US railroads 1925. The older "80-110 lb" and "realistic water stops" wording had no source and is removed.
+
 ## 2.4.8
 - Fix in realistic fuel use (off by default): the cutoff term of the steam rate now uses the real cutoff. `SteamEngine.reverser` is the lever position (the game maps lever 0.1 to 1 onto a cutoff of 0.15 to 0.85 with `TrainMath.ReverserToCutoff`), but the model used the lever value as if it were the cutoff, so it overstated the cutoff term at long cutoffs (lever 0.64 is cutoff 0.57). Replayed over the logged 38.4-mile round trips this lowers the modelled burn by about 2.4% coal and 1.7% water (9,477 to 9,246 lb coal, 7,105 to 6,985 gal water; 129.2 to 126.1 lb coal per 1,000 gross ton-miles). No setting or default changed (steam rate 21.5, cutoff effect 0.5); raise the steam rate by about 2% in `Settings.xml` to keep the old totals.
 
