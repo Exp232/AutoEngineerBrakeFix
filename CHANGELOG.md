@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.4.8
+- Fix in realistic fuel use (off by default): the cutoff term of the steam rate now uses the real cutoff. `SteamEngine.reverser` is the lever position (the game maps lever 0.1 to 1 onto a cutoff of 0.15 to 0.85 with `TrainMath.ReverserToCutoff`), but the model used the lever value as if it were the cutoff, so it overstated the cutoff term at long cutoffs (lever 0.64 is cutoff 0.57). Replayed over the logged 38.4-mile round trips this lowers the modelled burn by about 2.4% coal and 1.7% water (9,477 to 9,246 lb coal, 7,105 to 6,985 gal water; 129.2 to 126.1 lb coal per 1,000 gross ton-miles). No setting or default changed (steam rate 21.5, cutoff effect 0.5); raise the steam rate by about 2% in `Settings.xml` to keep the old totals.
+
 ## 2.4.7
 - Realistic fuel use can now be switched on and off in the settings window (Ctrl+F8, section "Fuel use"), with effect at once and no restart, so a stock-fuel run and a realistic run can be made in the same session. The patch on `SteamEngine.UpdateConsumption` is now installed whenever the engine members it needs exist, even when the setting is off at start-up, and does nothing while the setting is off (the game's own rates stay). The self-check line for it reads "off (can be switched on in the settings window)" when off. The steam rate, efficiency and coal scale are still edited in `Settings.xml`. Default unchanged (off). The "Reset these to defaults" button does not touch it.
 

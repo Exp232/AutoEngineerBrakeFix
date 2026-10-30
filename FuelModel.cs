@@ -31,7 +31,7 @@ namespace AutoEngineerBrakeFix
             return Mathf.Max(4.5f, 5f - (x - 1000f) / 1000f * 0.5f);
         }
 
-        /// <summary>Steam use in lb/s and coal use in lb/s for the given tractive effort and speed.</summary>
+        /// <summary>Steam use in lb/s and coal use in lb/s for the given tractive effort, speed and cutoff (a fraction of the stroke, 0.15 to 0.85; not the reverser lever).</summary>
         internal static void Compute(float tractiveEffortLbf, float speedMph, float cutoff, float grateSqFt, out float waterGps, out float coalLbs)
         {
             float te = Mathf.Abs(tractiveEffortLbf);
@@ -78,7 +78,9 @@ namespace AutoEngineerBrakeFix
             }
 
             float grate = (float)FGrate.GetValue(__instance);
-            FuelModel.Compute(__instance.tractiveEffort, wheelVelocityMph, __instance.reverser, grate, out float waterTarget, out float coalTarget);
+            // The reverser is the lever position (0.1 to 1); the game maps it to a cutoff of 0.15 to 0.85 (TrainMath.ReverserToCutoff).
+            float cutoff = TrainMath.ReverserToCutoff(Mathf.Abs(__instance.reverser));
+            FuelModel.Compute(__instance.tractiveEffort, wheelVelocityMph, cutoff, grate, out float waterTarget, out float coalTarget);
 
             // Same smoothing and zeroing as the game's UpdateConsumption, applied to our own state.
             Rates st = State.GetOrCreateValue(__instance);
