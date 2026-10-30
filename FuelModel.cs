@@ -15,8 +15,10 @@ namespace AutoEngineerBrakeFix
     ///
     /// This replaces it with a power-based model: steam = steam rate (lb per indicated hp-hour) x indicated power,
     /// where indicated power = the engine's own tractive effort x speed / mechanical efficiency. Coal follows from
-    /// the steam through an evaporation curve (7.5 lb water per lb coal at light firing, falling to 5 at
-    /// 200 lb coal per sq ft of grate per hour).
+    /// the steam through an evaporation curve: 8 lb water per lb coal at light firing, 7 at moderate firing
+    /// (about 650 lb of water per sq ft of grate per hour, roughly 90 lb of coal) and 5.5 at heavy firing (935 lb of
+    /// water, 170 lb of coal), falling slowly to 5 beyond. Anchored between Ralph Johnson's road figures (6.5 at
+    /// 100 lb of coal, 5.5 above 170) and Goss's superheated test-plant result (about 7.3 at 200 psi, 1910).
     /// </summary>
     internal static class FuelModel
     {
@@ -26,9 +28,10 @@ namespace AutoEngineerBrakeFix
         internal static float EvaporationRatio(float waterLbPerSqFtHour)
         {
             float x = waterLbPerSqFtHour;
-            if (x <= 375f) return 7.5f;
-            if (x <= 1000f) return 7.5f - (x - 375f) / 625f * 2.5f;
-            return Mathf.Max(4.5f, 5f - (x - 1000f) / 1000f * 0.5f);
+            if (x <= 450f) return 8f;
+            if (x <= 650f) return 8f - (x - 450f) / 200f * 1f;
+            if (x <= 935f) return 7f - (x - 650f) / 285f * 1.5f;
+            return Mathf.Max(5f, 5.5f - (x - 935f) / 1000f * 0.5f);
         }
 
         /// <summary>Steam use in lb/s and coal use in lb/s for the given tractive effort, speed and cutoff (a fraction of the stroke, 0.15 to 0.85; not the reverser lever).</summary>

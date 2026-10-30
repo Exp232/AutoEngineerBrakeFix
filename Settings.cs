@@ -109,7 +109,7 @@ namespace AutoEngineerBrakeFix
         /// </summary>
         public bool RealisticFuel = false;
 
-        /// <summary>Pounds of steam per indicated horsepower-hour (modern locomotives about 16-20 at a good cutoff; 21.5 with the default cutoff term gave about 126 lb of coal per 1,000 gross ton-miles on the Bryson to Sylva round trip with the EMR 5000; 1920s US freight averages were roughly 140 to 160).</summary>
+        /// <summary>Pounds of steam per indicated horsepower-hour (modern locomotives about 16-20 at a good cutoff; 21.5 with the default cutoff term gives about 23 lb of water per indicated hp-hour on the Bryson to Sylva round trip with the EMR 5000; Goss measured 21.6 for a superheated engine at 200 psi in steady running).</summary>
         public float SteamLbPerIhpHour = 21.5f;
 
         /// <summary>How much the steam rate changes with cutoff: factor = 1 + slope x (cutoff - 0.30), limited to 0.8-1.4. 0 turns it off.</summary>

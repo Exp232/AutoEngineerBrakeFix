@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.4.10
+- Realistic fuel use (off by default): new evaporation curve, so less coal for the same steam. Water per pound of coal is now 8 at light firing, 7 at moderate firing (about 650 lb of water per sq ft of grate per hour) and 5.5 at heavy firing (935), falling slowly to 5 beyond; it was 7.5 at light firing falling to 5 at 1,000. The new points sit between Ralph Johnson's road figures (6.5 at 100 lb of coal per sq ft per hour, 5.5 above 170) and Goss's superheated test-plant result (about 7.3 at 200 psi; *Superheated Steam in Locomotive Service*, 1910). Water use is unchanged. Replayed over the logged Bryson to Sylva round trip (EMR 5000, about 1,931 tons), coal falls about 8% (9,247 to 8,505 lb; 126 to 116 lb per 1,000 gross ton-miles; 3.7 to 3.4 lb per indicated horsepower-hour) and water per pound of coal rises from 6.3 to 6.8. No setting or default changed; `CoalScale` still multiplies the result.
+- README: the realistic fuel section now compares with Goss's test-plant figures and the ICC's Class I fuel statistics (1921-1943) instead of the second-hand McAuliffe figures.
+
 ## 2.4.9
 - Documentation only, no change in behaviour. The README and the `SteamLbPerIhpHour` comment no longer claim a realistic range or "about 112 lb" for realistic fuel. They now give the measured figures (about 126 lb of coal and 95 gal of water per 1,000 gross ton-miles on the Bryson to Sylva round trip, against 172 and 153 with the game's own use) and cite the only outside figures found, McAuliffe's *Railway Fuel* (1927) as quoted on a Trains.com forum: 139, 161 and 159 lb of coal per 1,000 gross ton-miles for Union Pacific 1925, Santa Fe 1923 and all US railroads 1925. The older "80-110 lb" and "realistic water stops" wording had no source and is removed.
 
