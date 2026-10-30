@@ -85,7 +85,6 @@ namespace AutoEngineerBrakeFix
 
         // ---- Fuel use (experimental) ----
 
-        /// <summary>Replace the game's coal and water use with a power-based model (see FuelModel).</summary>
         /// <summary>Adds a standing-start resistance the game lacks (its Davis equation only covers a moving train). Off by default.</summary>
         public bool StartingResistance = false;
 
@@ -104,6 +103,10 @@ namespace AutoEngineerBrakeFix
         /// <summary>Game minutes for a stopped car to get back to 63% of the way from the floor to the full drag.</summary>
         public float StartingResistanceSettleMinutes = 10f;
 
+        /// <summary>
+        /// Replace the game's coal and water use with a power-based model (see FuelModel). Off by default. Can be switched in
+        /// the settings window while the game runs (the patch is always installed and does nothing while this is off).
+        /// </summary>
         public bool RealisticFuel = false;
 
         /// <summary>Pounds of steam per indicated horsepower-hour (modern locomotives about 16-20 at a good cutoff; 21.5 with the default cutoff term gives about 112 lb of coal per 1,000 gross ton-miles on a road run).</summary>

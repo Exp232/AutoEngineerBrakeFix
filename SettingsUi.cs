@@ -60,6 +60,12 @@ namespace AutoEngineerBrakeFix
                             v => v.ToString("0.0") + " %");
                     });
 
+                    page.AddSection("Fuel use", b =>
+                    {
+                        b.AddFieldToggle("Realistic fuel", () => s.RealisticFuel, v => { s.RealisticFuel = v; Save(); });
+                        Note(b, "Steam and coal follow the engine's own power instead of the game's speed-based curve, so fast running no longer costs too much. Off = the game's own use. Takes effect at once; steam rate, efficiency and coal scale are in Settings.xml.");
+                    });
+
                     page.AddSection("Planner weights (1 = the game's own)", b =>
                     {
                         Slider(b, "Overspeed", () => s.PlanOverspeedScale, v => s.PlanOverspeedScale = v, 0f, 3f, 0.05f, Weight);

@@ -243,6 +243,7 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Realistic fuel",
+                    AlwaysPatch = true,
                     On = () => s.RealisticFuel,
                     TurnOff = () => s.RealisticFuel = false,
                     Needs = new[] { "SteamEngine.UpdateConsumption(float)", "SteamEngine._estimatedGrateSqFt", "SteamEngine.WaterConsumptionRate (set)", "SteamEngine.CoalConsumptionRate (set)" },
