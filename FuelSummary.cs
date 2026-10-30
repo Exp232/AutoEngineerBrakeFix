@@ -13,6 +13,7 @@ namespace AutoEngineerBrakeFix
     /// time. It exists so a change to the engineer can be judged by coal per mile on a repeatable run instead of by
     /// eye. Coal is split by what the locomotive was doing: powered (throttle open, no brake), coasting (throttle
     /// closed, no brake), braking (cylinders charged, throttle closed), and both (throttle open while braking: the waste). Brake applications are counted too; a "tap" is one that took off under 3 mph.
+    /// Gross tons (everything coupled to the locomotive, short tons) and gross ton-miles are tallied as well, with coal and water per 1,000 gross ton-miles, so runs with different trains can be compared.
     /// Totals start when the engineer is first seen and run until the game ends, so for a trip, note the last row
     /// at the start and at the end and subtract.
     /// </summary>
@@ -25,12 +26,13 @@ namespace AutoEngineerBrakeFix
         private const float MpsToMph = 2.23694f;
         private const float CylinderPsi = 1f;   // average cylinder pressure above this counts as braking
 
-        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy,setup";
+        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy,grossTons,gtMiles,coalPer1000Gtm,waterGalPer1000Gtm,setup";
 
         private sealed class Tally
         {
             public float LastWrite = float.NaN;
-            public double Coal, Water, Dist, Seconds;
+            public double Coal, Water, Dist, Seconds, GrossTonMiles;
+            public float Tons = float.NaN;
             public readonly double[] PhaseCoal = new double[5];   // powered, coasting, braking, both, standing
             public readonly double[] PhaseSeconds = new double[5];
             public int Apps, TapApps, Suppressed;
@@ -48,7 +50,7 @@ namespace AutoEngineerBrakeFix
             if (ae != null) Tallies.GetOrCreateValue(ae).Suppressed++;
         }
 
-        internal static void Tick(AutoEngineer ae, float dt, float speedMps, float throttle, float trainCylPsi, float locoCylPsi, float coalLbs, float waterGps)
+        internal static void Tick(AutoEngineer ae, float dt, float speedMps, float throttle, float trainCylPsi, float locoCylPsi, float coalLbs, float waterGps, float grossTons)
         {
             Tally t = Tallies.GetOrCreateValue(ae);
             float now = Time.fixedTime;
@@ -66,6 +68,11 @@ namespace AutoEngineerBrakeFix
             int phase = v < 0.3f ? 4 : powered && anyBrake ? 3 : anyBrake ? 2 : powered ? 0 : 1;
             t.Coal += coal; t.Water += water; t.Dist += v * dt; t.Seconds += dt;
             t.PhaseCoal[phase] += coal; t.PhaseSeconds[phase] += dt;
+            if (!float.IsNaN(grossTons))
+            {
+                t.Tons = grossTons;
+                t.GrossTonMiles += grossTons * v * dt / 1609.344;   // the train's weight can change on a trip (cars set out or picked up)
+            }
 
             // Brake applications: one per spell of cylinder pressure, spells closer than BrakeGapSeconds count as one.
             if (trainBraking)
@@ -107,7 +114,11 @@ namespace AutoEngineerBrakeFix
                 N(t.Water, "0"),
                 N(t.PhaseCoal[0], "0"), N(t.PhaseCoal[1], "0"), N(t.PhaseCoal[2], "0"), N(t.PhaseCoal[3], "0"),
                 N(t.PhaseSeconds[0] / 60.0, "0.0"), N(t.PhaseSeconds[1] / 60.0, "0.0"), N(t.PhaseSeconds[2] / 60.0, "0.0"), N(t.PhaseSeconds[3] / 60.0, "0.0"), N(t.PhaseSeconds[4] / 60.0, "0.0"),
-                t.Apps.ToString(CultureInfo.InvariantCulture), t.TapApps.ToString(CultureInfo.InvariantCulture), t.Suppressed.ToString(CultureInfo.InvariantCulture), BrakeTaps.RejectSummary(), Main.Settings.Describe());
+                t.Apps.ToString(CultureInfo.InvariantCulture), t.TapApps.ToString(CultureInfo.InvariantCulture), t.Suppressed.ToString(CultureInfo.InvariantCulture), BrakeTaps.RejectSummary(),
+                float.IsNaN(t.Tons) ? "" : N(t.Tons, "0"), N(t.GrossTonMiles, "0.0"),
+                t.GrossTonMiles > 20 ? N(t.Coal / t.GrossTonMiles * 1000.0, "0.0") : "",
+                t.GrossTonMiles > 20 ? N(t.Water / t.GrossTonMiles * 1000.0, "0.0") : "",
+                Main.Settings.Describe());
 
             lock (Lock)
             {

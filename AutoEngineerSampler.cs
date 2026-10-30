@@ -96,6 +96,8 @@ namespace AutoEngineerBrakeFix
 
         private bool _loggedFuelSummaryError;
         private float _nextCylinderRead;
+        private float _nextTonsRead;
+        private float _grossTons = float.NaN;
         private float _trainCylPsi, _locoCylPsi;
 
         private void TickFuelSummary()
@@ -115,7 +117,7 @@ namespace AutoEngineerBrakeFix
                     _locoCylPsi = float.IsNaN(l) ? 0f : l;
                 }
                 FuelSummary.Tick(_ae, Time.fixedDeltaTime, loco.velocity, ReadFloat(control, "Throttle"), _trainCylPsi, _locoCylPsi,
-                    SteamValue(loco, 2), SteamValue(loco, 1));
+                    SteamValue(loco, 2), SteamValue(loco, 1), GrossTons(loco));
             }
             catch (Exception e)
             {
@@ -210,6 +212,7 @@ namespace AutoEngineerBrakeFix
                 .Add("t", Time.fixedTime)
                 .Add("loco", loco.DisplayName)
                 .Add("cars", SafeCount(loco))
+                .Add("tons", GrossTons(loco))
                 .Add("mph", loco.velocity * MpsToMph)
                 .Add("ctxTargetMph", ReadFloat(_ae, FContextualTarget) * MpsToMph)
                 .Add("maxMph", targets != null ? targets.MaxSpeedMph : float.NaN)
@@ -385,6 +388,28 @@ namespace AutoEngineerBrakeFix
             {
                 return float.NaN;
             }
+        }
+
+        /// <summary>
+        /// Gross weight in short tons of everything coupled to the locomotive (the locomotive, its tender and every car,
+        /// loaded weight included). A car's weight only changes when it is loaded or unloaded, so the walk is repeated every
+        /// couple of seconds and the last value is returned in between. NaN when it cannot be read.
+        /// </summary>
+        private float GrossTons(Model.BaseLocomotive loco)
+        {
+            if (Time.fixedTime < _nextTonsRead) return _grossTons;
+            _nextTonsRead = Time.fixedTime + 2f;
+            try
+            {
+                float pounds = 0f;
+                foreach (var car in loco.EnumerateCoupled()) pounds += car.Weight;
+                _grossTons = pounds / 2000f;
+            }
+            catch
+            {
+                _grossTons = float.NaN;
+            }
+            return _grossTons;
         }
 
         private static int SafeCount(Model.BaseLocomotive loco)

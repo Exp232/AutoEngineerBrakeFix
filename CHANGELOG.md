@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.4.6
+- Logging only, no change to driving or fuel use. The sampler log (`ae_*.csv`) has a new `tons` column after `cars`: the gross weight in short tons of everything coupled to the locomotive (locomotive, tender and every car, loads included), refreshed every 2 seconds. The fuel summary (`fuel_summary_*.csv`) has four new columns before `setup`: `grossTons` (current), `gtMiles` (gross ton-miles run so far, using the weight at each moment), `coalPer1000Gtm` and `waterGalPer1000Gtm` (blank until 20 gross ton-miles). This lets runs with different trains be compared, and the realistic fuel steam rate be checked against published coal per 1,000 gross ton-miles. A new column shifts the later columns in the sampler log; read them by name.
+
 ## 2.4.5
 - Fix (game bug worked around): a placed fusee no longer throws an error on every frame during fast-forward. `UI.FastForwardWrangler.Start` shows a `FadeOut`, and `FadeOutController.Show` sets the main camera's `enabled = false` half a second later (`Hide` turns it back on when fast-forward stops). `Camera.main` only returns an enabled camera, so it is null for the whole fast-forward, and `Effects.FuseeRenderer.Update` does `Camera.main.transform` without a check (the method it calls next, `UpdateEmission`, does check). Logged: 1,031 `NullReferenceException`s from `FuseeRenderer.Update` in one fast-forward with a fusee near the train, none in the same session without one. The new prefix on `FuseeRenderer.Update` skips the update while there is no main camera and does nothing otherwise. Setting `GuardFuseeCamera` (default on; also a switch in the settings window, effective at once). The first time it acts, `Player.log` says so. Reported to the developers.
 
