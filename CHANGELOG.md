@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.6.6
+## 2.6.7
 
-- Water column: the head, counterweight lever and hanging weights now swing round with the spout pipe. The game's clip swings only the pipe out over the track, so after lowering the rest of the stand stayed square to the track while the pipe pointed at an off-centre hatch. They are now turned about the column's axis by however far the pipe has swung, so the whole stand points where the spout does. `Player.log` lists them as "swinging round with the pipe".
+- Water column: takes back 2.6.6's swinging of the head, lever and hanging weights. It put the weights and crane out of place when stowed and spun them when the column turned. Those pieces are back to following the game's clip. Instead the log now records, while the clip plays, where the pipe and each of those pieces point (`clip down` / `clip up` lines in `Player.log`), so the next change can be built on what the clip really does.
 
 ## 2.6.5
 
