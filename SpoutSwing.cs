@@ -164,6 +164,9 @@ namespace AutoEngineerBrakeFix
                         _parts.Add(new Part { T = t, Sign = -1f });
                     }
 
+                    // The pole, its head bracket and the base are often one mesh: keep the base still, turn the rest with the arm.
+                    foreach (Part foot in _parts.Where(x => x.Sign < 0f).ToList()) SplitBase(foot.T, axis);
+
                     // The click handle: the prefab parks it (PrefabRuntimeReparent) somewhere other than the animated arm, so it
                     // would stay put while the arm turns away from it. Turn it with the arm, about the same axis.
                     ScanHandles();
@@ -216,6 +219,64 @@ namespace AutoEngineerBrakeFix
         private string _followNames = "";
         private readonly List<Transform> _armKids = new List<Transform>();   // the stand's other moving pieces: watched, not moved
         private bool _animSeen;
+        private sealed class Split { public MeshFilter Low; public Mesh Original; public GameObject UpperGo; public MeshRenderer UpperR, LowR; }
+        private readonly List<Split> _splits = new List<Split>();
+        private const float BaseHeightMeters = 1.2f;   // below this the mesh stays still (the foot); above it turns with the arm
+
+        /// <summary>
+        /// Splits a tall still mesh (pole + head bracket + base) at the foot: the original keeps the lower part, held still; a copy
+        /// of the upper part rides on the turning object. Needs a readable mesh; otherwise the mesh stays whole and still.
+        /// </summary>
+        private void SplitBase(Transform t, Vector3 axis)
+        {
+            try
+            {
+                MeshFilter f = t.GetComponent<MeshFilter>();
+                MeshRenderer r = t.GetComponent<MeshRenderer>();
+                if (f == null || r == null || f.sharedMesh == null || t.parent == null) return;
+                Mesh m = f.sharedMesh;
+                Vector3[] vs = m.vertices;
+                if (vs == null || vs.Length == 0) return;   // not readable: leaves it whole
+                float top = float.MinValue;
+                foreach (Vector3 v in vs) top = Mathf.Max(top, t.TransformPoint(v).y - axis.y);
+                if (top < BaseHeightMeters + 0.5f) return;   // only a foot: nothing above it to turn
+                Mesh low = UnityEngine.Object.Instantiate(m), up = UnityEngine.Object.Instantiate(m);
+                low.name = m.name + ".AEBFlow"; up.name = m.name + ".AEBFup";
+                for (int sub = 0; sub < m.subMeshCount; sub++)
+                {
+                    int[] tris = m.GetTriangles(sub);
+                    var lo = new List<int>(); var hi = new List<int>();
+                    for (int i = 0; i + 2 < tris.Length; i += 3)
+                    {
+                        float y = (t.TransformPoint(vs[tris[i]]).y + t.TransformPoint(vs[tris[i + 1]]).y + t.TransformPoint(vs[tris[i + 2]]).y) / 3f - axis.y;
+                        (y < BaseHeightMeters ? lo : hi).AddRange(new[] { tris[i], tris[i + 1], tris[i + 2] });
+                    }
+                    low.SetTriangles(lo, sub);
+                    up.SetTriangles(hi, sub);
+                }
+                low.RecalculateBounds(); up.RecalculateBounds();
+                f.sharedMesh = low;
+                var go = new GameObject("AEBF.Upper." + t.name) { layer = t.gameObject.layer };
+                go.transform.SetParent(t.parent, false);
+                go.transform.localPosition = t.localPosition;
+                go.transform.localRotation = t.localRotation;
+                go.transform.localScale = t.localScale;
+                go.AddComponent<MeshFilter>().sharedMesh = up;
+                MeshRenderer ur = go.AddComponent<MeshRenderer>();
+                ur.sharedMaterials = r.sharedMaterials;
+                ur.shadowCastingMode = r.shadowCastingMode;
+                ur.receiveShadows = r.receiveShadows;
+                ur.lightProbeUsage = r.lightProbeUsage;
+                ur.reflectionProbeUsage = r.reflectionProbeUsage;
+                ur.motionVectorGenerationMode = r.motionVectorGenerationMode;
+                _splits.Add(new Split { Low = f, Original = m, UpperGo = go, UpperR = ur, LowR = r });
+                Main.Mod.Logger.Log($"Spout swing ({_id}): split '{t.name}' at {BaseHeightMeters:0.0#} m: the foot stays square, the pole and head ({m.name}, {top:0.0} m tall) turn with the arm.");
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.Warning($"Spout swing ({_id}): could not split '{t.name}' ({e.Message}); it stays still as a whole.");
+            }
+        }
         private readonly Dictionary<MeshRenderer, Vector2> _parkedPose = new Dictionary<MeshRenderer, Vector2>();   // position angle, facing angle (wrapper frame)
         private bool _prepSeen;
         private float _poseDumpAt;
@@ -336,6 +397,11 @@ namespace AutoEngineerBrakeFix
         {
             if (_loader != null && ByLoader.TryGetValue(_loader, out SpoutSwing s) && s == this) ByLoader.Remove(_loader);
             if (_wrapper != null) _wrapper.rotation = _wrapperBase;   // back to the game's own spot
+            foreach (Split sp in _splits)
+            {
+                if (sp.Low != null) sp.Low.sharedMesh = sp.Original;
+                if (sp.UpperGo != null) UnityEngine.Object.Destroy(sp.UpperGo);
+            }
             foreach (Part part in _parts)
             {
                 if (part.T != null && part.Seen && Mathf.Abs(part.Applied) > 1e-4f) part.T.RotateAround(PivotWorld, Vector3.up, -part.Applied);
@@ -371,6 +437,7 @@ namespace AutoEngineerBrakeFix
                     _shown = Mathf.MoveTowards(_shown, target, Mathf.Max(5f, Main.Settings.SpoutSwingDegreesPerSecond) * Time.deltaTime);
                     if (_wrapper != null) _wrapper.rotation = Quaternion.AngleAxis(_shown, Vector3.up) * _wrapperBase;
                 }
+                foreach (Split sp in _splits) if (sp.UpperR != null && sp.LowR != null) sp.UpperR.enabled = sp.LowR.enabled;   // culled together
                 SampleClip();
                 if (_parts.Count > 0) TurnParts();
 

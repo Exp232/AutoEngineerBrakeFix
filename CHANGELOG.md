@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.9
+
+- Water column: the pole's head bracket now points with the spout. The pole, head bracket and base are one still mesh, and 2.6.2 held all of it square to the track, so the head stayed at 90° to the spout once the arm swung. That mesh is now split at 1.2 m: the foot stays square, and the pole and head turn with the arm. If the game's mesh can't be read, it stays whole and still as before, and the log says so (`split` / `could not split` lines).
+
 ## 2.6.8
 
 - Water column diagnostics only (no change in behaviour): after the arm swings out, and again once it is stowed, `Player.log` lists how far every mesh of the column has turned since it was parked (position about the axis / facing). The pipe swings 90° with the clip, so any piece of the stand that shows far less than that is the one left square to the track.
