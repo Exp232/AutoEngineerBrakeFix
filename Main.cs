@@ -108,6 +108,7 @@ namespace AutoEngineerBrakeFix
                 _legacyLimits = new UnityEngine.GameObject("AutoEngineerBrakeFix.LegacySpeedLimits");
                 UnityEngine.Object.DontDestroyOnLoad(_legacyLimits);
                 _legacyLimits.AddComponent<LegacySpeedLimits>();
+            }
             catch (Exception e)
             {
                 Mod.Logger.Warning("Legacy speed limits could not be set up: " + e.Message);
