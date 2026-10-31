@@ -2,12 +2,15 @@
   "identifier": "exp232/autoengineerbrakefix",
   "name": "Auto Engineer Brake Fix",
   "author": "Exp232",
-  "version": "2.6.12",
+  "version": "2.7.0",
   "description": "Improves the auto-engineer: brake-drag fix, shorter cutoff, smooth throttle, gentle signal braking, speed-limit handling, stall guard, optional realistic fuel use and starting resistance.",
   "url": "https://github.com/Exp232/AutoEngineerBrakeFix",
   "dependencies": {
     "required": [
       "rr/game >=0.6.0"
+    ],
+    "optional": [
+      "exp232/collegeeducatedspouts >=1.0.0"
     ]
   },
   "assemblies": [

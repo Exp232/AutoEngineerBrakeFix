@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.7.0
+
+- **Swinging spouts are now their own mod, College-Educated Spouts** (`exp232/collegeeducatedspouts`, 1.0.0), which is compatible with this one and highly recommended, but not required. All spout code, settings (`SpoutSwing`, `SpoutSwingDegrees`, `DropSpoutSwingDegrees`, `HatchWidthFactor`, `SpoutSwingDegreesPerSecond`), the "Swinging spouts" section of the settings window and its self-check entry are removed from this mod. Existing `Settings.xml` files still load: the old entries are ignored. Move `spoutswing.txt` to the new mod's folder if you edited it.
+- The water stop still counts a hatch the column's spout can turn to as in reach, now by asking College-Educated Spouts when it is installed (`SpoutBridge.cs`, found by reflection; no reference to it). Without it, the water stop is as before.
+- `Info.json` lists College-Educated Spouts as an optional dependency (`>=1.0.0`). The new mod refuses to load next to Auto Engineer Brake Fix older than 2.7.0, so there is never a double set of patches.
+
 ## 2.6.12
 
 - Water column: takes back 2.6.11's mesh split. Asking the game's graphics side for the pole mesh's buffers emptied the mesh, so the pole was missing in game (`index buffer is null` in `Player.log`). The mesh is no longer touched. Instead the two still meshes are treated differently by height: the 5.4 m pole with its head bracket turns with the arm, and the 3.4 m lower mesh (the base) stays square.

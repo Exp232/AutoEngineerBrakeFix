@@ -79,18 +79,6 @@ namespace AutoEngineerBrakeFix
                             v => v.ToString("0") + " mph");
                     });
 
-                    page.AddSection("Swinging spouts", b =>
-                    {
-                        b.AddFieldToggle("Swinging spouts", () => s.SpoutSwing, v => { s.SpoutSwing = v; Save(); });
-                        Note(b, "A water spout turns toward the tender hatch it can reach before it drops, and fills over a hatch that is longer side to side than lengthwise. Host decides; other players with the mod see the same swing. Hatch sizes per tender and limits per column: spoutswing.txt in the mod folder.");
-                        Slider(b, "Swinging column", () => s.SpoutSwingDegrees, v => s.SpoutSwingDegrees = v, 0f, 180f, 5f,
-                            v => v <= 0f ? "no turn" : "±" + v.ToString("0") + "°");
-                        Slider(b, "Drop-only spout", () => s.DropSpoutSwingDegrees, v => s.DropSpoutSwingDegrees = v, 0f, 45f, 1f,
-                            v => v <= 0f ? "no turn" : "±" + v.ToString("0") + "°");
-                        Slider(b, "Hatch width", () => s.HatchWidthFactor, v => s.HatchWidthFactor = v, 1f, 4f, 0.25f,
-                            v => "× " + v.ToString("0.00") + " the hatch radius");
-                    });
-
                     page.AddSection("Legacy speed limits", b =>
                     {
                         b.AddFieldToggle("Fix legacy limits", () => s.LegacySpeedLimits, v => { s.LegacySpeedLimits = v; Save(); });

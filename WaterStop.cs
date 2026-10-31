@@ -576,9 +576,9 @@ namespace AutoEngineerBrakeFix
             bool reachable = off <= reach;
             if (!reachable)
             {
-                // A swinging spout (SpoutSwing) can turn to a hatch the fixed spot misses.
+                // A swinging spout (the companion mod College-Educated Spouts) can turn to a hatch the fixed spot misses.
                 Car tender = FuelReader.Tender(_loco);
-                if (SpoutSwing.CanReach(_column?.Loader, tender, FuelReader.WaterSlot(tender), out string how)) reachable = true;
+                if (SpoutBridge.CanReach(_column?.Loader, tender, FuelReader.WaterSlot(tender), out string how)) reachable = true;
                 if (how != null) Main.Mod.Logger.Log($"Water stop ({Name}): hatch {how}.");
             }
             if (!float.IsNaN(_approachAim) && _corrections == 0)
