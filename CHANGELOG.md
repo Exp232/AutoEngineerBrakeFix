@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.5.1
+- New, off by default: **coast band** (`CoastBandMph`; slider "Coast band" in the settings window, effective at once; 1 mph suggested). Road and Waypoint modes, above 5 mph. It changes the speed controller's commands, not its plan:
+  - Power off: the throttle closes when coasting would not lose speed (gravity at least the train's Davis resistance, the game's own `TrainPlantModel.DavisResistanceLbs`) and the train is within the band below its target. On a grade where gravity beats resistance by 10 lb per ton or more (about 0.1 mph a second of free acceleration), the throttle stays closed however far below the target the train is.
+  - Brake on: a train-brake application waits until the train is more than the band over its target, unless a lower limit or a stop ahead needs it (the same look-ahead windows as brake tap suppression).
+  - Why: on the 2.4.7 stock-fuel round trip the downhill leg spent 6.8 minutes powering and 7.6 minutes braking with only 3.1 minutes coasting while gravity was helping, and over the trip the throttle went straight to a brake application 46 times, usually within a second.
+- The fuel summary has two new columns before `setup`: `powerCuts` and `brakesHeld` (commands changed by the coast band); `setup` has `band=`.
+- Water stop and coast band share no state; nothing else changed.
+
 ## 2.5.0
 - New, off by default: **water stop for Road-mode engineers** (setting `WaterStop`; switch and sliders in the settings window under "Water stop (Road mode)", effective at once).
   - When the tender's water falls below `WaterStopPercent` (default 30%), the engineer looks ahead along the route as it is lined (up to `WaterStopSearchKm`, default 30 km) for the nearest water column or tower, says where it will take water, and slows to `WaterStopApproachMph` (default 20 mph) within about a mile of it.

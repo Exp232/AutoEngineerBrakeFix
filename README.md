@@ -69,6 +69,9 @@ The game charges fuel and water once per second of real update, whatever the tim
 ## Fusee in fast-forward
 Fast-forward switches the main camera off, and the game's fusee code (`Effects.FuseeRenderer.Update`) then throws a `NullReferenceException` on every frame for as long as a fusee is near the train. The mod skips that update while there is no camera (`GuardFuseeCamera`, on by default). It only silences the error; nothing visible changes.
 
+## Coast band (off by default)
+Set "Coast band" in the settings window (1 mph is a good start). The engineer then closes the throttle when coasting would hold its speed and it is within the band below its target, or whenever the downhill is still picking the train up, and it waits to brake until it is more than the band over its target, unless a lower limit or a stop ahead needs the brakes. This stops the power-then-brake hunting on downhill and rolling track. Road and Waypoint modes.
+
 ## Water stop for Road-mode engineers (off by default)
 Switch on "Water stop" in the settings window (Ctrl+F8). When the tender's water drops below the "Stop below" level (30% by default), a Road-mode engineer looks ahead along the route as it is lined for the nearest water column or tower, tells you where it will take water, and slows to the approach speed (20 mph by default) about a mile out. It keeps to your routing until the lead car is in the column's signal block, then switches to Waypoint mode just long enough to spot the tender under the spout, fills it with the column's own equipment, and goes back to Road mode at the speed and direction it had. Changing its orders yourself cancels the stop. Steam locomotives only; host only. The spotting method follows PrinceOfPluto's Waypoint Queue mod (MIT).
 

@@ -26,7 +26,7 @@ namespace AutoEngineerBrakeFix
         private const float MpsToMph = 2.23694f;
         private const float CylinderPsi = 1f;   // average cylinder pressure above this counts as braking
 
-        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy,grossTons,gtMiles,coalPer1000Gtm,waterGalPer1000Gtm,setup";
+        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy,grossTons,gtMiles,coalPer1000Gtm,waterGalPer1000Gtm,powerCuts,brakesHeld,setup";
 
         private sealed class Tally
         {
@@ -35,7 +35,7 @@ namespace AutoEngineerBrakeFix
             public float Tons = float.NaN;
             public readonly double[] PhaseCoal = new double[5];   // powered, coasting, braking, both, standing
             public readonly double[] PhaseSeconds = new double[5];
-            public int Apps, TapApps, Suppressed;
+            public int Apps, TapApps, Suppressed, PowerCuts, BrakesHeld;
             public bool InBrake;
             public float BrakeStart, BrakeLast, BrakeV0, BrakeVMin;
         }
@@ -48,6 +48,18 @@ namespace AutoEngineerBrakeFix
         internal static void CountSuppressed(AutoEngineer ae)
         {
             if (ae != null) Tallies.GetOrCreateValue(ae).Suppressed++;
+        }
+
+        /// <summary>Coast band: a controller command with the throttle open that was turned into a coast.</summary>
+        internal static void CountPowerCut(AutoEngineer ae)
+        {
+            if (ae != null) Tallies.GetOrCreateValue(ae).PowerCuts++;
+        }
+
+        /// <summary>Coast band: a brake application held off because the train was within the band over its target.</summary>
+        internal static void CountBrakeHeld(AutoEngineer ae)
+        {
+            if (ae != null) Tallies.GetOrCreateValue(ae).BrakesHeld++;
         }
 
         internal static void Tick(AutoEngineer ae, float dt, float speedMps, float throttle, float trainCylPsi, float locoCylPsi, float coalLbs, float waterGps, float grossTons)
@@ -118,6 +130,7 @@ namespace AutoEngineerBrakeFix
                 float.IsNaN(t.Tons) ? "" : N(t.Tons, "0"), N(t.GrossTonMiles, "0.0"),
                 t.GrossTonMiles > 20 ? N(t.Coal / t.GrossTonMiles * 1000.0, "0.0") : "",
                 t.GrossTonMiles > 20 ? N(t.Water / t.GrossTonMiles * 1000.0, "0.0") : "",
+                t.PowerCuts.ToString(CultureInfo.InvariantCulture), t.BrakesHeld.ToString(CultureInfo.InvariantCulture),
                 Main.Settings.Describe());
 
             lock (Lock)

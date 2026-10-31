@@ -115,6 +115,7 @@ namespace AutoEngineerBrakeFix
                     () => Method(typeof(SteamLocomotive), "CutoffSettingForVelocity", new[] { typeof(float) }, typeof(float), "velocityMps"),
 
                 ["SteamLocomotive.FuelCar()"] = () => Method(typeof(SteamLocomotive), "FuelCar", Type.EmptyTypes, typeof(Car)),
+                ["AutoEngineer.SumGravityForce()"] = () => Method(AE, "SumGravityForce", Type.EmptyTypes, typeof(float)),
                 ["AutoEngineerPlanner"] = () => planner != null,
                 ["AutoEngineerPlanner.Say(string)"] = () => planner != null && Method(planner, "Say", new[] { typeof(string) }, typeof(void)),
                 ["AutoEngineerPlanner.UpdateTargets(float, int)"] =
@@ -292,6 +293,15 @@ namespace AutoEngineerBrakeFix
                     On = () => s.BrakeTapSuppressMph > 0f,
                     TurnOff = () => s.BrakeTapSuppressMph = 0f,
                     Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer.AverageTrainBrakeCylinder()", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets" },
+                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Coast band",
+                    AlwaysPatch = true,
+                    On = () => s.CoastBandMph > 0f,
+                    TurnOff = () => s.CoastBandMph = 0f,
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets", "AutoEngineer.SumGravityForce()" },
                     Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
                 },
                 new Feature

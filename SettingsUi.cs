@@ -52,6 +52,9 @@ namespace AutoEngineerBrakeFix
                         Note(b, "Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
                         Slider(b, "Brake tap limit", () => s.BrakeTapSuppressMph, v => s.BrakeTapSuppressMph = v, 0f, 5f, 0.5f,
                             v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
+                        Note(b, "Coast band: closes the throttle when coasting holds the speed within this band below the target (or the grade is still picking the train up), and waits to brake until the train is this far over. 0 = off.");
+                        Slider(b, "Coast band", () => s.CoastBandMph, v => s.CoastBandMph = v, 0f, 3f, 0.5f,
+                            v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
                         Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
                         Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                             v => v <= 0f ? "off" : v.ToString("0") + " s");
@@ -146,6 +149,7 @@ namespace AutoEngineerBrakeFix
             var d = new Settings();
             var s = Main.Settings;
             s.BrakeTapSuppressMph = d.BrakeTapSuppressMph;
+            s.CoastBandMph = d.CoastBandMph;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.CutoffTolerancePercent = d.CutoffTolerancePercent;
             s.PlanOverspeedScale = d.PlanOverspeedScale;

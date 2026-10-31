@@ -29,6 +29,30 @@ namespace AutoEngineerBrakeFix
         private static readonly PropertyInfo PApplied = BrakeGuidance.TrainBrakeType != null ? AccessTools.Property(BrakeGuidance.TrainBrakeType, "AppliedBrakeSet") : null;
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly FieldInfo FContextual = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
+        internal static FieldInfo FTargetsField => FTargets;
+        internal static FieldInfo FContextualField => FContextual;
+
+        /// <summary>The train brake set the loop has applied now (0 = released), or NaN.</summary>
+        internal static float AppliedSet(object loop)
+        {
+            if (PApplied == null || FTrainBrake == null) return float.NaN;
+            object tb = FTrainBrake.GetValue(loop);
+            return tb == null ? float.NaN : Convert.ToSingle(PApplied.GetValue(tb, null));
+        }
+
+        /// <summary>True when a lower limit or a stop ahead is close enough that the controller must be left to brake.</summary>
+        internal static bool SlowingNeededAhead(AutoEngineer.Targets targets, float speedMps)
+        {
+            foreach (var t in targets.AllTargets)
+            {
+                if (t.Distance <= 0f) continue;
+                float tv = Mathf.Abs(t.SpeedMph) / MpsToMph;
+                if (tv >= speedMps - 0.9f) continue;
+                float window = tv < 0.5f ? Mathf.Max(1500f, speedMps * 80f) : Mathf.Max(600f, speedMps * 40f);
+                if (t.Distance < window) return true;
+            }
+            return false;
+        }
 
         private static readonly MethodInfo MCylinder = AccessTools.Method(typeof(AutoEngineer), "AverageTrainBrakeCylinder");
 
@@ -119,6 +143,7 @@ namespace AutoEngineerBrakeFix
             try
             {
                 BrakeTaps.Filter(__instance, ref __0);
+                CoastBand.Filter(__instance, ref __0);
             }
             catch (Exception e)
             {

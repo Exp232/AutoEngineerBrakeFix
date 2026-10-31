@@ -193,6 +193,14 @@ namespace AutoEngineerBrakeFix
         /// </summary>
         public float BrakeTapSuppressMph = 2f;
 
+        /// <summary>
+        /// Coast band in mph, off at 0 (see CoastBand). Road and Waypoint modes: the throttle closes when coasting would
+        /// hold the speed and the train is within this band below its target (or gravity alone is still picking it up),
+        /// and a brake application waits until the train is more than this band over its target unless a limit or a stop
+        /// ahead needs it.
+        /// </summary>
+        public float CoastBandMph = 0f;
+
         /// <summary>Multipliers on the rollout controller's score weights (1 = the game's own value).</summary>
         public float PlanOverspeedScale = 1f;
         public float PlanUndershootScale = 1f;
@@ -248,7 +256,8 @@ namespace AutoEngineerBrakeFix
             return "tap=" + BrakeTapSuppressMph.ToString("0.#", c) + ";lead=" + SpeedReductionLeadSeconds.ToString("0.#", c)
                 + ";cut=" + CutoffTolerancePercent.ToString("0.#", c) + ";over=" + PlanOverspeedScale.ToString("0.##", c)
                 + ";under=" + PlanUndershootScale.ToString("0.##", c) + ";margin=" + PlanUndershootDeadbandScale.ToString("0.##", c)
-                + ";ceil=" + PlanCeilingScale.ToString("0.##", c) + ";indep=" + PlanIndependentUseScale.ToString("0.##", c);
+                + ";ceil=" + PlanCeilingScale.ToString("0.##", c) + ";indep=" + PlanIndependentUseScale.ToString("0.##", c)
+                + ";band=" + CoastBandMph.ToString("0.#", c);
         }
 
         /// <summary>Writes the file through a temporary copy, so a failed write cannot leave half a file.</summary>
