@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.5.2
+- Water stop: the tender's water hatch now opens when the engineer calls for the spout and closes again when the spout is put away (left open if it was already open), with the same message as clicking it. The hatch key differs between tenders (`water.hatch` on the F-71 and T-17, `hatch.water` on the B-65, `hatch` / `top.hatch` on the K-28 saddle tank), so the mod picks a toggle with "hatch" in its key, preferring "water", then the one nearest the water filler; `Player.log` names the key used. Cosmetic: the column's loader does not check the hatch.
+
 ## 2.5.1
 - New, off by default: **coast band** (`CoastBandMph`; slider "Coast band" in the settings window, effective at once; 1 mph suggested). Road and Waypoint modes, above 5 mph. It changes the speed controller's commands, not its plan:
   - Power off: the throttle closes when coasting would not lose speed (gravity at least the train's Davis resistance, the game's own `TrainPlantModel.DavisResistanceLbs`) and the train is within the band below its target. On a grade where gravity beats resistance by 10 lb per ton or more (about 0.1 mph a second of free acceleration), the throttle stays closed however far below the target the train is.

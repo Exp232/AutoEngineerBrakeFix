@@ -8,6 +8,7 @@ using Model;
 using Model.AI;
 using Model.Ops;
 using RollingStock;
+using RollingStock.Controls;
 using Track;
 using Track.Signals;
 using UI.EngineControls;
@@ -76,6 +77,9 @@ namespace AutoEngineerBrakeFix
         private int _setMaxSpeed;
         private string _waypointString;
         private bool _requested;
+        private string _hatchObjectId;   // the tender's key value object
+        private string _hatchKey;
+        private bool _hatchWasOpen;
         private float _lastWater;
         private float _lastFlow;
         private bool _saidNoColumn;
@@ -316,6 +320,46 @@ namespace AutoEngineerBrakeFix
             if (string.IsNullOrEmpty(id)) return;
             StateManager.ApplyLocal(new PropertyChange(id, _column.Sequencer.readWantsLoadingKey, new BoolPropertyValue(loading)));
             _requested = loading;
+            try { SetHatch(loading); }
+            catch (Exception e) { Main.Mod.Logger.Warning($"Water stop ({Name}): tender hatch: {e.Message}"); }
+        }
+
+        /// <summary>
+        /// Opens the tender's water hatch with the column (and puts it back as it was afterwards) by sending the same
+        /// message as clicking it. The hatch is a KeyValuePickableToggle built from the tender definition's
+        /// ToggleAnimation; its key differs between tenders ("water.hatch", "hatch.water", "hatch"), so the one used is a
+        /// toggle with "hatch" in its key, preferring "water", then the one nearest the water LoadTarget. Cosmetic: the
+        /// column's loader does not check it.
+        /// </summary>
+        private void SetHatch(bool open)
+        {
+            if (open)
+            {
+                _hatchObjectId = null;
+                _hatchKey = null;
+                Car tender = FuelReader.Tender(_loco);
+                if (tender == null) return;
+                int slot = FuelReader.WaterSlot(tender);
+                CarLoadTarget target = tender.GetComponentsInChildren<CarLoadTarget>().FirstOrDefault(t => t.slotIndex == slot);
+                KeyValuePickableToggle hatch = tender.GetComponentsInChildren<KeyValuePickableToggle>(true)
+                    .Where(t => t != null && !string.IsNullOrEmpty(t.key) && t.key.IndexOf("hatch", StringComparison.OrdinalIgnoreCase) >= 0)
+                    .OrderByDescending(t => t.key.IndexOf("water", StringComparison.OrdinalIgnoreCase) >= 0)
+                    .ThenBy(t => target != null ? Vector3.Distance(t.transform.position, target.transform.position) : 0f)
+                    .FirstOrDefault();
+                KeyValueObject kvo = hatch != null ? hatch.GetComponentInParent<KeyValueObject>() : null;
+                if (kvo == null || string.IsNullOrEmpty(kvo.RegisteredId)) return;
+                _hatchObjectId = kvo.RegisteredId;
+                _hatchKey = hatch.key;
+                _hatchWasOpen = kvo[hatch.key].BoolValue;
+                if (!_hatchWasOpen) StateManager.ApplyLocal(new PropertyChange(_hatchObjectId, _hatchKey, new BoolPropertyValue(true)));
+                Main.Mod.Logger.Log($"Water stop ({Name}): tender hatch '{_hatchKey}' {(_hatchWasOpen ? "already open" : "opened")}.");
+            }
+            else if (_hatchObjectId != null)
+            {
+                if (!_hatchWasOpen) StateManager.ApplyLocal(new PropertyChange(_hatchObjectId, _hatchKey, new BoolPropertyValue(false)));
+                _hatchObjectId = null;
+                _hatchKey = null;
+            }
         }
 
         private void Say(string text)
