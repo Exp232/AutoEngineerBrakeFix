@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.5.6
+- Water stop, after the 2.5.5 run:
+  - **Reach:** at Whittier the hatch stopped 0.45 m short, which is inside the spout's reach (column 0.2 m + F-71 hatch 0.4 m), but the mod's own tolerance was 0.35 m, so it tried to correct instead of filling. It now uses the loader's own reach (`CarLoadTargetLoader.radius` + `CarLoadTarget.radius`, less 5 cm) and counts the sideways offset too.
+  - **Aim:** the two Whittier shoves show the train stopping 1.42-1.45 m before its waypoint (0.5 m allowance: 0.92 m short; 1.0 m: 0.45 m short), so the waypoint now goes 1.45 m past the spout position.
+  - **Corrections:** Yard mode made no move for 0.45 m, just as a short waypoint made none for 0.92 m. Corrections are waypoints again, placed the move plus 1.2 m out (the game counts a waypoint within about a metre of the train as reached), at up to 10 mph, up to three, as far as 100 m either way. Backing up uses the other end of the train as the leading end.
+  - **Approach speed:** at Dillsboro the column is about 60 m inside its block; the switch to Waypoint mode came at 25 mph with the hatch 62 m out, and the train ran 67 m past. Within the slow-down mile, the Road speed now also steps down to one the train can stop from in the distance left (gentle braking of 0.12 m/s², in 5 mph steps, at least 5 mph): about 25 mph at 600 m, 15 mph at 300 m, 5 mph under 100 m.
+  - **Re-arming:** after you take over a stop, the engineer plans no other water stop for 5 minutes (it picked the next column within seconds).
+
 ## 2.5.5
 - New, off by default: **legacy speed limits** (`LegacySpeedLimits`; "Fix legacy limits" in the settings window, effective within a few seconds). 0.6 removes the old speed boards (`TrackConditionController` deletes every "speed:" sign) but `TrackSegment.speedLimit` from the map still caps the auto engineer's track speed: on the Bryson map 382 segments are 25 mph, 83 are 15, 47 are 30 and 66 are 45, none of them shown (reported as forum topic 306).
   - Mainline, meaning any segment inside a CTC signal block (`CTCBlock` track spans; main tracks and signalled sidings): the legacy limit is cleared, so the railroad limit, curves and track class decide.

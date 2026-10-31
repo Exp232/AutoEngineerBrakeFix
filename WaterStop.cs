@@ -46,16 +46,23 @@ namespace AutoEngineerBrakeFix
         private const float SlowDownWithinMeters = 1600f;
         private const float MinAheadMeters = 30f;         // a column closer than this to the hatch is not picked
         private const float MinAheadArmedMeters = 5f;     // once picked, the stop goes on until the hatch is about at the spout
-        // The game completes a waypoint as soon as it is within 1 m of the train's end (AutoEngineerPlanner.IsUnderTrain),
-        // so the train stops up to a metre short of it. Waypoint Queue allows 0.5 m; at Whittier (2.5.4) the hatch still
-        // stopped 0.92 m short, so the waypoint goes a metre past and any remainder is corrected in Yard mode.
-        private const float StopPastSpoutMeters = 1.0f;
+        // The game completes a waypoint once it is within about a metre of the train's end (AutoEngineerPlanner.IsUnderTrain),
+        // so the train stops short of it. Measured at Whittier with 274 m of train shoved: waypoint 0.5 m past the spout
+        // left the hatch 0.92 m short (2.5.4), 1.0 m past left it 0.45 m short (2.5.5): the train stops 1.42-1.45 m before
+        // the waypoint. Waypoint Queue uses 0.5 m. The same allowance makes a correction waypoint land where it should.
+        private const float StopPastSpoutMeters = 1.45f;
+        // A correction is measured standing, so only the arrival radius (about 1 m) and some creep apply.
+        private const float CorrectionPastMeters = 1.2f;
         private const float ApproachTimeoutSeconds = 1200f;
         private const float NoFlowTimeoutSeconds = 90f;
         private const float FullFraction = 0.995f;
         private const float ColumnCooldownSeconds = 600f;
-        private const float SpotToleranceMeters = 0.35f;  // hatch reach is 0.6 m (column 0.2 + F-71 hatch 0.4); along the track
+        private const float ReachMarginMeters = 0.05f;    // under the loader's own reach (column radius + hatch radius)
+        private const float DefaultReachMeters = 0.6f;    // column 0.2 + F-71 hatch 0.4, if either cannot be read
+        private const float MaxCorrectionMeters = 100f;   // further off than this: hold for the player
         private const int MaxSpotCorrections = 3;
+        private const float StopDecelMps2 = 0.12f;        // braking assumed for the approach speed ladder (heavy train, gentle)
+        private const float QuietAfterTakeoverSeconds = 300f;
         private const float FirstFlowSeconds = 30f;      // spout down and water flowing; otherwise check the spotting again
         private const float MovedAtLeastMeters = 0.1f;   // a correction that moved less than this did not take
 
@@ -98,6 +105,7 @@ namespace AutoEngineerBrakeFix
         private int _stuckCorrections;
         private AutoEngineerMode _expectMode = AutoEngineerMode.Waypoint;   // the mode this component last ordered
         private bool _flowSeen;
+        private float _quietUntil;   // the player took over a stop: plan no other for a while
         private int _refills;
         private float _correctedAt = -1f;   // a correction was ordered; wait for the train to move before measuring again
         private float _offsetTime = -1f;
@@ -159,6 +167,7 @@ namespace AutoEngineerBrakeFix
                 case Phase.Idle:
                 {
                     if (orders.Mode != AutoEngineerMode.Road || orders.MaxSpeedMph <= 0 || float.IsNaN(water)) return;
+                    if (now < _quietUntil) return;
                     float threshold = Mathf.Clamp(Main.Settings.WaterStopPercent, 5f, 90f) / 100f;
                     if (water >= threshold) { _saidNoColumn = false; return; }
                     if (now < _nextSearch) return;
@@ -220,13 +229,17 @@ namespace AutoEngineerBrakeFix
                     _lastDistanceTime = now;
 
                     int approach = Mathf.Clamp(Mathf.RoundToInt(Main.Settings.WaterStopApproachMph), 5, 45);
-                    if (distance < SlowDownWithinMeters && _setMaxSpeed > approach)
+                    // Close in, also a speed it can stop from in the distance left (Dillsboro, 2.5.5: the column is
+                    // about 60 m into its block, the switch came at 25 mph with the hatch 62 m out and it ran 67 m past).
+                    int ladder = StoppableMph(distance);
+                    int cap = distance < SlowDownWithinMeters ? Mathf.Min(approach, ladder) : int.MaxValue;
+                    if (_setMaxSpeed > cap)
                     {
-                        _setMaxSpeed = approach;
+                        _setMaxSpeed = cap;
                         _syncSpeed = true;
                         _graceUntil = now + 3f;
-                        Helper.SetOrdersValue(null, null, approach, null, null);
-                        Main.Mod.Logger.Log($"Water stop ({Name}): hatch {distance:0} m from {_column.Id}, slowing to {approach} mph.");
+                        Helper.SetOrdersValue(null, null, cap, null, null);
+                        Main.Mod.Logger.Log($"Water stop ({Name}): hatch {distance:0} m from {_column.Id}, slowing to {cap} mph.");
                         return;
                     }
 
@@ -277,7 +290,7 @@ namespace AutoEngineerBrakeFix
                     }
                     if (_correctedAt >= 0f)
                     {
-                        // A Yard-mode correction: wait for it to start moving (or 30 s), then for it to stop.
+                        // A correction: wait for it to start moving (or 30 s), then for it to stop.
                         if (!_loco.IsStopped(1f) || now - _correctedAt > 30f) _correctedAt = -1f;
                         return;
                     }
@@ -364,7 +377,8 @@ namespace AutoEngineerBrakeFix
                     }
                     if (orders.Mode != AutoEngineerMode.Road || orders.Forward != _origForward || orders.MaxSpeedMph != 0)
                     {
-                        Main.Mod.Logger.Log($"Water stop ({Name}): the player took over at {_column.Id} (water {water * 100f:0}%).");
+                        Main.Mod.Logger.Log($"Water stop ({Name}): the player took over at {_column.Id} (water {water * 100f:0}%); no new water stop for {QuietAfterTakeoverSeconds / 60f:0} minutes.");
+                        _quietUntil = now + QuietAfterTakeoverSeconds;
                         if (_column != null) _cooldown[_column.Id] = Time.time + ColumnCooldownSeconds;
                         _phase = Phase.Idle;
                         _column = null;
@@ -372,6 +386,31 @@ namespace AutoEngineerBrakeFix
                     return;
                 }
             }
+        }
+
+        /// <summary>
+        /// The loader's own reach for this tender, less a small margin: CarLoadTargetLoader fills a LoadTarget whose centre is
+        /// within target.radius + loader.radius of the spout, horizontally. 0.55 m for the F-71 tender at a water column.
+        /// </summary>
+        private float ReachMeters()
+        {
+            float reach = DefaultReachMeters;
+            try
+            {
+                Car tender = FuelReader.Tender(_loco);
+                int slot = FuelReader.WaterSlot(tender);
+                CarLoadTarget hatch = tender != null ? tender.GetComponentsInChildren<CarLoadTarget>().FirstOrDefault(t => t.slotIndex == slot) : null;
+                if (hatch != null && _column?.Loader != null) reach = hatch.radius + _column.Loader.radius;
+            }
+            catch (Exception) { }
+            return Mathf.Max(0.2f, reach - ReachMarginMeters);
+        }
+
+        /// <summary>A Road speed (mph, in steps of 5, at least 5) the train can stop from in the distance left, braking gently.</summary>
+        private static int StoppableMph(float meters)
+        {
+            float v = Mathf.Sqrt(2f * StopDecelMps2 * Mathf.Max(0f, meters - 30f)) * 2.23694f;
+            return Mathf.Max(5, Mathf.FloorToInt(v / 5f) * 5);
         }
 
         /// <summary>True while the column's loader is asked to load (its spout is down or coming down), by anyone.</summary>
@@ -397,7 +436,7 @@ namespace AutoEngineerBrakeFix
 
         /// <summary>
         /// Measures the hatch against the spout. True when it is within reach (or cannot be measured), so filling can
-        /// start. False with why == null when a Yard-mode correction was ordered; false with a reason when spotting has
+        /// start. False with why == null when a correction was ordered; false with a reason when spotting has
         /// failed and the train should hold for the player.
         /// </summary>
         private bool CheckSpot(float now, out string why)
@@ -406,31 +445,38 @@ namespace AutoEngineerBrakeFix
             if (!TrySpotError(out float miss, out float lateral)) return true;
             Main.Mod.Logger.Log($"Water stop ({Name}): hatch {Mathf.Abs(miss):0.00} m {(miss >= 0f ? "short of" : "past")} the spout along the track ({lateral:0.00} m to the side).");
 
-            if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && Mathf.Abs(miss) > SpotToleranceMeters)
+            float reach = ReachMeters();
+            float off = Mathf.Sqrt(miss * miss + lateral * lateral);
+            if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && off > reach)
             {
                 _stuckCorrections++;
                 Main.Mod.Logger.Log($"Water stop ({Name}): the last correction did not move the train ({_stuckCorrections}).");
             }
             _lastMiss = miss;
 
-            if (Mathf.Abs(miss) <= SpotToleranceMeters) return true;
-            if (Mathf.Abs(miss) >= 50f) { why = $"the hatch is {Mathf.Abs(miss):0} m from the spout"; return false; }
+            if (off <= reach) return true;
+            if (Mathf.Abs(miss) > MaxCorrectionMeters) { why = $"the hatch is {Mathf.Abs(miss):0} m from the spout"; return false; }
             if (_corrections >= MaxSpotCorrections || _stuckCorrections >= 2)
             {
                 why = $"the hatch is still {Mathf.Abs(miss):0.00} m {(miss >= 0f ? "short of" : "past")} the spout after {_corrections} correction{(_corrections == 1 ? "" : "s")}";
                 return false;
             }
 
-            // Yard mode moves a set distance by counting the metres actually travelled, so it can make the
-            // sub-metre moves a waypoint cannot (a waypoint within 1 m of the train counts as reached at once).
-            _corrections++;
+            // A waypoint again, placed past where the train should end up: one within about a metre of the train counts
+            // as reached at once, and the train stops about that far before it. Neither a short waypoint nor a short Yard-mode move makes the train move
+            // (2.5.4 and 2.5.5). Short: pull ahead. Past: back up with the other end leading, so that end arrives.
             bool fwd = miss > 0f ? _origForward : !_origForward;
-            Helper.SetOrdersValue(AutoEngineerMode.Yard, fwd, null, Mathf.Abs(miss), null);
-            _expectMode = AutoEngineerMode.Yard;
+            Location lead = HeadLocation(fwd, out _);
+            Location target = lead.IsValid ? Graph.Shared.LocationByMoving(lead, Mathf.Abs(miss) + CorrectionPastMeters, false, true) : Location.Invalid;
+            if (!target.IsValid) { why = "there is no track to move along"; return false; }
+            _corrections++;
+            _waypointString = Graph.LocationToString(target.Clamped());
+            Helper.SetOrdersValue(AutoEngineerMode.Waypoint, fwd, Mathf.Min(_setMaxSpeed, 10), null, new OrderWaypoint(_waypointString, null));
+            _expectMode = AutoEngineerMode.Waypoint;
             _graceUntil = now + 3f;
             _correctedAt = now;
             Say(miss > 0f ? "Pulling up to the spout." : "Backing up to the spout.");
-            Main.Mod.Logger.Log($"Water stop ({Name}): correction {_corrections}, Yard mode {(miss > 0f ? "ahead" : "back")} {Mathf.Abs(miss):0.00} m.");
+            Main.Mod.Logger.Log($"Water stop ({Name}): correction {_corrections}, {(miss > 0f ? "ahead" : "back")} {Mathf.Abs(miss):0.00} m (waypoint {Mathf.Abs(miss) + CorrectionPastMeters:0.00} m out, {_waypointString}).");
             return false;
         }
 
@@ -491,7 +537,7 @@ namespace AutoEngineerBrakeFix
                 case Phase.Approaching:
                     info.Kind = StatusKind.Spotting;
                     info.Label = $"Water stop (mod): spotting the tender at {place}";
-                    info.Detail = $"{(ws._expectMode == AutoEngineerMode.Yard ? "Yard mode" : "Waypoint mode")} to put the tender hatch under the spout at {place}{(ws._corrections > 0 ? $" (correction {ws._corrections})" : "")}; Road orders resume after.";
+                    info.Detail = $"Waypoint mode to put the tender hatch under the spout at {place}{(ws._corrections > 0 ? $" (correction {ws._corrections})" : "")}; Road orders resume after.";
                     return true;
                 case Phase.Holding:
                     info.Kind = StatusKind.Holding;
