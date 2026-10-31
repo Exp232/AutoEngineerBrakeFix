@@ -124,26 +124,42 @@ namespace AutoEngineerBrakeFix
         private float _lastDistanceTime;
         private readonly Dictionary<string, float> _cooldown = new Dictionary<string, float>();
 
-        // The learnt gaps are kept per locomotive in stopgaps.txt in the mod folder ("<car id> <approach> <correction>"),
-        // so the first approach of a later game already aims right.
-        private static Dictionary<string, float[]> _gapStore;
+        // The learnt gaps are kept per locomotive AND train weight in stopgaps.txt in the mod folder
+        // ("<car id> <gross tons> <approach gap> <correction gap>", up to 8 weights per locomotive): how far a train
+        // stops before its waypoint depends on its mass, and the same engine hauls different trains. A stop uses the
+        // entry nearest in weight (within 25%), otherwise the defaults.
+        private const int MaxGapEntriesPerLoco = 8;
+        private const float GapWeightTolerance = 0.25f;
+        private static Dictionary<string, List<float[]>> _gapStore;
 
         private static string GapFile => System.IO.Path.Combine(Main.Mod.Path, "stopgaps.txt");
 
-        private static Dictionary<string, float[]> Gaps()
+        private float GrossTons()
+        {
+            float pounds = 0f;
+            foreach (Car car in _loco.EnumerateCoupled()) pounds += car.Weight;
+            return pounds / 2000f;
+        }
+
+        private static Dictionary<string, List<float[]>> Gaps()
         {
             if (_gapStore != null) return _gapStore;
-            _gapStore = new Dictionary<string, float[]>();
+            _gapStore = new Dictionary<string, List<float[]>>();
             try
             {
                 if (System.IO.File.Exists(GapFile))
                 {
+                    var inv = System.Globalization.CultureInfo.InvariantCulture;
                     foreach (string line in System.IO.File.ReadAllLines(GapFile))
                     {
                         string[] p = line.Split(' ');
-                        if (p.Length == 3 && float.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float a)
-                            && float.TryParse(p[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float c))
-                            _gapStore[p[0]] = new[] { a, c };
+                        if (p.Length == 4 && float.TryParse(p[1], System.Globalization.NumberStyles.Float, inv, out float t)
+                            && float.TryParse(p[2], System.Globalization.NumberStyles.Float, inv, out float a)
+                            && float.TryParse(p[3], System.Globalization.NumberStyles.Float, inv, out float c))
+                        {
+                            if (!_gapStore.TryGetValue(p[0], out List<float[]> list)) _gapStore[p[0]] = list = new List<float[]>();
+                            list.Add(new[] { t, a, c });
+                        }
                     }
                 }
             }
@@ -151,14 +167,56 @@ namespace AutoEngineerBrakeFix
             return _gapStore;
         }
 
+        private static float[] NearestGap(List<float[]> list, float tons)
+        {
+            float[] best = null;
+            float bestDiff = float.MaxValue;
+            foreach (float[] e in list)
+            {
+                float diff = Mathf.Abs(e[0] - tons) / Mathf.Max(1f, tons);
+                if (diff < bestDiff) { bestDiff = diff; best = e; }
+            }
+            return bestDiff <= GapWeightTolerance ? best : null;
+        }
+
+        /// <summary>Sets the gaps for the train as it is now: the learnt ones for about this weight, else the defaults.</summary>
+        private void LoadGaps()
+        {
+            _approachGap = StopPastSpoutMeters;
+            _correctionGap = CorrectionPastMeters;
+            try
+            {
+                float tons = GrossTons();
+                if (Gaps().TryGetValue(_loco.id, out List<float[]> list) && NearestGap(list, tons) is float[] e)
+                {
+                    _approachGap = Mathf.Clamp(e[1], 0.3f, 2.5f);
+                    _correctionGap = Mathf.Clamp(e[2], 0.3f, 2f);
+                    Main.Mod.Logger.Log($"Water stop ({Name}): train {tons:0} t, using the learnt stop gaps {_approachGap:0.00} m (approach) and {_correctionGap:0.00} m (correction), learnt at {e[0]:0} t.");
+                }
+                else Main.Mod.Logger.Log($"Water stop ({Name}): train {tons:0} t, no learnt stop gaps for this weight; using the defaults.");
+            }
+            catch (Exception) { }
+        }
+
         private void SaveGaps()
         {
             try
             {
-                Gaps()[_loco.id] = new[] { _approachGap, _correctionGap };
+                float tons = GrossTons();
+                if (!Gaps().TryGetValue(_loco.id, out List<float[]> list)) Gaps()[_loco.id] = list = new List<float[]>();
+                float[] e = NearestGap(list, tons);
+                if (e == null)
+                {
+                    e = new float[3];
+                    list.Add(e);
+                    if (list.Count > MaxGapEntriesPerLoco) list.RemoveAt(0);
+                }
+                e[0] = tons; e[1] = _approachGap; e[2] = _correctionGap;
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
                 var lines = new List<string>();
-                foreach (KeyValuePair<string, float[]> kv in Gaps())
-                    lines.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} {1:0.00} {2:0.00}", kv.Key, kv.Value[0], kv.Value[1]));
+                foreach (KeyValuePair<string, List<float[]>> kv in Gaps())
+                    foreach (float[] x in kv.Value)
+                        lines.Add(string.Format(inv, "{0} {1:0} {2:0.00} {3:0.00}", kv.Key, x[0], x[1], x[2]));
                 System.IO.File.WriteAllLines(GapFile, lines.ToArray());
             }
             catch (Exception e) { Main.Mod.Logger.Warning("Water stop: could not write stopgaps.txt: " + e.Message); }
@@ -168,15 +226,6 @@ namespace AutoEngineerBrakeFix
         {
             _ae = GetComponent<AutoEngineer>();
             _loco = GetComponent<BaseLocomotive>();
-            try
-            {
-                if (_loco != null && Gaps().TryGetValue(_loco.id, out float[] g))
-                {
-                    _approachGap = Mathf.Clamp(g[0], 0.3f, 2.5f);
-                    _correctionGap = Mathf.Clamp(g[1], 0.3f, 2f);
-                }
-            }
-            catch (Exception) { }
         }
 
         private void OnDisable()
@@ -259,6 +308,7 @@ namespace AutoEngineerBrakeFix
                         }
                     }
                     _column = column;
+                    LoadGaps();
                     _origMode = orders.Mode;
                     _origWaypoint = waypointOrders ? orders.Waypoint : null;
                     _origForward = orders.Forward;

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.5.11
+- Water stop: the learnt stop gaps are now kept per locomotive **and train weight** (`stopgaps.txt` has the car id, gross tons, approach gap and correction gap; up to 8 weights per locomotive). How far a train stops before its waypoint depends on its mass, and the same engine hauls different trains. A stop uses the entry nearest in weight (within 25%) and otherwise the defaults; each stop updates the entry for its weight, or adds one. `Player.log` says which it used. An old `stopgaps.txt` from 2.5.10 is ignored (the format changed) and replaced when a stop learns something.
+
 ## 2.5.10
 - Water stop, 2.5.9 test: both trains filled. EMR 5000 stopped 0.21 m past (stop gap 1.24 m); EMR 1 stopped 0.78 m past on the approach (gap 0.67 m), then needed two corrections (0.60 m short, then 0.14 m short) because its first correction still used the default gap.
   - The learnt stop gaps are now kept per locomotive in `stopgaps.txt` in the mod folder and loaded next time, so the first approach of a later game already aims with them (they were forgotten at every restart).
