@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.5.12
+- Water stop: one **weight table** for every train instead of gaps remembered per locomotive. How far a train stops before its waypoint depends on its weight, not on its engine: EMR 1 (74 t) stops 0.6-0.75 m short of its waypoint, EMR 5000 (1,907 t) 1.2-1.8 m. The table starts from those two measurements, reads smoothly between and beyond them (a Gaussian kernel across ln(weight), width 1.0), and every stop the mod measures (the approach, and each correction) adds a point at that train's weight, so weights that get hauled often follow their own results. The newest 20 of each kind are kept in `stopgaps.txt` in the mod folder (`a|c <gross tons> <gap>`); `Player.log` shows the weight and the gaps used. The per-locomotive file from 2.5.10 and 2.5.11 is ignored.
+
 ## 2.5.11
 - Water stop: the learnt stop gaps are now kept per locomotive **and train weight** (`stopgaps.txt` has the car id, gross tons, approach gap and correction gap; up to 8 weights per locomotive). How far a train stops before its waypoint depends on its mass, and the same engine hauls different trains. A stop uses the entry nearest in weight (within 25%) and otherwise the defaults; each stop updates the entry for its weight, or adds one. `Player.log` says which it used. An old `stopgaps.txt` from 2.5.10 is ignored (the format changed) and replaced when a stop learns something.
 

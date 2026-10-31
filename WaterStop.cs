@@ -124,13 +124,17 @@ namespace AutoEngineerBrakeFix
         private float _lastDistanceTime;
         private readonly Dictionary<string, float> _cooldown = new Dictionary<string, float>();
 
-        // The learnt gaps are kept per locomotive AND train weight in stopgaps.txt in the mod folder
-        // ("<car id> <gross tons> <approach gap> <correction gap>", up to 8 weights per locomotive): how far a train
-        // stops before its waypoint depends on its mass, and the same engine hauls different trains. A stop uses the
-        // entry nearest in weight (within 25%), otherwise the defaults.
-        private const int MaxGapEntriesPerLoco = 8;
-        private const float GapWeightTolerance = 0.25f;
-        private static Dictionary<string, List<float[]>> _gapStore;
+        // How far before its waypoint a train stops depends on its weight (EMR 1, 74 t: 0.6-0.75 m; EMR 5000, 1,907 t:
+        // 1.2-1.8 m), not on which locomotive it is. One table serves every train: seed points (weight, gap) from the
+        // measured stops, smoothed across ln(weight) with a Gaussian kernel, plus every stop this mod measures, kept
+        // in stopgaps.txt in the mod folder ("a|c <gross tons> <gap>", newest 20 of each kind). A new weight reads
+        // between its neighbours; a weight with measured stops of its own follows them.
+        private const float GapKernelWidth = 1.0f;   // in ln(tons)
+        private const int MaxGapSamples = 20;
+        private static readonly float[][] ApproachSeeds = { new[] { 74f, 0.67f }, new[] { 1907f, 1.45f } };
+        private static readonly float[][] CorrectionSeeds = { new[] { 74f, 0.65f }, new[] { 1907f, 1.45f } };
+        private static List<float[]> _approachSamples;     // { tons, gap }
+        private static List<float[]> _correctionSamples;
 
         private static string GapFile => System.IO.Path.Combine(Main.Mod.Path, "stopgaps.txt");
 
@@ -141,82 +145,72 @@ namespace AutoEngineerBrakeFix
             return pounds / 2000f;
         }
 
-        private static Dictionary<string, List<float[]>> Gaps()
+        private static void LoadSamples()
         {
-            if (_gapStore != null) return _gapStore;
-            _gapStore = new Dictionary<string, List<float[]>>();
+            if (_approachSamples != null) return;
+            _approachSamples = new List<float[]>();
+            _correctionSamples = new List<float[]>();
             try
             {
-                if (System.IO.File.Exists(GapFile))
+                if (!System.IO.File.Exists(GapFile)) return;
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                foreach (string line in System.IO.File.ReadAllLines(GapFile))
                 {
-                    var inv = System.Globalization.CultureInfo.InvariantCulture;
-                    foreach (string line in System.IO.File.ReadAllLines(GapFile))
-                    {
-                        string[] p = line.Split(' ');
-                        if (p.Length == 4 && float.TryParse(p[1], System.Globalization.NumberStyles.Float, inv, out float t)
-                            && float.TryParse(p[2], System.Globalization.NumberStyles.Float, inv, out float a)
-                            && float.TryParse(p[3], System.Globalization.NumberStyles.Float, inv, out float c))
-                        {
-                            if (!_gapStore.TryGetValue(p[0], out List<float[]> list)) _gapStore[p[0]] = list = new List<float[]>();
-                            list.Add(new[] { t, a, c });
-                        }
-                    }
+                    string[] p = line.Split(' ');
+                    if (p.Length == 3 && (p[0] == "a" || p[0] == "c")
+                        && float.TryParse(p[1], System.Globalization.NumberStyles.Float, inv, out float t)
+                        && float.TryParse(p[2], System.Globalization.NumberStyles.Float, inv, out float g))
+                        (p[0] == "a" ? _approachSamples : _correctionSamples).Add(new[] { t, g });
                 }
             }
             catch (Exception e) { Main.Mod.Logger.Warning("Water stop: could not read stopgaps.txt: " + e.Message); }
-            return _gapStore;
         }
 
-        private static float[] NearestGap(List<float[]> list, float tons)
+        private static float Predict(float[][] seeds, List<float[]> samples, float tons)
         {
-            float[] best = null;
-            float bestDiff = float.MaxValue;
-            foreach (float[] e in list)
+            float lt = Mathf.Log(Mathf.Max(1f, tons));
+            float sum = 0f, weight = 0f;
+            void Add(float t, float g)
             {
-                float diff = Mathf.Abs(e[0] - tons) / Mathf.Max(1f, tons);
-                if (diff < bestDiff) { bestDiff = diff; best = e; }
+                float d = (lt - Mathf.Log(Mathf.Max(1f, t))) / GapKernelWidth;
+                float w = Mathf.Exp(-0.5f * d * d);
+                sum += w * g;
+                weight += w;
             }
-            return bestDiff <= GapWeightTolerance ? best : null;
+            foreach (float[] x in seeds) Add(x[0], x[1]);
+            foreach (float[] x in samples) Add(x[0], x[1]);
+            return weight > 1e-6f ? sum / weight : seeds[0][1];
         }
 
-        /// <summary>Sets the gaps for the train as it is now: the learnt ones for about this weight, else the defaults.</summary>
+        /// <summary>Sets the gaps for the train as it is now from the weight table.</summary>
         private void LoadGaps()
         {
             _approachGap = StopPastSpoutMeters;
             _correctionGap = CorrectionPastMeters;
             try
             {
+                LoadSamples();
                 float tons = GrossTons();
-                if (Gaps().TryGetValue(_loco.id, out List<float[]> list) && NearestGap(list, tons) is float[] e)
-                {
-                    _approachGap = Mathf.Clamp(e[1], 0.3f, 2.5f);
-                    _correctionGap = Mathf.Clamp(e[2], 0.3f, 2f);
-                    Main.Mod.Logger.Log($"Water stop ({Name}): train {tons:0} t, using the learnt stop gaps {_approachGap:0.00} m (approach) and {_correctionGap:0.00} m (correction), learnt at {e[0]:0} t.");
-                }
-                else Main.Mod.Logger.Log($"Water stop ({Name}): train {tons:0} t, no learnt stop gaps for this weight; using the defaults.");
+                _approachGap = Mathf.Clamp(Predict(ApproachSeeds, _approachSamples, tons), 0.3f, 2.5f);
+                _correctionGap = Mathf.Clamp(Predict(CorrectionSeeds, _correctionSamples, tons), 0.3f, 2f);
+                Main.Mod.Logger.Log($"Water stop ({Name}): train {tons:0} t; stop gaps from the weight table: {_approachGap:0.00} m (approach), {_correctionGap:0.00} m (correction).");
             }
             catch (Exception) { }
         }
 
-        private void SaveGaps()
+        /// <summary>Records a measured gap for this train's weight (kind "a" approach, "c" correction) and saves the table.</summary>
+        private void SaveGap(bool approach, float gap)
         {
             try
             {
-                float tons = GrossTons();
-                if (!Gaps().TryGetValue(_loco.id, out List<float[]> list)) Gaps()[_loco.id] = list = new List<float[]>();
-                float[] e = NearestGap(list, tons);
-                if (e == null)
-                {
-                    e = new float[3];
-                    list.Add(e);
-                    if (list.Count > MaxGapEntriesPerLoco) list.RemoveAt(0);
-                }
-                e[0] = tons; e[1] = _approachGap; e[2] = _correctionGap;
+                LoadSamples();
+                List<float[]> list = approach ? _approachSamples : _correctionSamples;
+                list.Add(new[] { GrossTons(), gap });
+                while (list.Count > MaxGapSamples) list.RemoveAt(0);
                 var inv = System.Globalization.CultureInfo.InvariantCulture;
                 var lines = new List<string>();
-                foreach (KeyValuePair<string, List<float[]>> kv in Gaps())
-                    foreach (float[] x in kv.Value)
-                        lines.Add(string.Format(inv, "{0} {1:0} {2:0.00} {3:0.00}", kv.Key, x[0], x[1], x[2]));
+                foreach (float[] x in _approachSamples) lines.Add(string.Format(inv, "a {0:0} {1:0.00}", x[0], x[1]));
+                foreach (float[] x in _correctionSamples) lines.Add(string.Format(inv, "c {0:0} {1:0.00}", x[0], x[1]));
                 System.IO.File.WriteAllLines(GapFile, lines.ToArray());
             }
             catch (Exception e) { Main.Mod.Logger.Warning("Water stop: could not write stopgaps.txt: " + e.Message); }
@@ -583,7 +577,7 @@ namespace AutoEngineerBrakeFix
                 _approachGap = Mathf.Clamp(_approachAim + miss, 0.3f, 2.5f);
                 Main.Mod.Logger.Log($"Water stop ({Name}): the train stopped {_approachGap:0.00} m before its waypoint (aim {_approachAim:0.00} m past the spout).");
                 _approachAim = float.NaN;
-                SaveGaps();
+                SaveGap(true, _approachGap);
             }
             else if (_lastCorrSign != 0f && !float.IsNaN(_lastMiss))
             {
@@ -594,7 +588,7 @@ namespace AutoEngineerBrakeFix
                     Main.Mod.Logger.Log($"Water stop ({Name}): the correction moved {moved:0.00} m of {_lastCorrOut:0.00} m, so the train stops {_correctionGap:0.00} m before a correction's waypoint.");
                 }
                 _lastCorrSign = 0f;
-                SaveGaps();
+                if (moved > MovedAtLeastMeters) SaveGap(false, _correctionGap);
             }
             if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && off > reach)
             {
