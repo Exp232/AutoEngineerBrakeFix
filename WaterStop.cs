@@ -21,8 +21,10 @@ namespace AutoEngineerBrakeFix
     ///
     /// When the tender's water falls below the threshold, the engineer looks along the route as it is lined (Road mode
     /// does not throw switches) for the nearest water column or tower ahead, says where it will take water, and
-    /// slows to the approach speed when it gets close. Only once the lead car is in the column's signal block (or,
-    /// where there is no CTC block, within the approach distance) does it switch to Waypoint mode with a waypoint
+    /// slows to the approach speed when it gets close. Distances are measured from the tender's water hatch, not the lead
+    /// end, so a train being shoved (cars ahead of the engine) is judged by where the tender is. Only once a car of the
+    /// train is in the column's signal block, or the lead end has already passed the column (or, where there is no CTC
+    /// block, within the approach distance) does it switch to Waypoint mode with a waypoint
     /// that puts the tender's water hatch under the spout, so the player's routing is kept up to that block.
     /// Stopped there, it asks the column's own loader sequence to load (the same key value the game's loader
     /// sequencer reads), waits until the tender is full, puts the spout away and goes back to Road mode with the
@@ -42,7 +44,8 @@ namespace AutoEngineerBrakeFix
         private const float TickSeconds = 1f;
         private const float SearchEverySeconds = 5f;
         private const float SlowDownWithinMeters = 1600f;
-        private const float MinAheadMeters = 30f;
+        private const float MinAheadMeters = 30f;         // a column closer than this to the hatch is not picked
+        private const float MinAheadArmedMeters = 5f;     // once picked, the stop goes on until the hatch is about at the spout
         private const float StopPastSpoutMeters = 0.5f;   // Waypoint Queue's allowance for where the engineer stops
         private const float ApproachTimeoutSeconds = 1200f;
         private const float NoFlowTimeoutSeconds = 90f;
@@ -161,7 +164,7 @@ namespace AutoEngineerBrakeFix
                     _phase = Phase.Armed;
                     _phaseStart = now;
                     Say($"Water's at {water * 100f:0}%. We'll take water at {column.Place}.");
-                    Main.Mod.Logger.Log($"Water stop ({Name}): water {water * 100f:0}%, column {column.Id} at {column.Place}, {distance:0} m ahead (block {column.Block?.id ?? "none"}).");
+                    Main.Mod.Logger.Log($"Water stop ({Name}): water {water * 100f:0}%, column {column.Id} at {column.Place}, {distance:0} m ahead of the hatch (block {column.Block?.id ?? "none"}).");
                     return;
                 }
 
@@ -181,7 +184,7 @@ namespace AutoEngineerBrakeFix
                     if (now < _nextSearch) return;
                     _nextSearch = now + SearchEverySeconds / 2f;
 
-                    if (!TryDistanceTo(_column, orders.Forward, out float distance, out Location head, out Car headCar))
+                    if (!TryDistanceTo(_column, orders.Forward, MinAheadArmedMeters, out float distance, out Location hatchAt, out float headToHatch))
                     {
                         // Passed it, or the route was lined away from it: give back the speed we took off.
                         if (_setMaxSpeed != _origMaxSpeed) Helper.SetOrdersValue(null, null, _origMaxSpeed, null, null);
@@ -196,16 +199,26 @@ namespace AutoEngineerBrakeFix
                         _syncSpeed = true;
                         _graceUntil = now + 3f;
                         Helper.SetOrdersValue(null, null, approach, null, null);
-                        Main.Mod.Logger.Log($"Water stop ({Name}): {distance:0} m from {_column.Id}, slowing to {approach} mph.");
+                        Main.Mod.Logger.Log($"Water stop ({Name}): hatch {distance:0} m from {_column.Id}, slowing to {approach} mph.");
                         return;
                     }
 
-                    bool inBlock = _column.Block != null
-                        ? _column.Block.CarsInBlock().Contains(headCar)
-                        : distance <= Mathf.Max(100f, Main.Settings.WaterStopApproachMeters);
+                    // Shoving, the lead end can reach (and pass) a column near the block boundary before it is
+                    // seen in the block, so any car of the train in the block counts, and so does the lead end being
+                    // past the column (the hatch distance is then shorter than the train ahead of it).
+                    bool headPast = distance <= headToHatch;
+                    bool inBlock;
+                    if (_column.Block != null)
+                    {
+                        inBlock = headPast || _column.Block.CarsInBlock().Overlaps(_loco.EnumerateCoupled());
+                    }
+                    else
+                    {
+                        inBlock = headPast || distance <= Mathf.Max(100f, Main.Settings.WaterStopApproachMeters);
+                    }
                     if (!inBlock) return;
 
-                    if (!TryWaypointFor(_column, head, out Location target, out float headToHatch))
+                    if (!TryWaypointFor(_column, hatchAt, headToHatch, out Location target))
                     {
                         Cancel("could not work out where to stop");
                         return;
@@ -216,7 +229,7 @@ namespace AutoEngineerBrakeFix
                     _phaseStart = now;
                     _graceUntil = now + 3f;
                     Say($"Pulling up to the water column at {_column.Place}.");
-                    Main.Mod.Logger.Log($"Water stop ({Name}): in {(_column.Block != null ? "block " + _column.Block.id : "approach distance")}, {distance:0} m from {_column.Id}; Waypoint mode to {_waypointString} (lead end to hatch {headToHatch:0.0} m).");
+                    Main.Mod.Logger.Log($"Water stop ({Name}): {(headPast ? "lead end past the column" : _column.Block != null ? "in block " + _column.Block.id : "in approach distance")}, hatch {distance:0} m from {_column.Id}; Waypoint mode to {_waypointString} (lead end to hatch {headToHatch:0.0} m).");
                     return;
                 }
 
@@ -402,7 +415,7 @@ namespace AutoEngineerBrakeFix
             foreach (Column c in columns)
             {
                 if (_cooldown.TryGetValue(c.Id, out float until) && now < until) continue;
-                if (!TryDistanceTo(c, forward, out float d, out _, out _)) continue;
+                if (!TryDistanceTo(c, forward, MinAheadMeters, out float d, out _, out _)) continue;
                 if (d < bestDistance)
                 {
                     best = c;
@@ -412,16 +425,34 @@ namespace AutoEngineerBrakeFix
             return best != null;
         }
 
-        /// <summary>Distance from the lead end to the column along the route as it is lined now, if it is ahead.</summary>
-        private bool TryDistanceTo(Column column, bool forward, out float distance, out Location head, out Car headCar)
+        /// <summary>
+        /// Distance from the tender's water hatch to the column along the route as it is lined now, if the column is at
+        /// least minAhead ahead of the hatch. The walk starts at the hatch's point on the track (the lead end moved back
+        /// by the lead-end-to-hatch distance), so the cars ahead of a shoving engine are counted. Falls back to the lead
+        /// end when the hatch cannot be found (headToHatch is then 0). from is where the walk started.
+        /// </summary>
+        private bool TryDistanceTo(Column column, bool forward, float minAhead, out float distance, out Location from, out float headToHatch)
         {
             distance = float.MaxValue;
-            head = HeadLocation(forward, out headCar);
+            Location head = HeadLocation(forward, out _);
+            from = head;
+            headToHatch = 0f;
             Graph graph = Graph.Shared;
             if (graph == null || !head.IsValid || column == null || !column.Location.IsValid) return false;
 
-            float maxMeters = Mathf.Clamp(Main.Settings.WaterStopSearchKm, 1f, 100f) * 1000f;
-            RouteWalker walker = graph.WalkRoute(head, maxMeters);
+            float offset = HeadToHatch(head);
+            if (offset > 0.5f)
+            {
+                Location hatch = graph.LocationByMoving(head, -offset, false, true);
+                if (hatch.IsValid)
+                {
+                    from = hatch;
+                    headToHatch = offset;
+                }
+            }
+
+            float maxMeters = Mathf.Clamp(Main.Settings.WaterStopSearchKm, 1f, 100f) * 1000f + headToHatch;
+            RouteWalker walker = graph.WalkRoute(from, maxMeters);
             while (walker.TryNext(out WalkSegment ws))
             {
                 if (ws.Segment != column.Location.segment) continue;
@@ -429,7 +460,7 @@ namespace AutoEngineerBrakeFix
                 float toExit = graph.GetDistanceBetweenClose(column.Location, ws.ExitLocation);
                 if (Mathf.Abs(fromEntry + toExit - ws.TraversedLength) > 1f) continue;   // on this segment but not in the walked part
                 float d = ws.EntryDistance + fromEntry;
-                if (d < MinAheadMeters) continue;
+                if (d < minAhead) continue;
                 distance = d;
                 return true;
             }
@@ -438,29 +469,40 @@ namespace AutoEngineerBrakeFix
 
         /// <summary>
         /// The waypoint that stops the lead end so that the tender's water hatch is under the spout: the spout's track
-        /// point moved ahead by the lead-end-to-hatch distance (plus Waypoint Queue's 0.5 m allowance).
+        /// point moved ahead by the lead-end-to-hatch distance (plus Waypoint Queue's 0.5 m allowance). The spout is
+        /// oriented toward the hatch, which is always short of it, so "ahead" stays the direction of travel even when
+        /// the lead end of a shoved train has already passed the column.
         /// </summary>
-        private bool TryWaypointFor(Column column, Location head, out Location target, out float headToHatch)
+        private bool TryWaypointFor(Column column, Location hatchAt, float headToHatch, out Location target)
         {
             target = Location.Invalid;
-            headToHatch = 0f;
+            Graph graph = Graph.Shared;
+            if (graph == null || headToHatch <= 0.5f) return false;
+
+            Location toward = graph.LocationOrientedToward(column.Location, hatchAt);
+            target = graph.LocationByMoving(toward, -(headToHatch + StopPastSpoutMeters), false, true);
+            return target.IsValid;
+        }
+
+        /// <summary>
+        /// Straight-line distance (horizontal) from the lead end to the tender's water hatch (its LoadTarget), or 0
+        /// when there is no hatch to find.
+        /// </summary>
+        private float HeadToHatch(Location head)
+        {
             Graph graph = Graph.Shared;
             Car tender = FuelReader.Tender(_loco);
             int slot = FuelReader.WaterSlot(tender);
-            if (graph == null || tender == null || slot < 0) return false;
+            if (graph == null || tender == null || slot < 0) return 0f;
 
             CarLoadTarget hatch = tender.GetComponentsInChildren<CarLoadTarget>().FirstOrDefault(t => t.slotIndex == slot);
-            if (hatch == null) return false;
+            if (hatch == null) return 0f;
 
             // As CarLoadTargetLoader.LoadSlotFromCar: the hatch in game coordinates.
             Matrix4x4 m = tender.GetTransformMatrix(graph);
             Vector3 hatchGame = m.MultiplyPoint3x4(tender.transform.InverseTransformPoint(hatch.transform.position));
             Vector3 headGame = graph.GetPosition(head);
-            headToHatch = Vector2.Distance(new Vector2(headGame.x, headGame.z), new Vector2(hatchGame.x, hatchGame.z));
-
-            Location toward = graph.LocationOrientedToward(column.Location, head);
-            target = graph.LocationByMoving(toward, -(headToHatch + StopPastSpoutMeters), false, true);
-            return target.IsValid;
+            return Vector2.Distance(new Vector2(headGame.x, headGame.z), new Vector2(hatchGame.x, hatchGame.z));
         }
 
         // ---- Columns ----

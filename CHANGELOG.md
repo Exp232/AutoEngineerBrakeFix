@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.5.3
+- Water stop fix for shoved trains (cars ahead of the engine). On the reverse test the Whittier stop cancelled with "the column is no longer ahead on the lined route": the Whittier tower sits about 35 m inside block `wh-mm` from its `wh-e` end, so coming in from that end with 274 m of cars ahead of the tender the lead car reached the tower before it was seen in the block, and the "column ahead" check, which was measured from the lead car, failed.
+  - Distances (search, slow-down point, "still ahead") are now measured from the tender's water hatch: the walk starts at the lead end moved back along the track by the lead-end-to-hatch distance. The stop is only abandoned once the hatch itself is within 5 m of the column or past it (a new column is still only picked 30 m or more ahead of the hatch).
+  - The switch to Waypoint mode happens when any car of the train is in the column's block, or when the lead end has already passed the column.
+  - With the engine leading nothing changes in practice (the hatch is about 23 m behind the pilot on the test train). `Player.log` lines now say "hatch ... m from".
+
 ## 2.5.2
 - Water stop: the tender's water hatch now opens when the engineer calls for the spout and closes again when the spout is put away (left open if it was already open), with the same message as clicking it. The hatch key differs between tenders (`water.hatch` on the F-71 and T-17, `hatch.water` on the B-65, `hatch` / `top.hatch` on the K-28 saddle tank), so the mod picks a toggle with "hatch" in its key, preferring "water", then the one nearest the water filler; `Player.log` names the key used. Cosmetic: the column's loader does not check the hatch.
 
