@@ -55,6 +55,9 @@ namespace AutoEngineerBrakeFix
                         Note(b, "Coast band: closes the throttle when coasting holds the speed within this band below the target (or the grade is still picking the train up), and waits to brake until the train is this far over. 0 = off.");
                         Slider(b, "Coast band", () => s.CoastBandMph, v => s.CoastBandMph = v, 0f, 3f, 0.5f,
                             v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
+                        Note(b, "Coast band pickup: on a downhill, power stays off only if the grade alone reaches the target within this many seconds; otherwise the engineer accelerates. 0 = always off.");
+                        Slider(b, "Pickup horizon", () => s.CoastBandAssistSeconds, v => s.CoastBandAssistSeconds = v, 0f, 90f, 5f,
+                            v => v <= 0f ? "always" : v.ToString("0") + " s");
                         Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
                         Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                             v => v <= 0f ? "off" : v.ToString("0") + " s");
@@ -164,6 +167,7 @@ namespace AutoEngineerBrakeFix
             var s = Main.Settings;
             s.BrakeTapSuppressMph = d.BrakeTapSuppressMph;
             s.CoastBandMph = d.CoastBandMph;
+            s.CoastBandAssistSeconds = d.CoastBandAssistSeconds;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.CutoffTolerancePercent = d.CutoffTolerancePercent;
             s.PlanOverspeedScale = d.PlanOverspeedScale;

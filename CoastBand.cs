@@ -24,6 +24,7 @@ namespace AutoEngineerBrakeFix
         private const float MpsToMph = 2.23694f;
         private const float LbfToN = 4.44822f;
         private const float MinSpeedMph = 5f;
+        private const float LbPerTonToMphPerSec = 0.0161f / 1.46667f;   // lb/ton -> ft/s2 -> mph/s
         private const float AssistLbPerTon = 10f;     // net gravity help over resistance: about 0.05 m/s2, 0.1 mph a second
         private const float TonsRefreshSeconds = 2f;
 
@@ -69,7 +70,10 @@ namespace AutoEngineerBrakeFix
                     float netLbPerTon = (helpN - resistN) / LbfToN / c.Tons;
                     bool holdsSpeed = netLbPerTon >= 0f;
                     bool nearTarget = speedMph >= targetMph - band;
-                    bool gravityEnough = netLbPerTon >= AssistLbPerTon;
+                    // Gravity alone only counts while it reaches the target soon; a long crawl up to speed is left to the controller.
+                    float assistSeconds = Main.Settings.CoastBandAssistSeconds;
+                    float accelMphPerSec = netLbPerTon * LbPerTonToMphPerSec;
+                    bool gravityEnough = netLbPerTon >= AssistLbPerTon && (assistSeconds <= 0f || targetMph - speedMph <= accelMphPerSec * assistSeconds);
                     if (holdsSpeed && (nearTarget || gravityEnough))
                     {
                         command = new RolloutCommand(command.Kind, 0f, command.IndependentBrake01, command.TrainBrakeSet, command.DrivesTrainBrake, command.BailOff, command.Cost, command.HoldCost);

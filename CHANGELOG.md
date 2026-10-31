@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.1
+
+- Coast band: on a downhill the throttle used to stay closed however far below its target the train was, so it crept up to track speed at 0.1-0.2 mph a second. The grade now only keeps the power off when it will bring the train to its target within `CoastBandAssistSeconds` (new, 30 by default, slider "Pickup horizon"; 0 = the old rule). Slower than that the engineer opens the throttle and accelerates. Only affects runs with the coast band on.
+
 ## 2.7.0
 
 - **Swinging spouts are now their own mod, College-Educated Spouts** (`exp232/collegeeducatedspouts`, 1.0.0), which is compatible with this one and highly recommended, but not required. All spout code, settings (`SpoutSwing`, `SpoutSwingDegrees`, `DropSpoutSwingDegrees`, `HatchWidthFactor`, `SpoutSwingDegreesPerSecond`), the "Swinging spouts" section of the settings window and its self-check entry are removed from this mod. Existing `Settings.xml` files still load: the old entries are ignored. Move `spoutswing.txt` to the new mod's folder if you edited it.

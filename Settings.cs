@@ -223,6 +223,13 @@ namespace AutoEngineerBrakeFix
         /// </summary>
         public float CoastBandMph = 0f;
 
+        /// <summary>
+        /// With the coast band on: the throttle stays closed for a downhill pickup only when gravity alone will bring the
+        /// train to its target within this many seconds. Slower than that, the engineer accelerates itself. 0 = the old
+        /// rule (closed however far below target).
+        /// </summary>
+        public float CoastBandAssistSeconds = 30f;
+
         /// <summary>Multipliers on the rollout controller's score weights (1 = the game's own value).</summary>
         public float PlanOverspeedScale = 1f;
         public float PlanUndershootScale = 1f;
@@ -279,7 +286,8 @@ namespace AutoEngineerBrakeFix
                 + ";cut=" + CutoffTolerancePercent.ToString("0.#", c) + ";over=" + PlanOverspeedScale.ToString("0.##", c)
                 + ";under=" + PlanUndershootScale.ToString("0.##", c) + ";margin=" + PlanUndershootDeadbandScale.ToString("0.##", c)
                 + ";ceil=" + PlanCeilingScale.ToString("0.##", c) + ";indep=" + PlanIndependentUseScale.ToString("0.##", c)
-                + ";band=" + CoastBandMph.ToString("0.#", c);
+                + ";band=" + CoastBandMph.ToString("0.#", c)
+                + ";assist=" + CoastBandAssistSeconds.ToString("0.#", c);
         }
 
         /// <summary>Writes the file through a temporary copy, so a failed write cannot leave half a file.</summary>
