@@ -51,6 +51,9 @@ namespace AutoEngineerBrakeFix
         private const float NoFlowTimeoutSeconds = 90f;
         private const float FullFraction = 0.995f;
         private const float ColumnCooldownSeconds = 600f;
+        private const float SpotToleranceMeters = 0.35f;  // hatch reach is 0.6 m (column 0.2 + F-71 hatch 0.4); along the track
+        private const int MaxSpotCorrections = 2;
+        private const int CorrectionMph = 5;
 
         private sealed class Column
         {
@@ -86,6 +89,12 @@ namespace AutoEngineerBrakeFix
         private float _lastWater;
         private float _lastFlow;
         private bool _saidNoColumn;
+        private int _corrections;
+        private float _correctedAt = -1f;   // a correction was ordered; wait for the train to move before measuring again
+        private float _offsetTime = -1f;
+        private float _offsetValue;
+        private float _lastDistance = float.NaN;   // hatch to column at the last Armed check
+        private float _lastDistanceTime;
         private readonly Dictionary<string, float> _cooldown = new Dictionary<string, float>();
 
         private void Awake()
@@ -161,6 +170,10 @@ namespace AutoEngineerBrakeFix
                     _origMaxSpeed = orders.MaxSpeedMph;
                     _setMaxSpeed = orders.MaxSpeedMph;
                     _syncSpeed = false;
+                    _corrections = 0;
+                    _correctedAt = -1f;
+                    _lastDistance = distance;
+                    _lastDistanceTime = now;
                     _phase = Phase.Armed;
                     _phaseStart = now;
                     Say($"Water's at {water * 100f:0}%. We'll take water at {column.Place}.");
@@ -191,6 +204,8 @@ namespace AutoEngineerBrakeFix
                         Cancel("the column is no longer ahead on the lined route");
                         return;
                     }
+                    _lastDistance = distance;
+                    _lastDistanceTime = now;
 
                     int approach = Mathf.Clamp(Mathf.RoundToInt(Main.Settings.WaterStopApproachMph), 5, 45);
                     if (distance < SlowDownWithinMeters && _setMaxSpeed > approach)
@@ -246,9 +261,36 @@ namespace AutoEngineerBrakeFix
                         GiveUp("couldn't get to the column");
                         return;
                     }
+                    if (_correctedAt >= 0f)
+                    {
+                        if (!_loco.IsStopped(1f) || now - _correctedAt > 30f) _correctedAt = -1f;
+                        return;
+                    }
                     if (!_loco.IsStopped(3f)) return;
                     // Stopped: either at the waypoint (the game may clear it on arrival) or held by something else.
-                    if (orders.Waypoint.HasValue && !NearWaypoint()) return;
+                    if (orders.Waypoint.HasValue && !NearWaypoint(orders.Forward)) return;
+                    if (TrySpotError(out float miss, out float lateral))
+                    {
+                        Main.Mod.Logger.Log($"Water stop ({Name}): hatch {Mathf.Abs(miss):0.00} m {(miss >= 0f ? "short of" : "past")} the spout along the track ({lateral:0.00} m to the side).");
+                        if (Mathf.Abs(miss) > SpotToleranceMeters && Mathf.Abs(miss) < 50f && _corrections < MaxSpotCorrections)
+                        {
+                            _corrections++;
+                            // Short: pull ahead. Past: back up, with the other end leading, so that end arrives at the waypoint.
+                            bool fwd = miss > 0f ? _origForward : !_origForward;
+                            Location lead = HeadLocation(fwd, out _);
+                            Location target = Graph.Shared.LocationByMoving(lead, Mathf.Abs(miss), false, true);
+                            if (lead.IsValid && target.IsValid)
+                            {
+                                _waypointString = Graph.LocationToString(target.Clamped());
+                                Helper.SetOrdersValue(AutoEngineerMode.Waypoint, fwd, Mathf.Min(_setMaxSpeed, CorrectionMph), null, new OrderWaypoint(_waypointString, null));
+                                _graceUntil = now + 3f;
+                                _correctedAt = now;
+                                Say(miss > 0f ? "Pulling up to the spout." : "Backing up to the spout.");
+                                Main.Mod.Logger.Log($"Water stop ({Name}): correction {_corrections}, {(miss > 0f ? "ahead" : "back")} {Mathf.Abs(miss):0.00} m to {_waypointString}.");
+                                return;
+                            }
+                        }
+                    }
                     _phase = Phase.Filling;
                     _phaseStart = now;
                     _lastWater = water;
@@ -296,6 +338,61 @@ namespace AutoEngineerBrakeFix
                     return;
                 }
             }
+        }
+
+        // ---- Status (for DetailedStatus) ----
+
+        internal enum StatusKind { Planned, Slowing, Spotting, Filling }
+
+        internal struct StatusInfo
+        {
+            public StatusKind Kind;
+            public string Label;
+            public float? DistanceM;
+            public string Detail;
+        }
+
+        /// <summary>What this locomotive's water stop is doing, for the detailed status. False when no stop is under way.</summary>
+        internal static bool TryStatus(BaseLocomotive loco, out StatusInfo info)
+        {
+            info = default;
+            WaterStop ws = loco != null ? loco.GetComponent<WaterStop>() : null;
+            if (ws == null || !Main.Settings.WaterStop || ws._column == null || ws._phase == Phase.Idle) return false;
+            string place = ws._column.Place;
+            switch (ws._phase)
+            {
+                case Phase.Armed:
+                {
+                    float? d = null;
+                    if (!float.IsNaN(ws._lastDistance))
+                    {
+                        // Counted down between the 2.5 s checks at the current speed.
+                        float travelled = Mathf.Abs(loco.velocity) * Mathf.Max(0f, Time.time - ws._lastDistanceTime);
+                        d = Mathf.Max(0f, ws._lastDistance - travelled);
+                    }
+                    bool slowing = ws._setMaxSpeed < ws._origMaxSpeed;
+                    info.Kind = slowing ? StatusKind.Slowing : StatusKind.Planned;
+                    info.Label = $"Water stop approach (mod), {place}";
+                    info.DistanceM = d;
+                    info.Detail = $"Water stop planned at {place}{(d.HasValue ? ", hatch " + DetailedStatus.Distance(d.Value) + " from the column" : "")}"
+                        + (slowing ? $"; speed held to {ws._setMaxSpeed} mph (orders were {ws._origMaxSpeed} mph)." : ".");
+                    return true;
+                }
+                case Phase.Approaching:
+                    info.Kind = StatusKind.Spotting;
+                    info.Label = $"Water stop (mod): spotting the tender at {place}";
+                    info.Detail = $"Waypoint mode to put the tender hatch under the spout at {place}{(ws._corrections > 0 ? $" (correction {ws._corrections})" : "")}; Road orders resume after.";
+                    return true;
+                case Phase.Filling:
+                {
+                    float water = FuelReader.WaterFraction(FuelReader.Tender(loco));
+                    info.Kind = StatusKind.Filling;
+                    info.Label = float.IsNaN(water) ? $"Taking water at {place} (mod)" : $"Taking water at {place} (mod): {water * 100f:0}%";
+                    info.Detail = $"Filling to {FullFraction * 100f:0}%, then back to Road orders at {ws._origMaxSpeed} mph.";
+                    return true;
+                }
+            }
+            return false;
         }
 
         // ---- Phases ----
@@ -381,12 +478,12 @@ namespace AutoEngineerBrakeFix
             catch (Exception) { }
         }
 
-        private bool NearWaypoint()
+        private bool NearWaypoint(bool forward)
         {
             Graph graph = Graph.Shared;
             if (graph == null || string.IsNullOrEmpty(_waypointString)) return true;
             Location target = graph.ResolveLocationString(_waypointString);
-            Location head = HeadLocation(_origForward, out _);
+            Location head = HeadLocation(forward, out _);
             if (!head.IsValid || !target.IsValid) return true;
             return Vector3.Distance(graph.GetPosition(head), graph.GetPosition(target)) < 25f;
         }
@@ -485,24 +582,90 @@ namespace AutoEngineerBrakeFix
         }
 
         /// <summary>
-        /// Straight-line distance (horizontal) from the lead end to the tender's water hatch (its LoadTarget), or 0
-        /// when there is no hatch to find.
+        /// Distance along the track from the lead end back to the tender's water hatch (its LoadTarget), or 0 when
+        /// there is no hatch to find. Measured along the track, not in a straight line: with a long train ahead of the
+        /// tender on a curve the straight line is shorter, and the tender stopped short of the spout (2.5.3, Whittier).
+        /// Cached for the rest of the tick, since the column search asks once per column.
         /// </summary>
         private float HeadToHatch(Location head)
         {
+            if (Time.time == _offsetTime) return _offsetValue;
+            _offsetTime = Time.time;
+            _offsetValue = 0f;
+            Graph graph = Graph.Shared;
+            if (graph == null || !head.IsValid || !TryHatchGame(out Vector3 hatchGame)) return 0f;
+            _offsetValue = AlongBehind(graph, head, hatchGame, out _);
+            return _offsetValue;
+        }
+
+        /// <summary>The tender's water hatch in game coordinates, as CarLoadTargetLoader.LoadSlotFromCar works it out.</summary>
+        private bool TryHatchGame(out Vector3 hatchGame)
+        {
+            hatchGame = Vector3.zero;
             Graph graph = Graph.Shared;
             Car tender = FuelReader.Tender(_loco);
             int slot = FuelReader.WaterSlot(tender);
-            if (graph == null || tender == null || slot < 0) return 0f;
-
+            if (graph == null || tender == null || slot < 0) return false;
             CarLoadTarget hatch = tender.GetComponentsInChildren<CarLoadTarget>().FirstOrDefault(t => t.slotIndex == slot);
-            if (hatch == null) return 0f;
-
-            // As CarLoadTargetLoader.LoadSlotFromCar: the hatch in game coordinates.
+            if (hatch == null) return false;
             Matrix4x4 m = tender.GetTransformMatrix(graph);
-            Vector3 hatchGame = m.MultiplyPoint3x4(tender.transform.InverseTransformPoint(hatch.transform.position));
-            Vector3 headGame = graph.GetPosition(head);
-            return Vector2.Distance(new Vector2(headGame.x, headGame.z), new Vector2(hatchGame.x, hatchGame.z));
+            hatchGame = m.MultiplyPoint3x4(tender.transform.InverseTransformPoint(hatch.transform.position));
+            return true;
+        }
+
+        /// <summary>
+        /// How far back along the track from 'from' (facing ahead) the point nearest to 'game' is (horizontally), and
+        /// how far to the side of the track 'game' then is. Steps of 1 m, then 5 cm around the best one. The search
+        /// starts at the straight-line distance, which an arc is never shorter than.
+        /// </summary>
+        private static float AlongBehind(Graph graph, Location from, Vector3 game, out float offset)
+        {
+            float chord = Horizontal(graph.GetPosition(from), game);
+            float lo = Mathf.Max(0f, chord - 2f);
+            float hi = chord * 1.15f + 20f;
+            float best = lo;
+            float bestD = float.MaxValue;
+            for (float d = lo; d <= hi; d += 1f) Probe(d);
+            float a = Mathf.Max(0f, best - 1f), b = best + 1f;
+            for (float d = a; d <= b; d += 0.05f) Probe(d);
+            offset = bestD;
+            return best;
+
+            void Probe(float d)
+            {
+                Location p = graph.LocationByMoving(from, -d, false, true);
+                if (!p.IsValid) return;
+                float h = Horizontal(graph.GetPosition(p), game);
+                if (h < bestD)
+                {
+                    bestD = h;
+                    best = d;
+                }
+            }
+        }
+
+        private static float Horizontal(Vector3 a, Vector3 b)
+        {
+            return Vector2.Distance(new Vector2(a.x, a.z), new Vector2(b.x, b.z));
+        }
+
+        /// <summary>
+        /// Stopped at the column: how far the hatch is from the spout along the track (positive = short of it, so the
+        /// train must pull ahead), and how far to the side. Both are measured back from the lead end, so they share
+        /// one reference.
+        /// </summary>
+        private bool TrySpotError(out float miss, out float lateral)
+        {
+            miss = 0f;
+            lateral = 0f;
+            Graph graph = Graph.Shared;
+            if (graph == null || _column == null || !TryHatchGame(out Vector3 hatchGame)) return false;
+            Location lead = HeadLocation(_origForward, out _);
+            if (!lead.IsValid) return false;
+            float toHatch = AlongBehind(graph, lead, hatchGame, out lateral);
+            float toSpout = AlongBehind(graph, lead, graph.GetPosition(_column.Location), out _);
+            miss = toHatch - toSpout;
+            return true;
         }
 
         // ---- Columns ----

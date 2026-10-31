@@ -118,6 +118,15 @@ namespace AutoEngineerBrakeFix
                 ["AutoEngineer.SumGravityForce()"] = () => Method(AE, "SumGravityForce", Type.EmptyTypes, typeof(float)),
                 ["AutoEngineerPlanner"] = () => planner != null,
                 ["AutoEngineerPlanner.Say(string)"] = () => planner != null && Method(planner, "Say", new[] { typeof(string) }, typeof(void)),
+                ["AutoEngineerPlanner.SetPlannerStatus(float, string, List<Target>)"] =
+                    () => planner != null && Method(planner, "SetPlannerStatus", new[] { typeof(float), typeof(string), typeof(List<AutoEngineer.Targets.Target>) }, typeof(void)),
+                ["AutoEngineerPlanner._engineer, _locomotive, _coupledCarsCached, _equipmentMaximumTrackCurvature, _maximumLength"] =
+                    () => planner != null && Field(planner, "_engineer", typeof(AutoEngineer)) && Field(planner, "_locomotive", typeof(BaseLocomotive))
+                        && Field(planner, "_coupledCarsCached", typeof(List<Car>)) && Field(planner, "_equipmentMaximumTrackCurvature", typeof(float)) && Field(planner, "_maximumLength", typeof(float)),
+                ["AutoEngineer.WaitingForBrakes"] = () => AccessTools.PropertyGetter(AE, "WaitingForBrakes") != null,
+                ["AutoEngineerControlSetBase.UpdateStatusLabel(), statusLabel"] =
+                    () => Method(typeof(UI.EngineControls.AutoEngineerControlSetBase), "UpdateStatusLabel", Type.EmptyTypes, typeof(void))
+                        && Field(typeof(UI.EngineControls.AutoEngineerControlSetBase), "statusLabel", null),
                 ["AutoEngineerPlanner.UpdateTargets(float, int)"] =
                     () => planner != null && Method(planner, "UpdateTargets", new[] { typeof(float), typeof(int) }, typeof(void)),
                 ["AutoEngineerPlanner.DistanceToNextSignalAfter(..., float) : float?"] =
@@ -294,6 +303,15 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.BrakeTapSuppressMph = 0f,
                     Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer.AverageTrainBrakeCylinder()", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets" },
                     Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Detailed status",
+                    AlwaysPatch = true,
+                    On = () => s.DetailedStatus,
+                    TurnOff = () => s.DetailedStatus = false,
+                    Needs = new[] { "AutoEngineerPlanner.SetPlannerStatus(float, string, List<Target>)", "AutoEngineerPlanner._engineer, _locomotive, _coupledCarsCached, _equipmentMaximumTrackCurvature, _maximumLength", "AutoEngineer.WaitingForBrakes", "AutoEngineerControlSetBase.UpdateStatusLabel(), statusLabel" },
+                    Patches = new[] { typeof(Planner_SetPlannerStatus_Patch), typeof(ControlSet_UpdateStatusLabel_Patch) },
                 },
                 new Feature
                 {

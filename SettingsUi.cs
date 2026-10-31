@@ -79,6 +79,14 @@ namespace AutoEngineerBrakeFix
                             v => v.ToString("0") + " mph");
                     });
 
+                    page.AddSection("Engineer status", b =>
+                    {
+                        b.AddFieldToggle("Detailed status", () => s.DetailedStatus, v => { s.DetailedStatus = v; Save(); });
+                        Note(b, "The status line under the auto engineer controls names what sets the speed (posted or railroad limit, track class, curve, curve held down by the equipment, engine top speed, this mod's water stop and approach hold) and how far ahead it is. Hover it for the details and the targets ahead.");
+                        b.AddFieldToggle("Metric distances", () => s.StatusMetric, v => { s.StatusMetric = v; Save(); });
+                        Note(b, "Off: feet and miles. On: metres and kilometres.");
+                    });
+
                     page.AddSection("Planner weights (1 = the game's own)", b =>
                     {
                         Slider(b, "Overspeed", () => s.PlanOverspeedScale, v => s.PlanOverspeedScale = v, 0f, 3f, 0.05f, Weight);

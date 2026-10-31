@@ -144,6 +144,19 @@ namespace AutoEngineerBrakeFix
         /// <summary>Where the column is not in a CTC block: distance (m) from the column at which the engineer switches to Waypoint mode.</summary>
         public float WaterStopApproachMeters = 600f;
 
+        // ---- Status ----
+
+        /// <summary>
+        /// Detailed auto-engineer status line (see DetailedStatus): names what sets a track speed (posted or railroad
+        /// limit, track class, curve, or a curve held down by the equipment's rating), adds the distance to a limit or
+        /// stop ahead, shows the engine's top speed when that is lower, and names this mod's own events. The tooltip
+        /// lists the reasoning and the targets ahead. Off by default; switchable in the settings window.
+        /// </summary>
+        public bool DetailedStatus = false;
+
+        /// <summary>Distances in the detailed status in metres and kilometres instead of feet and miles.</summary>
+        public bool StatusMetric = false;
+
         // ---- Signals ----
 
         /// <summary>How far ahead (m) the AI reacts to a signal's aspect. The game uses 200.</summary>

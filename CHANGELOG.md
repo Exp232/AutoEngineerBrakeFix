@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.5.4
+- New, off by default: **detailed engineer status** (`DetailedStatus`; "Detailed status" in the settings window under "Engineer status", effective at once). It replaces the planner's status line (`AutoEngineerPlanner.SetPlannerStatus`) with the same choice of limit, then:
+  - says what sets a "Track Speed": "Posted limit", "Railroad limit", "Track class N", "Curve N°", or "Curve (equipment)" when the curve is sharper than the tightest-rated car in the train (the game cuts the speed towards 5 mph there);
+  - adds the distance to a limit or stop ahead ("in 420 ft", "in 1.2 mi"), refreshed whenever the planner runs (every 0.5 s above 30 mph, 1 s below, 3 s stopped);
+  - shows "Engine top speed" when the locomotive's top speed (where its tractive effort runs out) is below the limit;
+  - names this mod's own events: water stop approach, spotting and filling (with the water level), approach hold, stall guard.
+  - The status tooltip lists the reasoning (for equipment: which car, its rating, the curve and what the track alone allows), the engine top speed and the next five targets with distances. Host only for the tooltip; the line itself is the game's synced status.
+  - `StatusMetric` ("Metric distances") switches feet and miles to metres and kilometres.
+- Water stop: the tender stopped with its hatch out of the spout's reach on the 2.5.3 Whittier shove (no water flowed, it gave up after 90 s). The lead-end-to-hatch distance was a straight line, which is shorter than the track with 270 m of train on a curve; it is now measured along the track (the point on the train's own track nearest the hatch, in 1 m and then 5 cm steps).
+- Water stop: once stopped, it measures how far the hatch is from the spout along the track and logs it. If it is more than 0.35 m off (the reach is 0.6 m), it pulls ahead or backs up by that much at 5 mph in Waypoint mode, up to twice, before calling for water.
+
 ## 2.5.3
 - Water stop fix for shoved trains (cars ahead of the engine). On the reverse test the Whittier stop cancelled with "the column is no longer ahead on the lined route": the Whittier tower sits about 35 m inside block `wh-mm` from its `wh-e` end, so coming in from that end with 274 m of cars ahead of the tender the lead car reached the tower before it was seen in the block, and the "column ahead" check, which was measured from the lead car, failed.
   - Distances (search, slow-down point, "still ahead") are now measured from the tender's water hatch: the walk starts at the lead end moved back along the track by the lead-end-to-hatch distance. The stop is only abandoned once the hatch itself is within 5 m of the column or past it (a new column is still only picked 30 m or more ahead of the hatch).
