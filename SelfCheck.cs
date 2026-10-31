@@ -138,8 +138,8 @@ namespace AutoEngineerBrakeFix
                 ["CarLoadTargetLoader.LoadLoop() reads transform.position once"] = () => CarLoadTargetLoader_LoadLoop_Patch.PositionReads() == 1,
                 ["CarLoadTargetLoader.LoadSlotFromCar(Car, Vector3, out int)"] =
                     () => Method(typeof(RollingStock.CarLoadTargetLoader), "LoadSlotFromCar", new[] { typeof(Car), typeof(UnityEngine.Vector3), typeof(int).MakeByRefType() }, typeof(Model.Definition.Data.LoadSlot), "car", "point", "slotIndex"),
-                ["ClearanceLimitedController.engageAfterNormalizedTime, animationClip, CarLoaderSequencer keys"] =
-                    () => Field(typeof(RollingStock.Controls.ClearanceLimitedController), "engageAfterNormalizedTime", typeof(float)) && Field(typeof(RollingStock.Controls.ClearanceLimitedController), "animationClip", typeof(UnityEngine.AnimationClip))
+                ["ClearanceLimitedController.probeOrigin, animationClip, CarLoaderSequencer keys"] =
+                    () => Field(typeof(RollingStock.Controls.ClearanceLimitedController), "probeOrigin", typeof(UnityEngine.Transform)) && Field(typeof(RollingStock.Controls.ClearanceLimitedController), "animationClip", typeof(UnityEngine.AnimationClip))
                         && Field(typeof(RollingStock.CarLoaderSequencer), "readWantsLoadingKey", typeof(string)) && Field(typeof(RollingStock.CarLoaderSequencer), "readIsLoadingKey", typeof(string)),
                 ["AutoEngineerPlanner.UpdateTargets(float, int)"] =
                     () => planner != null && Method(planner, "UpdateTargets", new[] { typeof(float), typeof(int) }, typeof(void)),
@@ -306,7 +306,7 @@ namespace AutoEngineerBrakeFix
                     AlwaysPatch = true,
                     On = () => s.SpoutSwing,
                     TurnOff = () => s.SpoutSwing = false,
-                    Needs = new[] { "CarLoaderBuiltin.Configure(in BuiltinContext)", "CarLoadTargetLoader.LoadLoop() reads transform.position once", "CarLoadTargetLoader.LoadSlotFromCar(Car, Vector3, out int)", "ClearanceLimitedController.engageAfterNormalizedTime, animationClip, CarLoaderSequencer keys" },
+                    Needs = new[] { "CarLoaderBuiltin.Configure(in BuiltinContext)", "CarLoadTargetLoader.LoadLoop() reads transform.position once", "CarLoadTargetLoader.LoadSlotFromCar(Car, Vector3, out int)", "ClearanceLimitedController.probeOrigin, animationClip, CarLoaderSequencer keys" },
                     Patches = new[] { typeof(CarLoaderBuiltin_Configure_Patch), typeof(CarLoadTargetLoader_LoadLoop_Patch), typeof(CarLoadTargetLoader_LoadSlotFromCar_Patch) },
                 },
                 new Feature

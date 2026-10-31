@@ -30,10 +30,13 @@ namespace AutoEngineerBrakeFix
     ///
     /// This component turns the spout about a vertical axis on top of the clip, toward the nearest tender hatch it can
     /// reach, so the drop (and its clearance probe) still play exactly as before, just over the hatch:
-    ///  - the spout's animated object is put under a new parent ("wrapper") at its own pivot, and the wrapper is turned;
-    ///  - side-to-side columns may turn up to SpoutSwingDegrees each way, drop-only spouts up to DropSpoutSwingDegrees
-    ///    (a small, prototypical swivel). The type is read from the clip: a clip whose clearance easing starts after a
-    ///    first phase (engageAfterNormalizedTime > 0) has a swing before the drop. spoutswing.txt can override per column;
+    ///  - the kind is read from where the spout is parked: a spout that sits more than 1.5 m (flat) from the loader's fill
+    ///    point swings in from beside the track before it drops (a side-to-side column), one that hangs near it only drops;
+    ///  - a side-to-side column's whole animated object is put under a new parent ("wrapper") at its own origin (the
+    ///    column's axis) and the wrapper is turned, up to SpoutSwingDegrees each way;
+    ///  - a drop-only spout shares its animated object with the tank and legs, so only its own parts (children named
+    ///    "spout" or "hose") are turned, each frame after the animation, about the spout's hinge, up to
+    ///    DropSpoutSwingDegrees each way (a small, prototypical swivel). spoutswing.txt can set a limit per column;
     ///  - the host picks the angle while the spout is asked to load and not yet loading, and writes it to the column's
     ///    synced key "aebf.swingYaw", so every player sees the same swing; the spout turns back when it is put away;
     ///  - the loader's fill check uses the turned spout tip (transpiler on LoadLoop) and a hatch shape that is longer
@@ -55,9 +58,26 @@ namespace AutoEngineerBrakeFix
         private CarLoaderSequencer _sequencer;
         private ClearanceLimitedController _spout;
         private KeyValueObject _kvo;
-        private Transform _wrapper;
+        private Transform _wrapper;      // side-to-side columns: the whole animated spout object sits under this, and it is turned
         private Quaternion _wrapperBase;
         private bool _loaderInWrapper;
+        private Vector3 _pivotLocal;      // the vertical axis the spout turns about, in this object's space
+        private readonly List<Part> _parts = new List<Part>();   // drop-only spouts: only the spout's own parts are turned, after the animation
+        private float _parkedMeters;      // how far the spout sits from the fill point before it moves (tells the two kinds apart)
+
+        private sealed class Part
+        {
+            public Transform T;
+            public Vector3 LastPos;
+            public Quaternion LastRot;
+            public float Applied;
+            public bool Seen;
+        }
+
+        private const float ParkedFarMeters = 1.5f;   // parked this far from the fill point (flat): it swings in, then drops
+
+        private bool Turnable => _wrapper != null || _parts.Count > 0;
+        private Vector3 PivotWorld => transform.TransformPoint(_pivotLocal);
         private Vector3 _fillLocal;       // the loader's fill point in this object's space, with this mod's turn taken out
         private bool _fillSeen;
         private float _armMeters;
@@ -102,22 +122,47 @@ namespace AutoEngineerBrakeFix
             HatchTable.LoadIfStale();
             _maxOverride = HatchTable.SpoutDegrees(_id, _prefab);
 
-            if (_spout != null && _spout.transform.parent != null)
+            if (_spout != null)
             {
-                _swingType = _spout.engageAfterNormalizedTime > 0.001f;
                 Transform spoutT = _spout.transform;
-                var wrap = new GameObject("AEBF.SpoutSwing");
-                _wrapper = wrap.transform;
-                _wrapper.SetParent(spoutT.parent, false);
-                _wrapper.position = spoutT.position;
-                _wrapper.rotation = spoutT.parent.rotation;
-                _wrapperBase = _wrapper.rotation;
-                spoutT.SetParent(_wrapper, true);
-                _loaderInWrapper = _loader.transform.IsChildOf(_wrapper);
+                Transform probe = _spout.probeOrigin != null ? _spout.probeOrigin : spoutT;
+                _parkedMeters = Flat(probe.position - _loader.transform.position).magnitude;
+                _swingType = _parkedMeters > ParkedFarMeters;
+
+                if (_swingType && spoutT.parent != null)
+                {
+                    // A column: the arm swings in from beside the track, then drops. The whole animated object turns
+                    // about its own origin (the column's axis), under a wrapper above the Animator so its paths still bind.
+                    var wrap = new GameObject("AEBF.SpoutSwing");
+                    _wrapper = wrap.transform;
+                    _wrapper.SetParent(spoutT.parent, false);
+                    _wrapper.position = spoutT.position;
+                    _wrapper.rotation = spoutT.parent.rotation;
+                    _wrapperBase = _wrapper.rotation;
+                    spoutT.SetParent(_wrapper, true);
+                    _loaderInWrapper = _loader.transform.IsChildOf(_wrapper);
+                    _pivotLocal = transform.InverseTransformPoint(_wrapper.position);
+                }
+                else
+                {
+                    // A hanging spout: the tank and legs share the animated object, so only the spout and its hose
+                    // chains turn (each frame, after the animation), about the spout's own hinge.
+                    foreach (Transform child in spoutT)
+                    {
+                        string n = child.name;
+                        bool spoutPart = n.IndexOf("spout", StringComparison.OrdinalIgnoreCase) >= 0;
+                        bool hose = n.IndexOf("hose", StringComparison.OrdinalIgnoreCase) >= 0;
+                        if (!spoutPart && !hose) continue;
+                        if (n.IndexOf("collider", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                        _parts.Add(new Part { T = child });
+                    }
+                    Part hinge = _parts.FirstOrDefault(x => x.T.name.IndexOf("spout", StringComparison.OrdinalIgnoreCase) >= 0) ?? _parts.FirstOrDefault();
+                    if (hinge != null) _pivotLocal = transform.InverseTransformPoint(hinge.T.position);
+                }
             }
 
             _fillLocal = transform.InverseTransformPoint(_loader.transform.position);
-            _armMeters = _wrapper != null ? Flat(_loader.transform.position - _wrapper.position).magnitude : 0f;
+            _armMeters = Turnable ? Flat(_loader.transform.position - PivotWorld).magnitude : 0f;
             DumpOnce();
         }
 
@@ -125,6 +170,10 @@ namespace AutoEngineerBrakeFix
         {
             if (_loader != null && ByLoader.TryGetValue(_loader, out SpoutSwing s) && s == this) ByLoader.Remove(_loader);
             if (_wrapper != null) _wrapper.rotation = _wrapperBase;   // back to the game's own spot
+            foreach (Part part in _parts)
+            {
+                if (part.T != null && part.Seen && Mathf.Abs(part.Applied) > 1e-4f) part.T.RotateAround(PivotWorld, Vector3.up, -part.Applied);
+            }
         }
 
         // ---- Per frame ----
@@ -133,7 +182,7 @@ namespace AutoEngineerBrakeFix
         {
             try
             {
-                if (_wrapper == null || _kvo == null) return;
+                if (!Turnable || _kvo == null) return;
                 if (StateManager.IsHost && Time.unscaledTime >= _nextAim)
                 {
                     _nextAim = Time.unscaledTime + AimEverySeconds;
@@ -144,24 +193,25 @@ namespace AutoEngineerBrakeFix
                 if (!Mathf.Approximately(target, _shown))
                 {
                     _shown = Mathf.MoveTowards(_shown, target, Mathf.Max(5f, Main.Settings.SpoutSwingDegreesPerSecond) * Time.deltaTime);
-                    _wrapper.rotation = Quaternion.AngleAxis(_shown, Vector3.up) * _wrapperBase;
+                    if (_wrapper != null) _wrapper.rotation = Quaternion.AngleAxis(_shown, Vector3.up) * _wrapperBase;
                 }
+                if (_parts.Count > 0) TurnParts();
 
                 // Learn where the loader really fills (it may ride on the animated arm): while the loader may load, the spout is down.
                 if (!string.IsNullOrEmpty(_loader.canLoadBoolKey) && _kvo[_loader.canLoadBoolKey].BoolValue)
                 {
-                    Vector3 unturned = RotateAbout(_loader.transform.position, _wrapper.position, _loaderInWrapper ? -_shown : 0f);
+                    Vector3 unturned = RotateAbout(_loader.transform.position, PivotWorld, _loaderInWrapper ? -_shown : 0f);
                     Vector3 local = transform.InverseTransformPoint(unturned);
                     if (!_fillSeen || (local - _fillLocal).sqrMagnitude > 0.0025f)
                     {
                         if (!_fillSeen)
                         {
                             Vector3 moved = local - _fillLocal;
-                            Main.Mod.Logger.Log($"Spout swing ({_id}): spout down; the loader fills at {V(local)} in the structure (moved {moved.magnitude:0.00} m from where it sat at set-up), arm {Flat(unturned - _wrapper.position).magnitude:0.00} m from the pivot.");
+                            Main.Mod.Logger.Log($"Spout swing ({_id}): spout down; the loader fills at {V(local)} in the structure (moved {moved.magnitude:0.00} m from where it sat at set-up), arm {Flat(unturned - PivotWorld).magnitude:0.00} m from the pivot.");
                         }
                         _fillSeen = true;
                         _fillLocal = local;
-                        _armMeters = Flat(unturned - _wrapper.position).magnitude;
+                        _armMeters = Flat(unturned - PivotWorld).magnitude;
                     }
                 }
             }
@@ -169,6 +219,30 @@ namespace AutoEngineerBrakeFix
             {
                 Main.Mod.Logger.Warning($"Spout swing ({_id}): {e.Message}");
                 enabled = false;
+            }
+        }
+
+        /// <summary>
+        /// Turns the spout's own parts to the shown angle, after the animation has run. The Animator rewrites a part's pose
+        /// when it is playing; when it did (the part is not where this left it) the whole angle is applied, otherwise just
+        /// the change since last frame.
+        /// </summary>
+        private void TurnParts()
+        {
+            Vector3 pivot = PivotWorld;
+            foreach (Part part in _parts)
+            {
+                Transform t = part.T;
+                if (t == null) continue;
+                bool fresh = !part.Seen
+                    || (t.localPosition - part.LastPos).sqrMagnitude > 1e-8f
+                    || Quaternion.Angle(t.localRotation, part.LastRot) > 0.01f;
+                float delta = fresh ? _shown : _shown - part.Applied;
+                if (Mathf.Abs(delta) > 1e-4f) t.RotateAround(pivot, Vector3.up, delta);
+                part.Applied = _shown;
+                part.LastPos = t.localPosition;
+                part.LastRot = t.localRotation;
+                part.Seen = true;
             }
         }
 
@@ -215,11 +289,11 @@ namespace AutoEngineerBrakeFix
         private bool TryBest(Car only, int onlySlot, out Car bestCar, out CarLoadTarget bestHatch, out float bestYaw, out float bestFit, out Vector2 bestHalf)
         {
             bestCar = null; bestHatch = null; bestYaw = 0f; bestFit = float.MaxValue; bestHalf = Vector2.zero;
-            if (_wrapper == null || TrainController.Shared == null) return false;
+            if (!Turnable || TrainController.Shared == null) return false;
             var graph = TrainController.Shared.Graph?.Current;
             if (graph == null) return false;
 
-            Vector3 pivot = _wrapper.position;
+            Vector3 pivot = PivotWorld;
             Vector3 fill = transform.TransformPoint(_fillLocal);
             float max = Mathf.Clamp(MaxDegrees, 0f, 180f);
 
@@ -317,10 +391,10 @@ namespace AutoEngineerBrakeFix
             Vector3 live = component.transform.position;
             try
             {
-                if (!On || !(component is CarLoadTargetLoader loader) || !ByLoader.TryGetValue(loader, out SpoutSwing s) || s == null || s._wrapper == null) return live;
+                if (!On || !(component is CarLoadTargetLoader loader) || !ByLoader.TryGetValue(loader, out SpoutSwing s) || s == null || !s.Turnable) return live;
                 float target = s.SyncedYaw();
                 float delta = s._loaderInWrapper ? target - s._shown : target;
-                return RotateAbout(live, s._wrapper.position, delta);
+                return RotateAbout(live, s.PivotWorld, delta);
             }
             catch (Exception)
             {
@@ -370,8 +444,8 @@ namespace AutoEngineerBrakeFix
             else
             {
                 AnimationClip clip = _spout.animationClip;
-                sb.AppendLine($"  Spout '{_spout.name}': key '{_spout.key}', clip '{clip?.name}' {clip?.length:0.00} s, speed {_spout.speed:0.##}, engage after {_spout.engageAfterNormalizedTime:0.00} => {(_swingType ? "side-to-side column" : "drop-only spout")}, limit {MaxDegrees:0}°{(float.IsNaN(_maxOverride) ? "" : " (spoutswing.txt)")}.");
-                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. Pivot (wrapper) {(_wrapper != null ? V(transform.InverseTransformPoint(_wrapper.position)) : "none, the spout has no parent")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
+                sb.AppendLine($"  Spout '{_spout.name}': key '{_spout.key}', clip '{clip?.name}' {clip?.length:0.00} s, speed {_spout.speed:0.##}, parked {_parkedMeters:0.00} m from the fill point (swings in if over {ParkedFarMeters:0.0} m) => {(_swingType ? "side-to-side column" : "drop-only spout")}, limit {MaxDegrees:0}°{(float.IsNaN(_maxOverride) ? "" : " (spoutswing.txt)")}.");
+                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. {(_wrapper != null ? "Turns the whole animated object" : _parts.Count > 0 ? "Turns only " + string.Join(", ", _parts.Select(x => x.T.name)) : "Nothing to turn (no spout parts found)")}; pivot {(Turnable ? V(_pivotLocal) : "-")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
             }
             if (_sequencer != null)
                 sb.AppendLine($"  Sequencer keys request '{_sequencer.readWantsLoadingKey}', prepare '{_sequencer.writePrepareLoadKey}', canLoad '{_sequencer.writeCanLoadKey}', animate '{_sequencer.writeAnimateLoadKey}', delays {_sequencer.prepareLoadingDelay:0.#}/{_sequencer.startLoadingDelay:0.#} s.");

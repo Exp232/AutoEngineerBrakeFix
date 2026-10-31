@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.6.1
+- Swinging spouts, after the 2.6.0 test (Bryson, `Player.log`): the fills worked as before (EMR 1 44 s, EMR 5000 104 s) and nothing errored, but two things were wrong in the code.
+  - **Both kinds were taken for drop-only spouts (15 degrees).** The test used `engageAfterNormalizedTime`, which is 0.00 on both the water column ("Water Column Arm") and the tower ("Scene"). The kind is now read from where the spout is parked: more than 1.5 m (flat) from the loader's fill point means it swings in from beside the track (the water column: 4.2 m, so up to `SpoutSwingDegrees`, 180); near it means it hangs and only drops (the tower: 0.7 m, `DropSpoutSwingDegrees`, 15). The dump in `Player.log` gives the distance.
+  - **The tower turned its whole model.** The tower's animated object also holds the tank, legs and collider, so a larger swivel would have turned all of them about the tank's foot (7.3 m from the track). Drop-only spouts now turn only their own parts (the children named "spout" or "hose"), each frame after the animation, about the spout's hinge (about 3.1 m from the fill point), and put them back when the mod unloads. Side-to-side columns are unchanged: the whole column turns about its own axis (3.0 m arm).
+  - The test only had trains stopped within 0.05 m of the spout (turns of 0.2 and 0.9 degrees), so a real turn toward an off-centre tender has not been seen yet.
+
 ## 2.6.0
 - New, off by default: **swinging water spouts** (`SpoutSwing.cs`; "Swinging spouts" in the settings window, effective at once).
   - When a water column or tower spout is asked to load (by the player or the water stop), the host finds the nearest reachable tender hatch and the spout turns toward it about its own pivot before and while it drops. The game's clip (swing and drop, `ClearanceLimitedController`) plays unchanged on top, so the drop still stops 0.4 m above the tender. The angle is written to the column's synced key `aebf.swingYaw`; the spout turns back when it is put away.
