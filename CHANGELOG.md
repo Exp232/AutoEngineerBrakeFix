@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.11
+
+- Water column: the base is held square again while the pole and head turn. The pole mesh can't be read by the game's CPU side, so it is copied back from the graphics card, split at 1.2 m, and the foot is drawn as a still copy while the rest turns with the arm. If the copy fails, the whole pole turns as in 2.6.10 and `Player.log` says why (`could not ...` lines); on success it logs `split 'Cylinder'`.
+
 ## 2.6.10
 
 - Water column: 2.6.9 could not split the pole mesh (the game's mesh is not readable, so `Player.log` showed nothing and the head stayed square to the track). A still mesh taller than 2.5 m (the pole with its head bracket) is no longer held square: it turns with the arm, so the head points with the spout. Only the low pieces (the square base) stay still. The split code is removed from use.
