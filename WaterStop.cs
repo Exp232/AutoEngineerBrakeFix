@@ -573,6 +573,14 @@ namespace AutoEngineerBrakeFix
 
             float reach = ReachMeters();
             float off = Mathf.Sqrt(miss * miss + lateral * lateral);
+            bool reachable = off <= reach;
+            if (!reachable)
+            {
+                // A swinging spout (SpoutSwing) can turn to a hatch the fixed spot misses.
+                Car tender = FuelReader.Tender(_loco);
+                if (SpoutSwing.CanReach(_column?.Loader, tender, FuelReader.WaterSlot(tender), out string how)) reachable = true;
+                if (how != null) Main.Mod.Logger.Log($"Water stop ({Name}): hatch {how}.");
+            }
             if (!float.IsNaN(_approachAim) && _corrections == 0)
             {
                 // The approach waypoint was _approachAim past the spout; the hatch stopped -miss past it.
@@ -592,14 +600,14 @@ namespace AutoEngineerBrakeFix
                 _lastCorrSign = 0f;
                 if (moved > MovedAtLeastMeters) SaveGap(false, _correctionGap);
             }
-            if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && off > reach)
+            if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && !reachable)
             {
                 _stuckCorrections++;
                 Main.Mod.Logger.Log($"Water stop ({Name}): the last correction did not move the train ({_stuckCorrections}).");
             }
             _lastMiss = miss;
 
-            if (off <= reach) return true;
+            if (reachable) return true;
             if (Mathf.Abs(miss) > MaxCorrectionMeters) { why = $"the hatch is {Mathf.Abs(miss):0} m from the spout"; return false; }
             if (_corrections >= MaxSpotCorrections || _stuckCorrections >= 2)
             {

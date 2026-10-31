@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.6.0
+- New, off by default: **swinging water spouts** (`SpoutSwing.cs`; "Swinging spouts" in the settings window, effective at once).
+  - When a water column or tower spout is asked to load (by the player or the water stop), the host finds the nearest reachable tender hatch and the spout turns toward it about its own pivot before and while it drops. The game's clip (swing and drop, `ClearanceLimitedController`) plays unchanged on top, so the drop still stops 0.4 m above the tender. The angle is written to the column's synced key `aebf.swingYaw`; the spout turns back when it is put away.
+  - Two spout kinds, told apart by the clip: side-to-side columns (clearance easing starts after a first phase, `engageAfterNormalizedTime` > 0) turn up to `SpoutSwingDegrees` (180) each way; drop-only spouts get a prototypical swivel of up to `DropSpoutSwingDegrees` (15) each way.
+  - Hatch shape: the fill check (`CarLoadTargetLoader.LoadSlotFromCar`, prefix) uses an ellipse in the car's frame instead of the game's circle: half-length = the game's hatch radius, half-width = radius x `HatchWidthFactor` (2), each plus the loader's 0.2 m. The fill loop's position read (`LoadLoop`, transpiler) uses the turned spout tip.
+  - `spoutswing.txt` in the mod folder: `hatch <car definition identifier> <half-length> <half-width>` for tenders that do not follow the rule, and `spout <map object id or structure name> <degrees>` for a column's own limit. Written with examples on first run; re-read at map load.
+  - Diagnostics in `Player.log`: once per structure kind, the spout's object tree, clip, pivot, arm length, whether the loader rides on the spout, and the kind and limit chosen; the first time each spout is down, where it really fills; each turn (car, tender identifier, angle, fit, hatch size used).
+  - Water stop: a hatch outside the fixed spot but within the turning spout's reach (fit 0.9 or better, 1 = hatch edge) counts as spotted, and the log says so.
+  - Untested in game: the pivot is taken as the animated spout object's own origin; check the dump and the first swing at each kind of column.
+
 ## 2.5.14
 - Water stop, fast forward test: EMR 5000 (1,907 t) took water at Almond (al-water) during fast forward (time scale 14 to 34) on the first spot, from Waypoint orders (2.5.8). The hatch ended 0.52 m past the spout, inside the 0.55 m reach but close to its edge. The train stopped 1.00 m before its waypoint there, against 1.24-1.78 m for the same train at Bryson, so the gap varies by about 0.4 m at one weight. Suspects: track grade, and the fast-forward time scale.
   - The "the train stopped ... before its waypoint" log line now also gives the track grade under the lead end in the direction of travel (rise over the next 30 m) and the time scale, so the variation can be matched against them. Logging only; nothing else changes.

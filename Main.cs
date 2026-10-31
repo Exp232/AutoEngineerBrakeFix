@@ -114,6 +114,19 @@ namespace AutoEngineerBrakeFix
                 Mod.Logger.Warning("Legacy speed limits could not be set up: " + e.Message);
             }
 
+            // Water columns already built (the map normally loads after the mod, and the Configure patch covers those).
+            try
+            {
+                foreach (var builtin in UnityEngine.Object.FindObjectsByType<Game.Builtins.CarLoaderBuiltin>(UnityEngine.FindObjectsSortMode.None))
+                {
+                    SpoutSwing.Attach(builtin);
+                }
+            }
+            catch (Exception e)
+            {
+                Mod.Logger.Warning("Spout swing could not be set up on existing columns: " + e.Message);
+            }
+
             // Engineers that already exist (none at start-up, normally) get their helpers now.
             foreach (var engineer in UnityEngine.Object.FindObjectsByType<Model.AI.AutoEngineer>(UnityEngine.FindObjectsSortMode.None))
             {
@@ -141,6 +154,12 @@ namespace AutoEngineerBrakeFix
             foreach (var stop in UnityEngine.Object.FindObjectsByType<WaterStop>(UnityEngine.FindObjectsSortMode.None))
             {
                 UnityEngine.Object.Destroy(stop);
+            }
+
+            // The spouts keep their wrapper (harmless at no turn); stop turning them.
+            foreach (var swing in UnityEngine.Object.FindObjectsByType<SpoutSwing>(UnityEngine.FindObjectsSortMode.None))
+            {
+                UnityEngine.Object.Destroy(swing);
             }
 
             if (_legacyLimits != null)

@@ -144,6 +144,25 @@ namespace AutoEngineerBrakeFix
         /// <summary>Where the column is not in a CTC block: distance (m) from the column at which the engineer switches to Waypoint mode.</summary>
         public float WaterStopApproachMeters = 600f;
 
+        /// <summary>
+        /// Swinging water spouts (SpoutSwing.cs): a column's spout turns toward the tender hatch it can reach before it
+        /// drops, and the fill check uses a hatch that is longer side to side than lengthwise. Off by default; switchable in
+        /// the settings window while the game runs. Per-tender hatch sizes and per-column limits go in spoutswing.txt.
+        /// </summary>
+        public bool SpoutSwing = false;
+
+        /// <summary>How far (degrees, each way) a side-to-side water column may turn toward a hatch.</summary>
+        public float SpoutSwingDegrees = 180f;
+
+        /// <summary>How far (degrees, each way) a drop-only spout may swivel side to side toward a hatch.</summary>
+        public float DropSpoutSwingDegrees = 15f;
+
+        /// <summary>Hatch half-width as a multiple of the game's hatch radius (the half-length stays the radius), for tenders without their own line in spoutswing.txt.</summary>
+        public float HatchWidthFactor = 2f;
+
+        /// <summary>How fast the spout turns (degrees per second).</summary>
+        public float SpoutSwingDegreesPerSecond = 45f;
+
         // ---- Track ----
 
         /// <summary>
