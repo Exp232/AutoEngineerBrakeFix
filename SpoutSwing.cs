@@ -159,13 +159,17 @@ namespace AutoEngineerBrakeFix
                         Transform t = r.transform;
                         Vector3 d = t.position - axis;
                         if (Flat(d).magnitude > FootRadiusMeters || d.y > FootHeightMeters || d.y < -0.5f) continue;
+                        if (r.bounds.size.y > TallMeshMeters)
+                        {
+                            Main.Mod.Logger.Log($"Spout swing ({_id}): '{t.name}' is a tall mesh ({r.bounds.size.y:0.0} m: pole and head bracket, its mesh can't be split), so it turns with the arm.");
+                            continue;
+                        }
                         if (_parts.Any(x => t.IsChildOf(x.T))) continue;
                         _parts.RemoveAll(x => x.T.IsChildOf(t));
                         _parts.Add(new Part { T = t, Sign = -1f });
                     }
 
                     // The pole, its head bracket and the base are often one mesh: keep the base still, turn the rest with the arm.
-                    foreach (Part foot in _parts.Where(x => x.Sign < 0f).ToList()) SplitBase(foot.T, axis);
 
                     // The click handle: the prefab parks it (PrefabRuntimeReparent) somewhere other than the animated arm, so it
                     // would stay put while the arm turns away from it. Turn it with the arm, about the same axis.
@@ -221,6 +225,7 @@ namespace AutoEngineerBrakeFix
         private bool _animSeen;
         private sealed class Split { public MeshFilter Low; public Mesh Original; public GameObject UpperGo; public MeshRenderer UpperR, LowR; }
         private readonly List<Split> _splits = new List<Split>();
+        private const float TallMeshMeters = 2.5f;     // a still mesh taller than this is the pole and head, not a foot: it turns with the arm
         private const float BaseHeightMeters = 1.2f;   // below this the mesh stays still (the foot); above it turns with the arm
 
         /// <summary>

@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.6.9
+## 2.6.10
 
-- Water column: the pole's head bracket now points with the spout. The pole, head bracket and base are one still mesh, and 2.6.2 held all of it square to the track, so the head stayed at 90° to the spout once the arm swung. That mesh is now split at 1.2 m: the foot stays square, and the pole and head turn with the arm. If the game's mesh can't be read, it stays whole and still as before, and the log says so (`split` / `could not split` lines).
+- Water column: 2.6.9 could not split the pole mesh (the game's mesh is not readable, so `Player.log` showed nothing and the head stayed square to the track). A still mesh taller than 2.5 m (the pole with its head bracket) is no longer held square: it turns with the arm, so the head points with the spout. Only the low pieces (the square base) stay still. The split code is removed from use.
 
 ## 2.6.8
 
