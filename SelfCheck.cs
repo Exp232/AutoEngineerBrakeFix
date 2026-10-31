@@ -127,9 +127,8 @@ namespace AutoEngineerBrakeFix
                     () => Field(typeof(Track.TrackSegment), "speedLimit", typeof(int)) && AccessTools.PropertyGetter(typeof(Track.Graph), "AllSegments") != null
                         && AccessTools.Method(typeof(Track.Graph), "SegmentsConnectedTo", new[] { typeof(Track.TrackNode) }) != null,
                 ["TrackSpan.GetSegments()"] = () => AccessTools.Method(typeof(Track.TrackSpan), "GetSegments", Type.EmptyTypes) != null,
-                ["SignController.AddSign(string, SignDescriptor), RemoveSignsWithPrefix(string)"] =
-                    () => AccessTools.Method(typeof(Game.Mow.SignController), "AddSign", new[] { typeof(string), typeof(Game.Mow.SignDescriptor) }) != null
-                        && AccessTools.Method(typeof(Game.Mow.SignController), "RemoveSignsWithPrefix", new[] { typeof(string) }) != null,
+                ["SignController.RemoveSignsWithPrefix(string)"] =
+                    () => AccessTools.Method(typeof(Game.Mow.SignController), "RemoveSignsWithPrefix", new[] { typeof(string) }) != null,
                 ["AutoEngineer.WaitingForBrakes"] = () => AccessTools.PropertyGetter(AE, "WaitingForBrakes") != null,
                 ["AutoEngineerControlSetBase.UpdateStatusLabel(), statusLabel"] =
                     () => Method(typeof(UI.EngineControls.AutoEngineerControlSetBase), "UpdateStatusLabel", Type.EmptyTypes, typeof(void))
@@ -317,7 +316,7 @@ namespace AutoEngineerBrakeFix
                     AlwaysPatch = true,
                     On = () => s.LegacySpeedLimits,
                     TurnOff = () => s.LegacySpeedLimits = false,
-                    Needs = new[] { "TrackSegment.speedLimit, Graph.AllSegments, Graph.SegmentsConnectedTo(TrackNode)", "TrackSpan.GetSegments()", "SignController.AddSign(string, SignDescriptor), RemoveSignsWithPrefix(string)" },
+                    Needs = new[] { "TrackSegment.speedLimit, Graph.AllSegments, Graph.SegmentsConnectedTo(TrackNode)", "TrackSpan.GetSegments()", "SignController.RemoveSignsWithPrefix(string)" },
                     Patches = new Type[0],
                 },
                 new Feature

@@ -198,7 +198,7 @@ namespace AutoEngineerBrakeFix
                     _phase = Phase.Armed;
                     _phaseStart = now;
                     Say($"Water's at {water * 100f:0}%. We'll take water at {column.Place}.");
-                    Main.Mod.Logger.Log($"Water stop ({Name}): water {water * 100f:0}%, column {column.Id} at {column.Place}, {distance:0} m ahead of the hatch (block {column.Block?.id ?? "none"}).");
+                    Main.Mod.Logger.Log($"Water stop ({Name}): water {water * 100f:0}%, column {column.Id} at {column.Place}, {distance:0} m ahead of the hatch (block {column.Block?.id ?? "none"}), time scale {Time.timeScale:0.#}.");
                     return;
                 }
 
@@ -270,7 +270,7 @@ namespace AutoEngineerBrakeFix
                     _phaseStart = now;
                     _graceUntil = now + 3f;
                     Say($"Pulling up to the water column at {_column.Place}.");
-                    Main.Mod.Logger.Log($"Water stop ({Name}): {(headPast ? "lead end past the column" : _column.Block != null ? "in block " + _column.Block.id : "in approach distance")}, hatch {distance:0} m from {_column.Id}; Waypoint mode to {_waypointString} (lead end to hatch {headToHatch:0.0} m).");
+                    Main.Mod.Logger.Log($"Water stop ({Name}): {(headPast ? "lead end past the column" : _column.Block != null ? "in block " + _column.Block.id : "in approach distance")}, hatch {distance:0} m from {_column.Id}; Waypoint mode to {_waypointString} (lead end to hatch {headToHatch:0.0} m), time scale {Time.timeScale:0.#}.");
                     return;
                 }
 

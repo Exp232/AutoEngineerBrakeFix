@@ -82,7 +82,7 @@ namespace AutoEngineerBrakeFix
                     page.AddSection("Legacy speed limits", b =>
                     {
                         b.AddFieldToggle("Fix legacy limits", () => s.LegacySpeedLimits, v => { s.LegacySpeedLimits = v; Save(); });
-                        Note(b, "The game still enforces the map's old per-track speed limits but no longer shows them. On: they are cleared on the mainline (track in CTC signal blocks) and kept with speed boards on branches, yards and spurs. Takes a few seconds; off puts them back.");
+                        Note(b, "The game still enforces the map's old per-track speed limits but no longer shows them. On: they are cleared on the mainline (track in CTC signal blocks) and kept on branches, yards and spurs. Takes a few seconds; off puts them back.");
                     });
 
                     page.AddSection("Engineer status", b =>
