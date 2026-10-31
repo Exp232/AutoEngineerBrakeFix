@@ -138,7 +138,7 @@ namespace AutoEngineerBrakeFix
         /// <summary>How far ahead along the lined route to look for a water column (km).</summary>
         public float WaterStopSearchKm = 30f;
 
-        /// <summary>Road-mode speed limit (mph) once within about a mile of the column, and the Waypoint-mode limit for the stop itself.</summary>
+        /// <summary>Road-mode speed limit (mph) once within half a mile of the column, and the Waypoint-mode limit for the stop itself.</summary>
         public float WaterStopApproachMph = 20f;
 
         /// <summary>Where the column is not in a CTC block: distance (m) from the column at which the engineer switches to Waypoint mode.</summary>

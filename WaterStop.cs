@@ -43,7 +43,7 @@ namespace AutoEngineerBrakeFix
 
         private const float TickSeconds = 1f;
         private const float SearchEverySeconds = 5f;
-        private const float SlowDownWithinMeters = 1600f;
+        private const float SlowDownWithinMeters = 805f;   // half a mile
         private const float MinAheadMeters = 30f;         // a column closer than this to the hatch is not picked
         private const float MinAheadArmedMeters = 5f;     // once picked, the stop goes on until the hatch is about at the spout
         // The game completes a waypoint once it is within about a metre of the train's end (AutoEngineerPlanner.IsUnderTrain),
@@ -684,28 +684,28 @@ namespace AutoEngineerBrakeFix
                     }
                     bool slowing = ws._setMaxSpeed < ws._origMaxSpeed;
                     info.Kind = slowing ? StatusKind.Slowing : StatusKind.Planned;
-                    info.Label = $"Water stop approach (mod), {place}";
+                    info.Label = "Water Approach";
                     info.DistanceM = d;
-                    info.Detail = $"Water stop planned at {place}{(d.HasValue ? ", hatch " + DetailedStatus.Distance(d.Value) + " from the column" : "")}"
+                    info.Detail = $"Water stop (mod) planned at {place}{(d.HasValue ? ", hatch " + DetailedStatus.Distance(d.Value) + " from the column" : "")}"
                         + (slowing ? $"; speed held to {ws._setMaxSpeed} mph (orders were {ws._origMaxSpeed} mph)." : ".");
                     return true;
                 }
                 case Phase.Approaching:
                     info.Kind = StatusKind.Spotting;
-                    info.Label = $"Water stop (mod): spotting the tender at {place}";
-                    info.Detail = $"Waypoint mode to put the tender hatch under the spout at {place}{(ws._corrections > 0 ? $" (correction {ws._corrections})" : "")}; Road orders resume after.";
+                    info.Label = "Water Spotting";
+                    info.Detail = $"Water stop (mod): Waypoint mode to put the tender hatch under the spout at {place}{(ws._corrections > 0 ? $" (correction {ws._corrections})" : "")}; Road orders resume after.";
                     return true;
                 case Phase.Holding:
                     info.Kind = StatusKind.Holding;
-                    info.Label = $"Water stop (mod): holding at {place} for you";
-                    info.Detail = "The tender could not be lined up with the spout. Take water by hand and the engineer resumes its road orders, or give it new orders.";
+                    info.Label = "Water Hold";
+                    info.Detail = "Water stop (mod): the tender could not be lined up with the spout. Take water by hand and the engineer resumes its road orders, or give it new orders.";
                     return true;
                 case Phase.Filling:
                 {
                     float water = FuelReader.WaterFraction(FuelReader.Tender(loco));
                     info.Kind = StatusKind.Filling;
-                    info.Label = float.IsNaN(water) ? $"Taking water at {place} (mod)" : $"Taking water at {place} (mod): {water * 100f:0}%";
-                    info.Detail = $"Filling to {FullFraction * 100f:0}%, then back to {(ws._origMode == AutoEngineerMode.Waypoint ? "the waypoint" : "Road")} orders at {ws._origMaxSpeed} mph.";
+                    info.Label = "Water Fill";
+                    info.Detail = $"Water stop (mod) at {place}: tender at {(float.IsNaN(water) ? "?" : (water * 100f).ToString("0"))}%. Filling to {FullFraction * 100f:0}%, then back to {(ws._origMode == AutoEngineerMode.Waypoint ? "the waypoint" : "Road")} orders at {ws._origMaxSpeed} mph.";
                     return true;
                 }
             }

@@ -81,6 +81,8 @@ namespace AutoEngineerBrakeFix
                 }
                 bool ahead = !float.IsPositiveInfinity(nearest);
                 float? at = ahead ? nearest : (float?)null;
+                // The bar shows a distance only for a reduction: a lower target than the limit now in force.
+                bool showDistance = ahead && mph < maxSpeedMphAbs - 0.5f;
                 string label = reason;
                 var detail = new StringBuilder();
                 var persistence = new AutoEngineerPersistence(loco.KeyValueObject);
@@ -93,7 +95,7 @@ namespace AutoEngineerBrakeFix
                 }
                 else if (reason == "Approach Hold")
                 {
-                    label = "Approach hold (mod)";
+                    label = "Approach Hold";
                     detail.AppendLine("Keeping the Approach signal's speed until the next signal (mod setting HoldApproachSpeed).");
                 }
 
@@ -105,6 +107,7 @@ namespace AutoEngineerBrakeFix
                         label = ws.Label;
                         mph = 0f;
                         at = null;
+                        showDistance = false;
                     }
                     else if (ws.Kind == WaterStop.StatusKind.Spotting)
                     {
@@ -114,28 +117,31 @@ namespace AutoEngineerBrakeFix
                     {
                         label = ws.Label;
                         at = ws.DistanceM;
+                        showDistance = at.HasValue;
                     }
                 }
 
                 if (StallGuard.IsLatched(ae))
                 {
-                    label = "Stall guard (mod): stalled on the grade";
+                    label = "Stall Guard";
                     mph = 0f;
                     at = null;
-                    detail.AppendLine("The train could not climb the grade, so the throttle stays shut and the brakes on until the engineer is switched off and on again.");
+                    showDistance = false;
+                    detail.AppendLine("Stall guard (mod): the train could not climb the grade, so the throttle stays shut and the brakes on until the engineer is switched off and on again.");
                 }
 
                 float top = EngineTopSpeed(planner, loco);
                 if (top > 0f && top < mph - 0.5f)
                 {
-                    detail.AppendLine($"The limit is {mph:F0} mph ({reason}{(at.HasValue ? ", " + Distance(at.Value) + " ahead" : "")}), above what the engine can reach.");
-                    label = "Engine top speed";
+                    detail.AppendLine($"The limit is {mph:F0} mph ({reason}{(at.HasValue ? ", " + Distance(at.Value) + " ahead" : "")}), above the engine's top speed of {top:F0} mph.");
+                    label = "Engine Speed";
                     mph = top;
                     at = null;
+                    showDistance = false;
                 }
 
                 string line = mph < 0.5f ? label : $"{label}: {mph:F0}mph";
-                if (at.HasValue && at.Value > 3f) line += " in " + Distance(at.Value);
+                if (showDistance && at.HasValue && at.Value > 3f) line += " in " + Distance(at.Value);
 
                 var tip = new StringBuilder();
                 tip.AppendLine(line);
@@ -282,24 +288,24 @@ namespace AutoEngineerBrakeFix
 
             if (!float.IsNaN(classMph) && classMph < withEquipment - 0.5f)
             {
-                cause = $"Track class {segment.PostedTrackClass}";
+                cause = "Track Class";
                 detail.AppendLine($"Track class {segment.PostedTrackClass} allows {classMph:F0} mph; the track's own limit there is {withEquipment:F0} mph.");
             }
             else if (withEquipment < trackAlone - 0.5f)
             {
-                cause = "Curve (equipment)";
+                cause = "Equipment Speed";
                 Car tightest = TightestCar(planner, loco);
                 string who = tightest != null ? $"{tightest.DisplayName} is rated for {tightest.MaximumTrackCurvature:0}°" : $"the train is rated for {equip:0}°";
                 detail.AppendLine($"Curve of {curvature:0}°: {who}. The track alone allows {trackAlone:F0} mph.");
             }
             else if (trackAlone < posted - 0.5f)
             {
-                cause = $"Curve {curvature:0}°";
+                cause = "Curve Speed";
                 detail.AppendLine($"Curve of {curvature:0}° allows {trackAlone:F0} mph; the posted limit there is {posted} mph.");
             }
             else
             {
-                cause = railroadWide ? "Railroad limit" : "Legacy limit";
+                cause = "Track Speed";   // stock wording; the tooltip says railroad-wide or legacy
                 detail.AppendLine(railroadWide
                     ? $"The railroad-wide limit is {TrackSegment.RailroadSpeedLimitMph} mph."
                     : $"Legacy track limit {posted} mph from the map data. The game no longer shows these with a board{(Main.Settings.LegacySpeedLimits ? "; this mod has put one up off the mainline" : "; the mod setting \"Legacy speed limits\" clears them on the mainline and puts boards up elsewhere")}.");

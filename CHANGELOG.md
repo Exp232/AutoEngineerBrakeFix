@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.7.3
+
+- Detailed status wording is closer to the game's own: **Curve Speed**, **Equipment Speed** (a curve held down by the train's tightest-rated car), **Track Class**, **Track Speed** (railroad-wide or legacy limit), **Engine Speed**, **Approach Hold**, **Stall Guard**, and for the water stop **Water Approach**, **Water Spotting**, **Water Fill** and **Water Hold**. No "(mod)" tags, curve degrees, class numbers, column names or water percentages in the status bar; they are in the tooltip (the tender's water level now reads there). The bar shows a distance only for a speed reduction ahead (a lower target than the limit in force, and the water approach); never for the limit under the train, a stall, a fill or the engine speed.
+- Water stop: the approach hold (the speed step-down to the approach speed and what the train can stop from) now starts half a mile out, down from a mile (1,600 to 805 m). Heavy trains at track speed will be slowed later; the stoppable-speed ladder still applies inside it.
+
 ## 2.7.2
 
 - Log only, no behaviour change: the `ae_*.csv` rows gain ten columns for the rollout controller's latest command: `cmdKind`, `cmdThr`, `cmdInd`, `cmdTb`, `cmdBail` as the game issued it, `outThr`, `outInd`, `outTb` as it left this mod's filters, `cmdMod` (`tap`, `band` or empty: which filter changed it) and `cmdAgeS` (seconds since it was applied). This shows who released the locomotive brake in the last metres of a station stop on an upgrade. The command is only recorded while the brake-tap or coast-band patch is installed (either setting on).
