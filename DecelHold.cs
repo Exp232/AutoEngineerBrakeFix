@@ -84,6 +84,20 @@ namespace AutoEngineerBrakeFix
             return best;
         }
 
+        /// <summary>True when a station stop is listed within this many metres ahead (or being served at the platform).</summary>
+        internal static bool StationStopWithin(AutoEngineer ae, float meters)
+        {
+            var targets = ae != null ? FTargets?.GetValue(ae) as AutoEngineer.Targets : null;
+            var list = targets?.AllTargets as IList<AutoEngineer.Targets.Target>;
+            if (list == null) return false;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var t = list[i];
+                if (t.Reason != null && t.Reason.StartsWith("Station Stop", System.StringComparison.Ordinal) && t.Distance > -5f && t.Distance < meters) return true;
+            }
+            return false;
+        }
+
         /// <summary>True in Road mode (signals, track speed). Waypoint and Yard keep the game's own stopping accuracy.</summary>
         internal static bool IsRoad(AutoEngineer ae)
         {

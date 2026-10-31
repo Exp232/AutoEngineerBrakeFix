@@ -109,7 +109,7 @@ namespace AutoEngineerBrakeFix
                         at = null;
                         showDistance = false;
                     }
-                    else if (ws.Kind == WaterStop.StatusKind.Spotting)
+                    else if (ws.Kind == WaterStop.StatusKind.Spotting && !(reason != null && reason.StartsWith("Station Stop", StringComparison.Ordinal)))
                     {
                         label = ws.Label;
                     }

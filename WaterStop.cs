@@ -80,6 +80,7 @@ namespace AutoEngineerBrakeFix
         private static bool _loggedColumns;
 
         private AutoEngineer _ae;
+        private bool _loggedStationWait;
         private BaseLocomotive _loco;
         private Phase _phase = Phase.Idle;
         private float _nextTick;
@@ -383,11 +384,24 @@ namespace AutoEngineerBrakeFix
                     }
                     if (!inBlock) return;
 
+                    // A station stop between the train and the column comes first: stay in Road orders, which serve the
+                    // station, and take over once it has been served (Almond: the platform is 167 m short of the column).
+                    if (!headPast && DecelHold.StationStopWithin(_ae, distance))
+                    {
+                        if (!_loggedStationWait)
+                        {
+                            _loggedStationWait = true;
+                            Main.Mod.Logger.Log($"Water stop ({Name}): a station stop comes before the column ({distance:0} m to the hatch); waiting until it has been served.");
+                        }
+                        return;
+                    }
+
                     if (!TryWaypointFor(_column, hatchAt, headToHatch, out Location target))
                     {
                         Cancel("could not work out where to stop");
                         return;
                     }
+                    _loggedStationWait = false;
                     _approachAim = _approachGap;
                     _waypointString = Graph.LocationToString(target.Clamped());
                     Helper.SetOrdersValue(AutoEngineerMode.Waypoint, _origForward, Mathf.Min(_setMaxSpeed, approach), null, new OrderWaypoint(_waypointString, null));

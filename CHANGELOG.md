@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.4
+
+- Water stop: a station stop on the way to the column now comes first. At Almond the platform is 167 m short of the column, and the column's block is long, so the water stop switched to Waypoint mode 1.1 km out and the station stop ran under it. Now, while a "Station Stop" target is listed between the train and the column, the water stop stays armed in Road orders (the game serves the station as usual) and takes over once the platform is behind it. The log says "a station stop comes before the column ... waiting". The detailed status shows Station Stop, not Water Spotting, while the station is what the train is stopping for.
+
 ## 2.7.3
 
 - Detailed status wording is closer to the game's own: **Curve Speed**, **Equipment Speed** (a curve held down by the train's tightest-rated car), **Track Class**, **Track Speed** (railroad-wide or legacy limit), **Engine Speed**, **Approach Hold**, **Stall Guard**, and for the water stop **Water Approach**, **Water Spotting**, **Water Fill** and **Water Hold**. No "(mod)" tags, curve degrees, class numbers, column names or water percentages in the status bar; they are in the tooltip (the tender's water level now reads there). The bar shows a distance only for a speed reduction ahead (a lower target than the limit in force, and the water approach); never for the limit under the train, a stall, a fill or the engine speed.
