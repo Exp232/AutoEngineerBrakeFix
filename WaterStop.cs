@@ -131,8 +131,10 @@ namespace AutoEngineerBrakeFix
         // between its neighbours; a weight with measured stops of its own follows them.
         private const float GapKernelWidth = 1.0f;   // in ln(tons)
         private const int MaxGapSamples = 20;
-        private static readonly float[][] ApproachSeeds = { new[] { 74f, 0.67f }, new[] { 1907f, 1.45f } };
-        private static readonly float[][] CorrectionSeeds = { new[] { 74f, 0.65f }, new[] { 1907f, 1.45f } };
+        // Measured stops (see claude/water-stop-research.md in the project): approach gaps 74 t 0.67; 146 t 0.74;
+        // 1,907 t 1.24, 1.42, 1.45, 1.62, 1.78 (mean 1.5). Correction gaps: 74 t 0.57, 0.60, 0.75; none yet for heavy trains.
+        private static readonly float[][] ApproachSeeds = { new[] { 74f, 0.67f }, new[] { 146f, 0.74f }, new[] { 1907f, 1.5f } };
+        private static readonly float[][] CorrectionSeeds = { new[] { 74f, 0.65f }, new[] { 1907f, 1.5f } };
         private static List<float[]> _approachSamples;     // { tons, gap }
         private static List<float[]> _correctionSamples;
 
