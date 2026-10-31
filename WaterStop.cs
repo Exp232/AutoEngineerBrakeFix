@@ -132,8 +132,8 @@ namespace AutoEngineerBrakeFix
         private const float GapKernelWidth = 1.0f;   // in ln(tons)
         private const int MaxGapSamples = 20;
         // Measured stops (see claude/water-stop-research.md in the project): approach gaps 74 t 0.67; 146 t 0.74;
-        // 1,907 t 1.24, 1.42, 1.45, 1.62, 1.78 (mean 1.5). Correction gaps: 74 t 0.57, 0.60, 0.75; none yet for heavy trains.
-        private static readonly float[][] ApproachSeeds = { new[] { 74f, 0.67f }, new[] { 146f, 0.74f }, new[] { 1907f, 1.5f } };
+        // 1,907 t 1.00, 1.24, 1.42, 1.45, 1.62, 1.78 (mean 1.4). Correction gaps: 74 t 0.57, 0.60, 0.75; none yet for heavy trains.
+        private static readonly float[][] ApproachSeeds = { new[] { 74f, 0.67f }, new[] { 146f, 0.74f }, new[] { 1907f, 1.4f } };
         private static readonly float[][] CorrectionSeeds = { new[] { 74f, 0.65f }, new[] { 1907f, 1.5f } };
         private static List<float[]> _approachSamples;     // { tons, gap }
         private static List<float[]> _correctionSamples;
@@ -577,7 +577,7 @@ namespace AutoEngineerBrakeFix
             {
                 // The approach waypoint was _approachAim past the spout; the hatch stopped -miss past it.
                 _approachGap = Mathf.Clamp(_approachAim + miss, 0.3f, 2.5f);
-                Main.Mod.Logger.Log($"Water stop ({Name}): the train stopped {_approachGap:0.00} m before its waypoint (aim {_approachAim:0.00} m past the spout).");
+                Main.Mod.Logger.Log($"Water stop ({Name}): the train stopped {_approachGap:0.00} m before its waypoint (aim {_approachAim:0.00} m past the spout); {GradeText()}, time scale {Time.timeScale:0.#}.");
                 _approachAim = float.NaN;
                 SaveGap(true, _approachGap);
             }
@@ -800,6 +800,29 @@ namespace AutoEngineerBrakeFix
         // ---- Track geometry ----
 
         /// <summary>The leading end of the consist in the direction of travel, facing ahead (as the planner's StartLocation).</summary>
+        /// <summary>
+        /// The track grade in the direction of travel under the lead end (rise over the next 30 m), for the log: the
+        /// stop gap varied from 1.0 to 1.8 m for the same 1,907 t train at different columns and grade is a suspect.
+        /// </summary>
+        private string GradeText()
+        {
+            try
+            {
+                Graph graph = Graph.Shared;
+                Location head = HeadLocation(_origForward, out _);
+                if (graph == null || !head.IsValid) return "grade unknown";
+                Location ahead = graph.LocationByMoving(head, 30f, false, true);
+                if (!ahead.IsValid) return "grade unknown";
+                Vector3 a = graph.GetPosition(head);
+                Vector3 b = graph.GetPosition(ahead);
+                float run = new Vector2(b.x - a.x, b.z - a.z).magnitude;
+                if (run < 5f) return "grade unknown";
+                float grade = (b.y - a.y) / run * 100f;
+                return $"grade {grade:+0.0;-0.0;0.0}% in the direction of travel";
+            }
+            catch (Exception) { return "grade unknown"; }
+        }
+
         private Location HeadLocation(bool forward, out Car headCar)
         {
             Car.End end = forward ? Car.End.F : Car.End.R;

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.14
+- Water stop, fast forward test: EMR 5000 (1,907 t) took water at Almond (al-water) during fast forward (time scale 14 to 34) on the first spot, from Waypoint orders (2.5.8). The hatch ended 0.52 m past the spout, inside the 0.55 m reach but close to its edge. The train stopped 1.00 m before its waypoint there, against 1.24-1.78 m for the same train at Bryson, so the gap varies by about 0.4 m at one weight. Suspects: track grade, and the fast-forward time scale.
+  - The "the train stopped ... before its waypoint" log line now also gives the track grade under the lead end in the direction of travel (rise over the next 30 m) and the time scale, so the variation can be matched against them. Logging only; nothing else changes.
+  - Seed point for 1,907 t: 1.4 m (six measured stops, 1.00 to 1.78 m).
+
 ## 2.5.13
 - Water stop weight table: new starting point for 146 t (EMR 1 with cars: 0.74 m, and the table's prediction of 0.74 m put the hatch 0.00 m from the spout), and the 1,907 t point is now the mean of five measured stops (1.5 m). Stops the mod measures still add to the table in `stopgaps.txt`.
 
