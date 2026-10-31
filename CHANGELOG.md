@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.5
+
+- Swinging spouts: the stand now turns to the hatch first and only then lowers. The fill point is held out of reach until the turn has finished (within 1.5°), so loading, and with it the lowering animation, starts after the arm points at the hatch instead of while it is still swinging round.
+
 ## 2.6.4
 
 - Water column swing: the click handle is now looked for again for ten seconds after the column loads, in case the game parks it on the arm late, and it is logged (where it sits, whether the mod turns it) once the arm has swung, to find out why it can miss.

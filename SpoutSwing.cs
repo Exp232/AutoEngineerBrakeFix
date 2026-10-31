@@ -49,6 +49,7 @@ namespace AutoEngineerBrakeFix
     {
         internal const string YawKey = "aebf.swingYaw";
         private const float AimEverySeconds = 0.5f;
+        private const float TurnDoneDegrees = 1.5f;
         private const float FitMarginForWaterStop = 0.9f;   // the water stop counts a hatch as in reach below this fit (1 = edge)
 
         private static readonly Dictionary<CarLoadTargetLoader, SpoutSwing> ByLoader = new Dictionary<CarLoadTargetLoader, SpoutSwing>();
@@ -454,6 +455,8 @@ namespace AutoEngineerBrakeFix
             {
                 if (!On || !(component is CarLoadTargetLoader loader) || !ByLoader.TryGetValue(loader, out SpoutSwing s) || s == null || !s.Turnable) return live;
                 float target = s.SyncedYaw();
+                // Not loading until the stand has finished turning to the hatch: the spout lowers only once it points at it.
+                if (Mathf.Abs(target - s._shown) > TurnDoneDegrees) return live + Vector3.up * 1000f;
                 float delta = s._loaderInWrapper ? target - s._shown : target;
                 return RotateAbout(live, s.PivotWorld, delta);
             }
