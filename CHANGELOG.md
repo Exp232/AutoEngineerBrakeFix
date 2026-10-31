@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.6.11
+## 2.6.12
 
-- Water column: the base is held square again while the pole and head turn. The pole mesh can't be read by the game's CPU side, so it is copied back from the graphics card, split at 1.2 m, and the foot is drawn as a still copy while the rest turns with the arm. If the copy fails, the whole pole turns as in 2.6.10 and `Player.log` says why (`could not ...` lines); on success it logs `split 'Cylinder'`.
+- Water column: takes back 2.6.11's mesh split. Asking the game's graphics side for the pole mesh's buffers emptied the mesh, so the pole was missing in game (`index buffer is null` in `Player.log`). The mesh is no longer touched. Instead the two still meshes are treated differently by height: the 5.4 m pole with its head bracket turns with the arm, and the 3.4 m lower mesh (the base) stays square.
 
 ## 2.6.10
 

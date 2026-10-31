@@ -17,7 +17,6 @@ using RollingStock;
 using RollingStock.Controls;
 using Track;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace AutoEngineerBrakeFix
 {
@@ -155,7 +154,6 @@ namespace AutoEngineerBrakeFix
                     // The base (foot, flange, pad) is part of the same animated object but must not turn with the arm: turn
                     // each renderer that sits at the column's foot back by the same angle, about the same axis.
                     Vector3 axis = _wrapper.position;
-                    var tallMeshes = new List<Transform>();
                     foreach (MeshRenderer r in spoutT.GetComponentsInChildren<MeshRenderer>(true))
                     {
                         Transform t = r.transform;
@@ -163,8 +161,7 @@ namespace AutoEngineerBrakeFix
                         if (Flat(d).magnitude > FootRadiusMeters || d.y > FootHeightMeters || d.y < -0.5f) continue;
                         if (r.bounds.size.y > TallMeshMeters)
                         {
-                            Main.Mod.Logger.Log($"Spout swing ({_id}): '{t.name}' is a tall mesh ({r.bounds.size.y:0.0} m: pole and head bracket): it turns with the arm; its foot is split off from the graphics card copy.");
-                            tallMeshes.Add(t);
+                            Main.Mod.Logger.Log($"Spout swing ({_id}): '{t.name}' is a tall mesh ({r.bounds.size.y:0.0} m: pole and head bracket): it turns with the arm.");
                             continue;
                         }
                         if (_parts.Any(x => t.IsChildOf(x.T))) continue;
@@ -173,8 +170,6 @@ namespace AutoEngineerBrakeFix
                     }
 
                     // The pole, its head bracket and the base are often one mesh: keep the base still, turn the rest with the arm.
-
-                    foreach (Transform tall in tallMeshes) StartSplit(tall, axis);
 
                     // The click handle: the prefab parks it (PrefabRuntimeReparent) somewhere other than the animated arm, so it
                     // would stay put while the arm turns away from it. Turn it with the arm, about the same axis.
@@ -228,152 +223,7 @@ namespace AutoEngineerBrakeFix
         private string _followNames = "";
         private readonly List<Transform> _armKids = new List<Transform>();   // the stand's other moving pieces: watched, not moved
         private bool _animSeen;
-        private sealed class Split { public MeshFilter F; public Mesh Original, Up, Low; public GameObject FootGo; public MeshRenderer TopR, FootR; }
-        private readonly List<Split> _splits = new List<Split>();
-        private const float TallMeshMeters = 2.5f;     // a still mesh taller than this is the pole and head, not a foot: it turns with the arm
-        private const float BaseHeightMeters = 1.2f;   // below this the pole mesh's foot is held square; above it turns with the arm
-
-        /// <summary>
-        /// The pole mesh (pole, head bracket and base in one) can't be read by the CPU, so copy it back from the graphics card, split
-        /// it at the foot and give the foot to a still copy. Until it finishes (a few frames) the whole mesh turns; on any failure it
-        /// stays that way.
-        /// </summary>
-        private void StartSplit(Transform t, Vector3 axis)
-        {
-            GraphicsBuffer[] vbs = null; GraphicsBuffer ib = null;
-            try
-            {
-                MeshFilter f = t.GetComponent<MeshFilter>();
-                MeshRenderer r = t.GetComponent<MeshRenderer>();
-                if (f == null || r == null || f.sharedMesh == null || t.parent == null) return;
-                Mesh m = f.sharedMesh;
-                int streams = m.vertexBufferCount;
-                VertexAttributeDescriptor[] attrs = m.GetVertexAttributes();
-                if (m.GetVertexAttribute(0).attribute != VertexAttribute.Position || m.GetVertexAttributeFormat(VertexAttribute.Position) != VertexAttributeFormat.Float32)
-                {
-                    Main.Mod.Logger.Warning($"Spout swing ({_id}): '{t.name}' keeps its base turning: positions are not plain floats.");
-                    return;
-                }
-                m.vertexBufferTarget |= GraphicsBuffer.Target.Raw;
-                m.indexBufferTarget |= GraphicsBuffer.Target.Raw;
-                vbs = new GraphicsBuffer[streams];
-                var vdata = new byte[streams][];
-                byte[] idata = null;
-                int pending = streams + 1;
-                bool failed = false;
-                int vertexCount = m.vertexCount;
-                IndexFormat indexFormat = m.indexFormat;
-                int[] strides = new int[streams];
-                for (int st = 0; st < streams; st++) strides[st] = m.GetVertexBufferStride(st);
-                int posStream = m.GetVertexAttributeStream(VertexAttribute.Position), posOffset = m.GetVertexAttributeOffset(VertexAttribute.Position);
-                var subs = new List<UnityEngine.Rendering.SubMeshDescriptor>();
-                for (int i = 0; i < m.subMeshCount; i++) subs.Add(m.GetSubMesh(i));
-                Bounds bounds = m.bounds;
-                GraphicsBuffer[] vbsLocal = vbs;
-                GraphicsBuffer ibLocal = m.GetIndexBuffer();
-                ib = ibLocal;
-
-                void Done()
-                {
-                    if (--pending > 0) return;
-                    try
-                    {
-                        foreach (GraphicsBuffer g in vbsLocal) g?.Dispose();
-                        ibLocal?.Dispose();
-                        if (failed || t == null || f == null) { Main.Mod.Logger.Warning($"Spout swing ({_id}): could not copy '{t?.name}' back from the graphics card; its base turns with the arm."); return; }
-                        FinishSplit(t, f, r, axis, m, attrs, vdata, strides, idata, vertexCount, indexFormat, posStream, posOffset, subs, bounds);
-                    }
-                    catch (Exception e) { Main.Mod.Logger.Warning($"Spout swing ({_id}): could not split '{t?.name}' ({e.Message}); its base turns with the arm."); }
-                }
-
-                for (int st = 0; st < streams; st++)
-                {
-                    int s2 = st;
-                    vbs[st] = m.GetVertexBuffer(st);
-                    AsyncGPUReadback.Request(vbs[st], req => { if (req.hasError) failed = true; else vdata[s2] = req.GetData<byte>().ToArray(); Done(); });
-                }
-                AsyncGPUReadback.Request(ibLocal, req => { if (req.hasError) failed = true; else idata = req.GetData<byte>().ToArray(); Done(); });
-            }
-            catch (Exception e)
-            {
-                if (vbs != null) foreach (GraphicsBuffer g in vbs) g?.Dispose();
-                ib?.Dispose();
-                Main.Mod.Logger.Warning($"Spout swing ({_id}): could not start splitting '{t.name}' ({e.Message}); its base turns with the arm.");
-            }
-        }
-
-        private void FinishSplit(Transform t, MeshFilter f, MeshRenderer r, Vector3 axis, Mesh m, VertexAttributeDescriptor[] attrs, byte[][] vdata, int[] strides, byte[] idata,
-            int vertexCount, IndexFormat indexFormat, int posStream, int posOffset, List<UnityEngine.Rendering.SubMeshDescriptor> subs, Bounds bounds)
-        {
-            if (_wrapper == null || idata == null) return;
-            // Which vertices are in the foot (world height above the column's foot).
-            var low = new bool[vertexCount];
-            float top = float.MinValue;
-            for (int v = 0; v < vertexCount; v++)
-            {
-                int at = v * strides[posStream] + posOffset;
-                var p = new Vector3(BitConverter.ToSingle(vdata[posStream], at), BitConverter.ToSingle(vdata[posStream], at + 4), BitConverter.ToSingle(vdata[posStream], at + 8));
-                float y = t.TransformPoint(p).y - axis.y;
-                low[v] = y < BaseHeightMeters;
-                top = Mathf.Max(top, y);
-            }
-            int ibytes = indexFormat == IndexFormat.UInt16 ? 2 : 4;
-            Func<int, int> idx = i => ibytes == 2 ? BitConverter.ToUInt16(idata, i * 2) : (int)BitConverter.ToUInt32(idata, i * 4);
-
-            var upTris = new List<int>(); var lowTris = new List<int>();
-            var upSubs = new List<UnityEngine.Rendering.SubMeshDescriptor>(); var lowSubs = new List<UnityEngine.Rendering.SubMeshDescriptor>();
-            foreach (var sd in subs)
-            {
-                int upStart = upTris.Count, lowStart = lowTris.Count;
-                if (sd.topology == MeshTopology.Triangles)
-                {
-                    for (int i = sd.indexStart; i + 2 < sd.indexStart + sd.indexCount; i += 3)
-                    {
-                        int a = idx(i) + sd.baseVertex, b = idx(i + 1) + sd.baseVertex, c = idx(i + 2) + sd.baseVertex;
-                        bool isLow = (low[a] ? 1 : 0) + (low[b] ? 1 : 0) + (low[c] ? 1 : 0) >= 2;
-                        (isLow ? lowTris : upTris).AddRange(new[] { a, b, c });
-                    }
-                }
-                upSubs.Add(new UnityEngine.Rendering.SubMeshDescriptor(upStart, upTris.Count - upStart, MeshTopology.Triangles));
-                lowSubs.Add(new UnityEngine.Rendering.SubMeshDescriptor(lowStart, lowTris.Count - lowStart, MeshTopology.Triangles));
-            }
-            if (lowTris.Count == 0 || upTris.Count == 0)
-            {
-                Main.Mod.Logger.Warning($"Spout swing ({_id}): '{t.name}' has nothing {(lowTris.Count == 0 ? "below" : "above")} {BaseHeightMeters:0.0#} m ({top:0.0} m tall); not split.");
-                return;
-            }
-
-            Mesh Build(List<int> tris, List<UnityEngine.Rendering.SubMeshDescriptor> sds, string tag)
-            {
-                var nm = new Mesh { name = m.name + tag, indexFormat = IndexFormat.UInt32 };
-                nm.SetVertexBufferParams(vertexCount, attrs);
-                for (int st = 0; st < vdata.Length; st++) nm.SetVertexBufferData(vdata[st], 0, 0, vdata[st].Length, st);
-                nm.SetIndexBufferParams(tris.Count, IndexFormat.UInt32);
-                nm.SetIndexBufferData(tris, 0, 0, tris.Count);
-                nm.subMeshCount = sds.Count;
-                for (int i = 0; i < sds.Count; i++) nm.SetSubMesh(i, sds[i], MeshUpdateFlags.DontRecalculateBounds);
-                nm.bounds = bounds;
-                return nm;
-            }
-            Mesh upMesh = Build(upTris, upSubs, ".AEBFup"), lowMesh = Build(lowTris, lowSubs, ".AEBFlow");
-
-            f.sharedMesh = upMesh;
-            var go = new GameObject("AEBF.Foot." + t.name) { layer = t.gameObject.layer };
-            go.transform.SetParent(t.parent, false);
-            go.transform.localPosition = t.localPosition;
-            go.transform.localRotation = t.localRotation;
-            go.transform.localScale = t.localScale;
-            go.AddComponent<MeshFilter>().sharedMesh = lowMesh;
-            MeshRenderer fr = go.AddComponent<MeshRenderer>();
-            fr.sharedMaterials = r.sharedMaterials;
-            fr.shadowCastingMode = r.shadowCastingMode;
-            fr.receiveShadows = r.receiveShadows;
-            fr.lightProbeUsage = r.lightProbeUsage;
-            fr.reflectionProbeUsage = r.reflectionProbeUsage;
-            _splits.Add(new Split { F = f, Original = m, Up = upMesh, Low = lowMesh, FootGo = go, TopR = r, FootR = fr });
-            _parts.Add(new Part { T = go.transform, Sign = -1f });
-            Main.Mod.Logger.Log($"Spout swing ({_id}): split '{t.name}' ({m.name}, {top:0.0} m tall) at {BaseHeightMeters:0.0#} m: the foot ({lowTris.Count / 3} triangles) stays square, the pole and head ({upTris.Count / 3}) turn with the arm.");
-        }
+        private const float TallMeshMeters = 4f;     // a still mesh taller than this is the pole with its head bracket, not the foot: it turns with the arm
 
         private readonly Dictionary<MeshRenderer, Vector2> _parkedPose = new Dictionary<MeshRenderer, Vector2>();   // position angle, facing angle (wrapper frame)
         private bool _prepSeen;
@@ -495,13 +345,6 @@ namespace AutoEngineerBrakeFix
         {
             if (_loader != null && ByLoader.TryGetValue(_loader, out SpoutSwing s) && s == this) ByLoader.Remove(_loader);
             if (_wrapper != null) _wrapper.rotation = _wrapperBase;   // back to the game's own spot
-            foreach (Split sp in _splits)
-            {
-                if (sp.F != null) sp.F.sharedMesh = sp.Original;
-                if (sp.FootGo != null) UnityEngine.Object.Destroy(sp.FootGo);
-                if (sp.Up != null) UnityEngine.Object.Destroy(sp.Up);
-                if (sp.Low != null) UnityEngine.Object.Destroy(sp.Low);
-            }
             foreach (Part part in _parts)
             {
                 if (part.T != null && part.Seen && Mathf.Abs(part.Applied) > 1e-4f) part.T.RotateAround(PivotWorld, Vector3.up, -part.Applied);
@@ -537,7 +380,6 @@ namespace AutoEngineerBrakeFix
                     _shown = Mathf.MoveTowards(_shown, target, Mathf.Max(5f, Main.Settings.SpoutSwingDegreesPerSecond) * Time.deltaTime);
                     if (_wrapper != null) _wrapper.rotation = Quaternion.AngleAxis(_shown, Vector3.up) * _wrapperBase;
                 }
-                foreach (Split sp in _splits) if (sp.FootR != null && sp.TopR != null) sp.FootR.enabled = sp.TopR.enabled;   // culled together
                 SampleClip();
                 if (_parts.Count > 0) TurnParts();
 
