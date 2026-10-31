@@ -161,14 +161,8 @@ namespace AutoEngineerBrakeFix
 
                     // The click handle: the prefab parks it (PrefabRuntimeReparent) somewhere other than the animated arm, so it
                     // would stay put while the arm turns away from it. Turn it with the arm, about the same axis.
-                    foreach (PrefabRuntimeReparent r in GetComponentsInChildren<PrefabRuntimeReparent>(true))
-                    {
-                        Transform handle = r.transform;
-                        Transform home = r.target != null ? r.target : handle.parent;
-                        if (home != null && home.IsChildOf(_wrapper)) continue;   // it rides on the animated arm already
-                        if (handle.IsChildOf(_wrapper) || _parts.Any(x => handle.IsChildOf(x.T))) continue;
-                        _parts.Add(new Part { T = handle, Sign = 1f });
-                    }
+                    ScanHandles();
+                    _rescanUntil = Time.unscaledTime + 10f;
                 }
                 else
                 {
@@ -193,6 +187,34 @@ namespace AutoEngineerBrakeFix
             DumpOnce();
         }
 
+        private float _rescanUntil, _nextRescan;
+        private bool _handleLogged;
+
+        /// <summary>Finds click handles that the prefab parks outside the animated arm and turns them with it. Safe to repeat.</summary>
+        private void ScanHandles()
+        {
+            if (_wrapper == null) return;
+            foreach (PrefabRuntimeReparent r in GetComponentsInChildren<PrefabRuntimeReparent>(true))
+            {
+                Transform handle = r.transform;
+                if (handle.IsChildOf(_wrapper) || _parts.Any(x => x.T == handle || handle.IsChildOf(x.T))) continue;   // already rides on the arm
+                _parts.Add(new Part { T = handle, Sign = 1f });
+                Main.Mod.Logger.Log($"Spout swing ({_id}): click handle '{handle.name}' (parent '{(handle.parent != null ? handle.parent.name : "-")}', reparent target '{(r.target != null ? r.target.name : "-")}') now turns with the arm.");
+            }
+        }
+
+        private void LogHandles(string when)
+        {
+            foreach (PrefabRuntimeReparent r in GetComponentsInChildren<PrefabRuntimeReparent>(true))
+            {
+                Transform h = r.transform;
+                var chain = new List<string>();
+                for (Transform c = h; c != null && c != transform; c = c.parent) chain.Add(c.name);
+                bool turning = _parts.Any(x => x.T == h);
+                Main.Mod.Logger.Log($"Spout swing ({_id}) handle {when}: '{string.Join(" < ", chain)}' at {V(transform.InverseTransformPoint(h.position))} in the structure, shown {_shown:0}°, in wrapper {h.IsChildOf(_wrapper)}, turned by the mod {turning}, active {h.gameObject.activeInHierarchy}.");
+            }
+        }
+
         private void OnDestroy()
         {
             if (_loader != null && ByLoader.TryGetValue(_loader, out SpoutSwing s) && s == this) ByLoader.Remove(_loader);
@@ -210,6 +232,16 @@ namespace AutoEngineerBrakeFix
             try
             {
                 if (!Turnable || _kvo == null) return;
+                if (_wrapper != null && Time.unscaledTime < _rescanUntil && Time.unscaledTime >= _nextRescan)
+                {
+                    _nextRescan = Time.unscaledTime + 0.5f;
+                    ScanHandles();
+                }
+                if (_wrapper != null && !_handleLogged && Mathf.Abs(_shown) > 20f)
+                {
+                    _handleLogged = true;
+                    LogHandles("after turning");
+                }
                 if (StateManager.IsHost && Time.unscaledTime >= _nextAim)
                 {
                     _nextAim = Time.unscaledTime + AimEverySeconds;
@@ -261,6 +293,7 @@ namespace AutoEngineerBrakeFix
             {
                 Transform t = part.T;
                 if (t == null) continue;
+                if (part.Sign > 0f && _wrapper != null && t.IsChildOf(_wrapper)) { part.Seen = false; continue; }   // reparented onto the arm: it turns by itself
                 bool fresh = !part.Seen
                     || (t.localPosition - part.LastPos).sqrMagnitude > 1e-8f
                     || Quaternion.Angle(t.localRotation, part.LastRot) > 0.01f;

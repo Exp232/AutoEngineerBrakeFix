@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.4
+
+- Water column swing: the click handle is now looked for again for ten seconds after the column loads, in case the game parks it on the arm late, and it is logged (where it sits, whether the mod turns it) once the arm has swung, to find out why it can miss.
+
 ## 2.6.3
 - Swinging spouts, after the 2.6.2 test: the column's base now stays square and the tower is right, but the column's **click handle** did not engage once the arm had turned, and did not turn with it on the stow. The handle is a separate collider ("Control") that the prefab moves out of the animated arm when the column is built (`PrefabRuntimeReparent`), so it stays at the arm's parked spot while the arm turns away. Any such handle that is not on the animated arm is now turned with the arm each frame, about the same axis, and put back when the mod unloads. `Player.log` lists it under "also turning".
 
