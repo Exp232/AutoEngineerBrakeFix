@@ -123,6 +123,13 @@ namespace AutoEngineerBrakeFix
                 ["AutoEngineerPlanner._engineer, _locomotive, _coupledCarsCached, _equipmentMaximumTrackCurvature, _maximumLength"] =
                     () => planner != null && Field(planner, "_engineer", typeof(AutoEngineer)) && Field(planner, "_locomotive", typeof(BaseLocomotive))
                         && Field(planner, "_coupledCarsCached", typeof(List<Car>)) && Field(planner, "_equipmentMaximumTrackCurvature", typeof(float)) && Field(planner, "_maximumLength", typeof(float)),
+                ["TrackSegment.speedLimit, Graph.AllSegments, Graph.SegmentsConnectedTo(TrackNode)"] =
+                    () => Field(typeof(Track.TrackSegment), "speedLimit", typeof(int)) && AccessTools.PropertyGetter(typeof(Track.Graph), "AllSegments") != null
+                        && AccessTools.Method(typeof(Track.Graph), "SegmentsConnectedTo", new[] { typeof(Track.TrackNode) }) != null,
+                ["TrackSpan.GetSegments()"] = () => AccessTools.Method(typeof(Track.TrackSpan), "GetSegments", Type.EmptyTypes) != null,
+                ["SignController.AddSign(string, SignDescriptor), RemoveSignsWithPrefix(string)"] =
+                    () => AccessTools.Method(typeof(Game.Mow.SignController), "AddSign", new[] { typeof(string), typeof(Game.Mow.SignDescriptor) }) != null
+                        && AccessTools.Method(typeof(Game.Mow.SignController), "RemoveSignsWithPrefix", new[] { typeof(string) }) != null,
                 ["AutoEngineer.WaitingForBrakes"] = () => AccessTools.PropertyGetter(AE, "WaitingForBrakes") != null,
                 ["AutoEngineerControlSetBase.UpdateStatusLabel(), statusLabel"] =
                     () => Method(typeof(UI.EngineControls.AutoEngineerControlSetBase), "UpdateStatusLabel", Type.EmptyTypes, typeof(void))
@@ -303,6 +310,15 @@ namespace AutoEngineerBrakeFix
                     TurnOff = () => s.BrakeTapSuppressMph = 0f,
                     Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer.AverageTrainBrakeCylinder()", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.Mode", "Targets.AllTargets" },
                     Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Legacy speed limits",
+                    AlwaysPatch = true,
+                    On = () => s.LegacySpeedLimits,
+                    TurnOff = () => s.LegacySpeedLimits = false,
+                    Needs = new[] { "TrackSegment.speedLimit, Graph.AllSegments, Graph.SegmentsConnectedTo(TrackNode)", "TrackSpan.GetSegments()", "SignController.AddSign(string, SignDescriptor), RemoveSignsWithPrefix(string)" },
+                    Patches = new Type[0],
                 },
                 new Feature
                 {

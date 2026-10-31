@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.5.5
+- New, off by default: **legacy speed limits** (`LegacySpeedLimits`; "Fix legacy limits" in the settings window, effective within a few seconds). 0.6 removes the old speed boards (`TrackConditionController` deletes every "speed:" sign) but `TrackSegment.speedLimit` from the map still caps the auto engineer's track speed: on the Bryson map 382 segments are 25 mph, 83 are 15, 47 are 30 and 66 are 45, none of them shown (reported as forum topic 306).
+  - Mainline, meaning any segment inside a CTC signal block (`CTCBlock` track spans; main tracks and signalled sidings): the legacy limit is cleared, so the railroad limit, curves and track class decide.
+  - Branches, yards and spurs: the limit stays, and a speed board (the game's own "tsr" board, as used for player speed signs) goes up at each end of every limited stretch, with a tooltip. The boards are stored under the key prefix `aebf-legacy-speed:` and rebuilt on every load (host only).
+  - In memory only: switching it off, or unloading the mod, puts the limits back and takes the boards down. `Player.log` gives the counts.
+  - Side effect to know: the game's track wear and tie-paint checks use the same limit, so cleared mainline limits count as higher allowed speeds there too.
+- Detailed status: a map limit now reads "Legacy limit" (it was "Posted limit", but nothing is posted), and the tooltip says where it comes from.
+- Water stop spotting, after the second Whittier miss (hatch 0.92 m short, both corrections did nothing): the game completes a waypoint as soon as it is within 1 m of the train's end (`AutoEngineerPlanner.IsUnderTrain`), so a sub-metre waypoint is "reached" at once and the train never moves.
+  - The waypoint now goes 1.0 m past the spout position (was 0.5 m, Waypoint Queue's figure).
+  - Corrections are made in Yard mode with a move distance (the game counts down the metres actually travelled), up to three. A correction that moves the train less than 10 cm is counted as stuck; two of those end the attempt.
+  - If no water flows within 30 s, the spout goes up, the spotting is measured again and corrected, and filling is tried once more.
+- Water stop failure handling: when spotting fails or the water stops coming in below 95%, the engineer no longer drives off short of water. It stops at the column (Road mode, speed 0) and says so. If you take water by hand, it resumes its road orders once the tender is full and the spout is up; any orders you give end the stop. The detailed status shows "Water stop (mod): holding at …".
+
 ## 2.5.4
 - New, off by default: **detailed engineer status** (`DetailedStatus`; "Detailed status" in the settings window under "Engineer status", effective at once). It replaces the planner's status line (`AutoEngineerPlanner.SetPlannerStatus`) with the same choice of limit, then:
   - says what sets a "Track Speed": "Posted limit", "Railroad limit", "Track class N", "Curve N°", or "Curve (equipment)" when the curve is sharper than the tightest-rated car in the train (the game cuts the speed towards 5 mph there);

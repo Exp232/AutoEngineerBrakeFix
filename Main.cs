@@ -73,6 +73,7 @@ namespace AutoEngineerBrakeFix
 
         private static HarmonyLib.Harmony _harmony;
         private static UnityEngine.GameObject _hotkey;
+        private static UnityEngine.GameObject _legacyLimits;
 
         internal static void Load(IModContext context)
         {
@@ -99,6 +100,17 @@ namespace AutoEngineerBrakeFix
             catch (Exception e)
             {
                 Mod.Logger.Warning("Settings window hotkey could not be set up: " + e.Message);
+            }
+
+            try
+            {
+                // Does nothing until the setting is on (the self-check switches the setting off if the game changed).
+                _legacyLimits = new UnityEngine.GameObject("AutoEngineerBrakeFix.LegacySpeedLimits");
+                UnityEngine.Object.DontDestroyOnLoad(_legacyLimits);
+                _legacyLimits.AddComponent<LegacySpeedLimits>();
+            catch (Exception e)
+            {
+                Mod.Logger.Warning("Legacy speed limits could not be set up: " + e.Message);
             }
 
             // Engineers that already exist (none at start-up, normally) get their helpers now.
@@ -128,6 +140,12 @@ namespace AutoEngineerBrakeFix
             foreach (var stop in UnityEngine.Object.FindObjectsByType<WaterStop>(UnityEngine.FindObjectsSortMode.None))
             {
                 UnityEngine.Object.Destroy(stop);
+            }
+
+            if (_legacyLimits != null)
+            {
+                UnityEngine.Object.Destroy(_legacyLimits);   // puts the cleared limits back (OnDestroy)
+                _legacyLimits = null;
             }
 
             if (_hotkey != null)

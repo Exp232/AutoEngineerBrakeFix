@@ -39,21 +39,25 @@ namespace AutoEngineerBrakeFix
     /// </summary>
     public class WaterStop : MonoBehaviour
     {
-        private enum Phase { Idle, Armed, Approaching, Filling }
+        private enum Phase { Idle, Armed, Approaching, Filling, Holding }
 
         private const float TickSeconds = 1f;
         private const float SearchEverySeconds = 5f;
         private const float SlowDownWithinMeters = 1600f;
         private const float MinAheadMeters = 30f;         // a column closer than this to the hatch is not picked
         private const float MinAheadArmedMeters = 5f;     // once picked, the stop goes on until the hatch is about at the spout
-        private const float StopPastSpoutMeters = 0.5f;   // Waypoint Queue's allowance for where the engineer stops
+        // The game completes a waypoint as soon as it is within 1 m of the train's end (AutoEngineerPlanner.IsUnderTrain),
+        // so the train stops up to a metre short of it. Waypoint Queue allows 0.5 m; at Whittier (2.5.4) the hatch still
+        // stopped 0.92 m short, so the waypoint goes a metre past and any remainder is corrected in Yard mode.
+        private const float StopPastSpoutMeters = 1.0f;
         private const float ApproachTimeoutSeconds = 1200f;
         private const float NoFlowTimeoutSeconds = 90f;
         private const float FullFraction = 0.995f;
         private const float ColumnCooldownSeconds = 600f;
         private const float SpotToleranceMeters = 0.35f;  // hatch reach is 0.6 m (column 0.2 + F-71 hatch 0.4); along the track
-        private const int MaxSpotCorrections = 2;
-        private const int CorrectionMph = 5;
+        private const int MaxSpotCorrections = 3;
+        private const float FirstFlowSeconds = 30f;      // spout down and water flowing; otherwise check the spotting again
+        private const float MovedAtLeastMeters = 0.1f;   // a correction that moved less than this did not take
 
         private sealed class Column
         {
@@ -90,6 +94,11 @@ namespace AutoEngineerBrakeFix
         private float _lastFlow;
         private bool _saidNoColumn;
         private int _corrections;
+        private float _lastMiss = float.NaN;
+        private int _stuckCorrections;
+        private AutoEngineerMode _expectMode = AutoEngineerMode.Waypoint;   // the mode this component last ordered
+        private bool _flowSeen;
+        private int _refills;
         private float _correctedAt = -1f;   // a correction was ordered; wait for the train to move before measuring again
         private float _offsetTime = -1f;
         private float _offsetValue;
@@ -172,6 +181,9 @@ namespace AutoEngineerBrakeFix
                     _syncSpeed = false;
                     _corrections = 0;
                     _correctedAt = -1f;
+                    _lastMiss = float.NaN;
+                    _stuckCorrections = 0;
+                    _refills = 0;
                     _lastDistance = distance;
                     _lastDistanceTime = now;
                     _phase = Phase.Armed;
@@ -241,6 +253,7 @@ namespace AutoEngineerBrakeFix
                     _waypointString = Graph.LocationToString(target.Clamped());
                     Helper.SetOrdersValue(AutoEngineerMode.Waypoint, _origForward, Mathf.Min(_setMaxSpeed, approach), null, new OrderWaypoint(_waypointString, null));
                     _phase = Phase.Approaching;
+                    _expectMode = AutoEngineerMode.Waypoint;
                     _phaseStart = now;
                     _graceUntil = now + 3f;
                     Say($"Pulling up to the water column at {_column.Place}.");
@@ -251,7 +264,8 @@ namespace AutoEngineerBrakeFix
                 case Phase.Approaching:
                 {
                     if (now < _graceUntil) return;
-                    if (orders.Mode != AutoEngineerMode.Waypoint || (orders.Waypoint.HasValue && orders.Waypoint.Value.LocationString != _waypointString))
+                    bool waypointChanged = _expectMode == AutoEngineerMode.Waypoint && orders.Waypoint.HasValue && orders.Waypoint.Value.LocationString != _waypointString;
+                    if (orders.Mode != _expectMode || waypointChanged)
                     {
                         Cancel("orders changed by the player");
                         return;
@@ -263,47 +277,25 @@ namespace AutoEngineerBrakeFix
                     }
                     if (_correctedAt >= 0f)
                     {
+                        // A Yard-mode correction: wait for it to start moving (or 30 s), then for it to stop.
                         if (!_loco.IsStopped(1f) || now - _correctedAt > 30f) _correctedAt = -1f;
                         return;
                     }
                     if (!_loco.IsStopped(3f)) return;
                     // Stopped: either at the waypoint (the game may clear it on arrival) or held by something else.
-                    if (orders.Waypoint.HasValue && !NearWaypoint(orders.Forward)) return;
-                    if (TrySpotError(out float miss, out float lateral))
+                    if (_expectMode == AutoEngineerMode.Waypoint && orders.Waypoint.HasValue && !NearWaypoint(orders.Forward)) return;
+                    if (!CheckSpot(now, out string why))
                     {
-                        Main.Mod.Logger.Log($"Water stop ({Name}): hatch {Mathf.Abs(miss):0.00} m {(miss >= 0f ? "short of" : "past")} the spout along the track ({lateral:0.00} m to the side).");
-                        if (Mathf.Abs(miss) > SpotToleranceMeters && Mathf.Abs(miss) < 50f && _corrections < MaxSpotCorrections)
-                        {
-                            _corrections++;
-                            // Short: pull ahead. Past: back up, with the other end leading, so that end arrives at the waypoint.
-                            bool fwd = miss > 0f ? _origForward : !_origForward;
-                            Location lead = HeadLocation(fwd, out _);
-                            Location target = Graph.Shared.LocationByMoving(lead, Mathf.Abs(miss), false, true);
-                            if (lead.IsValid && target.IsValid)
-                            {
-                                _waypointString = Graph.LocationToString(target.Clamped());
-                                Helper.SetOrdersValue(AutoEngineerMode.Waypoint, fwd, Mathf.Min(_setMaxSpeed, CorrectionMph), null, new OrderWaypoint(_waypointString, null));
-                                _graceUntil = now + 3f;
-                                _correctedAt = now;
-                                Say(miss > 0f ? "Pulling up to the spout." : "Backing up to the spout.");
-                                Main.Mod.Logger.Log($"Water stop ({Name}): correction {_corrections}, {(miss > 0f ? "ahead" : "back")} {Mathf.Abs(miss):0.00} m to {_waypointString}.");
-                                return;
-                            }
-                        }
+                        if (why != null) Hold(now, why);
+                        return;   // a correction is under way
                     }
-                    _phase = Phase.Filling;
-                    _phaseStart = now;
-                    _lastWater = water;
-                    _lastFlow = now;
-                    Request(true);
-                    Say("Taking water.");
-                    Main.Mod.Logger.Log($"Water stop ({Name}): stopped at {_column.Id}, water {water * 100f:0.0}%, loader requested.");
+                    StartFilling(now, water);
                     return;
                 }
 
                 case Phase.Filling:
                 {
-                    if (orders.Mode != AutoEngineerMode.Waypoint)
+                    if (orders.Mode != _expectMode)
                     {
                         Request(false);
                         Cancel("orders changed by the player");
@@ -320,9 +312,31 @@ namespace AutoEngineerBrakeFix
                     {
                         _lastWater = water;
                         _lastFlow = now;
+                        _flowSeen = true;
                         return;
                     }
-                    if (now - _lastFlow > NoFlowTimeoutSeconds)
+                    if (!_flowSeen && now - _phaseStart > FirstFlowSeconds)
+                    {
+                        // Nothing came in: put the spout up, measure again and move the tender if it can.
+                        Request(false);
+                        Main.Mod.Logger.Log($"Water stop ({Name}): no water after {FirstFlowSeconds:0} s at {_column.Id}; checking the spotting again.");
+                        _phase = Phase.Approaching;
+                        _phaseStart = now;
+                        if (!CheckSpot(now, out string why))
+                        {
+                            if (why != null) Hold(now, why);
+                            return;
+                        }
+                        // Measured as in reach but still no water: try once more from the top, then hold.
+                        if (_refills++ == 0)
+                        {
+                            StartFilling(now, water);
+                            return;
+                        }
+                        Hold(now, $"the spout gives no water although the hatch measures {Mathf.Abs(_lastMiss):0.00} m from it");
+                        return;
+                    }
+                    if (_flowSeen && now - _lastFlow > NoFlowTimeoutSeconds)
                     {
                         Request(false);
                         if (water >= 0.95f)   // the loader stops at its own idea of full, which can sit a little under the slot size
@@ -332,17 +346,113 @@ namespace AutoEngineerBrakeFix
                         }
                         else
                         {
-                            GiveUp($"no water is coming in (tender at {water * 100f:0}%)");
+                            Hold(now, $"the water stopped at {water * 100f:0}%");
                         }
+                    }
+                    return;
+                }
+
+                case Phase.Holding:
+                {
+                    // Stopped at the column for the player. Their own orders end it; a full tender resumes the road orders.
+                    if (now < _graceUntil) return;
+                    if (water >= FullFraction && !SpoutRequested())
+                    {
+                        Main.Mod.Logger.Log($"Water stop ({Name}): tender filled ({water * 100f:0.0}%) while holding at {_column.Id}.");
+                        Finish("Tender's full, thanks. Back to road orders.");
+                        return;
+                    }
+                    if (orders.Mode != AutoEngineerMode.Road || orders.Forward != _origForward || orders.MaxSpeedMph != 0)
+                    {
+                        Main.Mod.Logger.Log($"Water stop ({Name}): the player took over at {_column.Id} (water {water * 100f:0}%).");
+                        if (_column != null) _cooldown[_column.Id] = Time.time + ColumnCooldownSeconds;
+                        _phase = Phase.Idle;
+                        _column = null;
                     }
                     return;
                 }
             }
         }
 
+        /// <summary>True while the column's loader is asked to load (its spout is down or coming down), by anyone.</summary>
+        private bool SpoutRequested()
+        {
+            var kvo = _column?.Sequencer?.keyValueObject;
+            if (kvo == null) return false;
+            try { return kvo[_column.Sequencer.readWantsLoadingKey].BoolValue; }
+            catch (Exception) { return false; }
+        }
+
+        private void StartFilling(float now, float water)
+        {
+            _phase = Phase.Filling;
+            _phaseStart = now;
+            _lastWater = water;
+            _lastFlow = now;
+            _flowSeen = false;
+            Request(true);
+            Say("Taking water.");
+            Main.Mod.Logger.Log($"Water stop ({Name}): stopped at {_column.Id}, water {water * 100f:0.0}%, loader requested.");
+        }
+
+        /// <summary>
+        /// Measures the hatch against the spout. True when it is within reach (or cannot be measured), so filling can
+        /// start. False with why == null when a Yard-mode correction was ordered; false with a reason when spotting has
+        /// failed and the train should hold for the player.
+        /// </summary>
+        private bool CheckSpot(float now, out string why)
+        {
+            why = null;
+            if (!TrySpotError(out float miss, out float lateral)) return true;
+            Main.Mod.Logger.Log($"Water stop ({Name}): hatch {Mathf.Abs(miss):0.00} m {(miss >= 0f ? "short of" : "past")} the spout along the track ({lateral:0.00} m to the side).");
+
+            if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && Mathf.Abs(miss) > SpotToleranceMeters)
+            {
+                _stuckCorrections++;
+                Main.Mod.Logger.Log($"Water stop ({Name}): the last correction did not move the train ({_stuckCorrections}).");
+            }
+            _lastMiss = miss;
+
+            if (Mathf.Abs(miss) <= SpotToleranceMeters) return true;
+            if (Mathf.Abs(miss) >= 50f) { why = $"the hatch is {Mathf.Abs(miss):0} m from the spout"; return false; }
+            if (_corrections >= MaxSpotCorrections || _stuckCorrections >= 2)
+            {
+                why = $"the hatch is still {Mathf.Abs(miss):0.00} m {(miss >= 0f ? "short of" : "past")} the spout after {_corrections} correction{(_corrections == 1 ? "" : "s")}";
+                return false;
+            }
+
+            // Yard mode moves a set distance by counting the metres actually travelled, so it can make the
+            // sub-metre moves a waypoint cannot (a waypoint within 1 m of the train counts as reached at once).
+            _corrections++;
+            bool fwd = miss > 0f ? _origForward : !_origForward;
+            Helper.SetOrdersValue(AutoEngineerMode.Yard, fwd, null, Mathf.Abs(miss), null);
+            _expectMode = AutoEngineerMode.Yard;
+            _graceUntil = now + 3f;
+            _correctedAt = now;
+            Say(miss > 0f ? "Pulling up to the spout." : "Backing up to the spout.");
+            Main.Mod.Logger.Log($"Water stop ({Name}): correction {_corrections}, Yard mode {(miss > 0f ? "ahead" : "back")} {Mathf.Abs(miss):0.00} m.");
+            return false;
+        }
+
+        /// <summary>
+        /// Spotting failed: stop at the column (Road mode, speed 0, same direction) and hand over to the player rather
+        /// than run on short of water. A full tender (the player took water by hand) resumes the road orders; any
+        /// orders the player gives end the stop.
+        /// </summary>
+        private void Hold(float now, string why)
+        {
+            Request(false);
+            Helper.SetOrdersValue(AutoEngineerMode.Road, _origForward, 0, null, null);
+            _phase = Phase.Holding;
+            _phaseStart = now;
+            _graceUntil = now + 3f;
+            Say($"I can't line the tender up with the spout at {_column.Place}: {why}. Holding here; take water by hand and I'll carry on, or give me new orders.");
+            Main.Mod.Logger.Log($"Water stop ({Name}): holding at {_column.Id}, {why}.");
+        }
+
         // ---- Status (for DetailedStatus) ----
 
-        internal enum StatusKind { Planned, Slowing, Spotting, Filling }
+        internal enum StatusKind { Planned, Slowing, Spotting, Filling, Holding }
 
         internal struct StatusInfo
         {
@@ -381,7 +491,12 @@ namespace AutoEngineerBrakeFix
                 case Phase.Approaching:
                     info.Kind = StatusKind.Spotting;
                     info.Label = $"Water stop (mod): spotting the tender at {place}";
-                    info.Detail = $"Waypoint mode to put the tender hatch under the spout at {place}{(ws._corrections > 0 ? $" (correction {ws._corrections})" : "")}; Road orders resume after.";
+                    info.Detail = $"{(ws._expectMode == AutoEngineerMode.Yard ? "Yard mode" : "Waypoint mode")} to put the tender hatch under the spout at {place}{(ws._corrections > 0 ? $" (correction {ws._corrections})" : "")}; Road orders resume after.";
+                    return true;
+                case Phase.Holding:
+                    info.Kind = StatusKind.Holding;
+                    info.Label = $"Water stop (mod): holding at {place} for you";
+                    info.Detail = "The tender could not be lined up with the spout. Take water by hand and the engineer resumes its road orders, or give it new orders.";
                     return true;
                 case Phase.Filling:
                 {

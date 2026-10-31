@@ -144,6 +144,15 @@ namespace AutoEngineerBrakeFix
         /// <summary>Where the column is not in a CTC block: distance (m) from the column at which the engineer switches to Waypoint mode.</summary>
         public float WaterStopApproachMeters = 600f;
 
+        // ---- Track ----
+
+        /// <summary>
+        /// Legacy track speed limits (see LegacySpeedLimits). The game no longer shows the map's per-track speed limits but
+        /// still enforces them. On: cleared on the mainline (track inside CTC signal blocks), kept with a speed board at each
+        /// end of every limited stretch on branches, yards and spurs. In memory only; off puts everything back.
+        /// </summary>
+        public bool LegacySpeedLimits = false;
+
         // ---- Status ----
 
         /// <summary>

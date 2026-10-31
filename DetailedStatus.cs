@@ -100,13 +100,13 @@ namespace AutoEngineerBrakeFix
                 if (WaterStop.TryStatus(loco, out WaterStop.StatusInfo ws))
                 {
                     detail.AppendLine(ws.Detail);
-                    if (ws.Kind == WaterStop.StatusKind.Filling)
+                    if (ws.Kind == WaterStop.StatusKind.Filling || ws.Kind == WaterStop.StatusKind.Holding)
                     {
                         label = ws.Label;
                         mph = 0f;
                         at = null;
                     }
-                    else if (ws.Kind == WaterStop.StatusKind.Spotting && (reason == "Running to waypoint" || reason == "At waypoint"))
+                    else if (ws.Kind == WaterStop.StatusKind.Spotting)
                     {
                         label = ws.Label;
                     }
@@ -299,10 +299,10 @@ namespace AutoEngineerBrakeFix
             }
             else
             {
-                cause = railroadWide ? "Railroad limit" : "Posted limit";
+                cause = railroadWide ? "Railroad limit" : "Legacy limit";
                 detail.AppendLine(railroadWide
                     ? $"The railroad-wide limit is {TrackSegment.RailroadSpeedLimitMph} mph."
-                    : $"Posted limit {posted} mph.");
+                    : $"Legacy track limit {posted} mph from the map data. The game no longer shows these with a board{(Main.Settings.LegacySpeedLimits ? "; this mod has put one up off the mainline" : "; the mod setting \"Legacy speed limits\" clears them on the mainline and puts boards up elsewhere")}.");
             }
             return true;
         }
