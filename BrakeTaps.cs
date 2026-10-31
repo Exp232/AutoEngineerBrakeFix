@@ -142,8 +142,10 @@ namespace AutoEngineerBrakeFix
             if (!Main.Active) return;
             try
             {
-                BrakeTaps.Filter(__instance, ref __0);
-                CoastBand.Filter(__instance, ref __0);
+                RolloutCommand before = __0;
+                bool tap = BrakeTaps.Filter(__instance, ref __0);
+                bool band = CoastBand.Filter(__instance, ref __0);
+                CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, tap, band);
             }
             catch (Exception e)
             {

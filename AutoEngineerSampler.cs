@@ -247,6 +247,7 @@ namespace AutoEngineerBrakeFix
 
             AddSignal(row, targets);
             AddGuidance(row);
+            AddCommand(row);
 
             AddPid(row, "thr", FThrottlePid?.GetValue(_ae) as PIDController);
             AddPid(row, "ind", FIndependentPid?.GetValue(_ae) as PIDController);
@@ -256,6 +257,26 @@ namespace AutoEngineerBrakeFix
             row.Add("tb_dGain", trainPid != null ? trainPid.derivativeGain : float.NaN);
 
             LogWriter.Write(row);
+        }
+
+        /// <summary>
+        /// The rollout command last handed to the locomotive: cmd* as the game issued it, out* as it left this mod's filters,
+        /// cmdMod which filter changed it (tap, band), cmdAgeS seconds since it was applied.
+        /// </summary>
+        private void AddCommand(RowBuilder row)
+        {
+            CommandLog.Record c = CommandLog.Get(_ae);
+            bool has = c != null && !float.IsNaN(c.Time);
+            row.Add("cmdKind", has ? c.Kind : "")
+               .Add("cmdThr", has ? c.Thr : float.NaN)
+               .Add("cmdInd", has ? c.Ind : float.NaN)
+               .Add("cmdTb", has ? c.Tb : float.NaN)
+               .Add("cmdBail", has ? (c.Bail ? 1 : 0) : 0)
+               .Add("outThr", has ? c.OutThr : float.NaN)
+               .Add("outInd", has ? c.OutInd : float.NaN)
+               .Add("outTb", has ? c.OutTb : float.NaN)
+               .Add("cmdMod", has ? c.Mod : "")
+               .Add("cmdAgeS", has ? Time.fixedTime - c.Time : float.NaN);
         }
 
         /// <summary>Brake limit state and the rollout controller's latest decision.</summary>

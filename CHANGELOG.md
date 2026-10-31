@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.2
+
+- Log only, no behaviour change: the `ae_*.csv` rows gain ten columns for the rollout controller's latest command: `cmdKind`, `cmdThr`, `cmdInd`, `cmdTb`, `cmdBail` as the game issued it, `outThr`, `outInd`, `outTb` as it left this mod's filters, `cmdMod` (`tap`, `band` or empty: which filter changed it) and `cmdAgeS` (seconds since it was applied). This shows who released the locomotive brake in the last metres of a station stop on an upgrade. The command is only recorded while the brake-tap or coast-band patch is installed (either setting on).
+
 ## 2.7.1
 
 - Coast band: on a downhill the throttle used to stay closed however far below its target the train was, so it crept up to track speed at 0.1-0.2 mph a second. The grade now only keeps the power off when it will bring the train to its target within `CoastBandAssistSeconds` (new, 30 by default, slider "Pickup horizon"; 0 = the old rule). Slower than that the engineer opens the throttle and accelerates. Only affects runs with the coast band on.
