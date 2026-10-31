@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.6.2
+- Swinging spouts, after the 2.6.1 test: the tower's spout and hose chains turned as intended, and the column swung its arm over the tender, but the **column's base turned with the arm** (its square concrete pad ended up crooked beside the track). The base is part of the same animated object that turns. Renderers at the column's foot (within 0.5 m of its axis and no more than 0.25 m above it) are now turned back by the same angle about the same axis each frame, so the pad and flange stay square to the track and only the arm and pole turn. `Player.log` lists the parts held still. The click handle on the arm (outside the turning object) stays where it was; a column whose foot is built differently may need its parts adjusted.
+
 ## 2.6.1
 - Swinging spouts, after the 2.6.0 test (Bryson, `Player.log`): the fills worked as before (EMR 1 44 s, EMR 5000 104 s) and nothing errored, but two things were wrong in the code.
   - **Both kinds were taken for drop-only spouts (15 degrees).** The test used `engageAfterNormalizedTime`, which is 0.00 on both the water column ("Water Column Arm") and the tower ("Scene"). The kind is now read from where the spout is parked: more than 1.5 m (flat) from the loader's fill point means it swings in from beside the track (the water column: 4.2 m, so up to `SpoutSwingDegrees`, 180); near it means it hangs and only drops (the tower: 0.7 m, `DropSpoutSwingDegrees`, 15). The dump in `Player.log` gives the distance.

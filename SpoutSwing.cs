@@ -72,8 +72,11 @@ namespace AutoEngineerBrakeFix
             public Quaternion LastRot;
             public float Applied;
             public bool Seen;
+            public float Sign = 1f;   // 1: turns with the spout; -1: held still against the turn of the object it sits in
         }
 
+        private const float FootRadiusMeters = 0.5f;    // a renderer this close (flat) to the column's axis, and no higher than
+        private const float FootHeightMeters = 0.25f;   // this above its foot, is the base and stays still
         private const float ParkedFarMeters = 1.5f;   // parked this far from the fill point (flat): it swings in, then drops
 
         private bool Turnable => _wrapper != null || _parts.Count > 0;
@@ -142,6 +145,19 @@ namespace AutoEngineerBrakeFix
                     spoutT.SetParent(_wrapper, true);
                     _loaderInWrapper = _loader.transform.IsChildOf(_wrapper);
                     _pivotLocal = transform.InverseTransformPoint(_wrapper.position);
+
+                    // The base (foot, flange, pad) is part of the same animated object but must not turn with the arm: turn
+                    // each renderer that sits at the column's foot back by the same angle, about the same axis.
+                    Vector3 axis = _wrapper.position;
+                    foreach (MeshRenderer r in spoutT.GetComponentsInChildren<MeshRenderer>(true))
+                    {
+                        Transform t = r.transform;
+                        Vector3 d = t.position - axis;
+                        if (Flat(d).magnitude > FootRadiusMeters || d.y > FootHeightMeters || d.y < -0.5f) continue;
+                        if (_parts.Any(x => t.IsChildOf(x.T))) continue;
+                        _parts.RemoveAll(x => x.T.IsChildOf(t));
+                        _parts.Add(new Part { T = t, Sign = -1f });
+                    }
                 }
                 else
                 {
@@ -237,9 +253,10 @@ namespace AutoEngineerBrakeFix
                 bool fresh = !part.Seen
                     || (t.localPosition - part.LastPos).sqrMagnitude > 1e-8f
                     || Quaternion.Angle(t.localRotation, part.LastRot) > 0.01f;
-                float delta = fresh ? _shown : _shown - part.Applied;
+                float want = part.Sign * _shown;
+                float delta = fresh ? want : want - part.Applied;
                 if (Mathf.Abs(delta) > 1e-4f) t.RotateAround(pivot, Vector3.up, delta);
-                part.Applied = _shown;
+                part.Applied = want;
                 part.LastPos = t.localPosition;
                 part.LastRot = t.localRotation;
                 part.Seen = true;
@@ -445,7 +462,7 @@ namespace AutoEngineerBrakeFix
             {
                 AnimationClip clip = _spout.animationClip;
                 sb.AppendLine($"  Spout '{_spout.name}': key '{_spout.key}', clip '{clip?.name}' {clip?.length:0.00} s, speed {_spout.speed:0.##}, parked {_parkedMeters:0.00} m from the fill point (swings in if over {ParkedFarMeters:0.0} m) => {(_swingType ? "side-to-side column" : "drop-only spout")}, limit {MaxDegrees:0}°{(float.IsNaN(_maxOverride) ? "" : " (spoutswing.txt)")}.");
-                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. {(_wrapper != null ? "Turns the whole animated object" : _parts.Count > 0 ? "Turns only " + string.Join(", ", _parts.Select(x => x.T.name)) : "Nothing to turn (no spout parts found)")}; pivot {(Turnable ? V(_pivotLocal) : "-")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
+                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. {(_wrapper != null ? "Turns the whole animated object" + (_parts.Count > 0 ? ", holding still: " + string.Join(", ", _parts.Select(x => x.T.name)) : "") : _parts.Count > 0 ? "Turns only " + string.Join(", ", _parts.Select(x => x.T.name)) : "Nothing to turn (no spout parts found)")}; pivot {(Turnable ? V(_pivotLocal) : "-")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
             }
             if (_sequencer != null)
                 sb.AppendLine($"  Sequencer keys request '{_sequencer.readWantsLoadingKey}', prepare '{_sequencer.writePrepareLoadKey}', canLoad '{_sequencer.writeCanLoadKey}', animate '{_sequencer.writeAnimateLoadKey}', delays {_sequencer.prepareLoadingDelay:0.#}/{_sequencer.startLoadingDelay:0.#} s.");
