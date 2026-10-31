@@ -173,6 +173,7 @@ namespace AutoEngineerBrakeFix
                     // square to the track. Make them swing round with the pipe so the whole stand points where the spout does.
                     _probe = probe;
                     _phiParked = PipeAngle();
+                    RecordParked();
                     Transform arm = FindArmNode(spoutT, probe);
                     if (arm != null)
                     {
@@ -215,6 +216,38 @@ namespace AutoEngineerBrakeFix
         private string _followNames = "";
         private readonly List<Transform> _armKids = new List<Transform>();   // the stand's other moving pieces: watched, not moved
         private bool _animSeen;
+        private readonly Dictionary<MeshRenderer, Vector2> _parkedPose = new Dictionary<MeshRenderer, Vector2>();   // position angle, facing angle (wrapper frame)
+        private bool _prepSeen;
+        private float _poseDumpAt;
+
+        private Vector2 PoseOf(MeshRenderer r)
+        {
+            Vector3 v = _wrapper.InverseTransformPoint(r.transform.position);
+            Vector3 f = _wrapper.InverseTransformDirection(r.transform.forward);
+            return new Vector2(Mathf.Atan2(v.x, v.z) * Mathf.Rad2Deg, Mathf.Atan2(f.x, f.z) * Mathf.Rad2Deg);
+        }
+
+        private void RecordParked()
+        {
+            if (_wrapper == null) return;
+            foreach (MeshRenderer r in _wrapper.GetComponentsInChildren<MeshRenderer>(true)) _parkedPose[r] = PoseOf(r);
+        }
+
+        /// <summary>Diagnostic: how far each mesh has turned about the column since it was parked, to find what the clip does not swing with the pipe.</summary>
+        private void DumpPoses(string when)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine($"Spout swing ({_id}) poses {when} (turn since parked, in degrees: position about the axis / facing; pipe tip {Mathf.DeltaAngle(_phiParked, PipeAngle()):0}):");
+            foreach (var kv in _parkedPose.OrderBy(k => k.Key.name))
+            {
+                MeshRenderer r = kv.Key;
+                if (r == null) continue;
+                Vector2 now = PoseOf(r);
+                Vector3 v = _wrapper.InverseTransformPoint(r.transform.position);
+                sb.AppendLine($"  {r.name} (in {(r.transform.parent != null ? r.transform.parent.name : "-")}) r{Flat(v).magnitude:0.00} y{v.y:0.00}: {Mathf.DeltaAngle(kv.Value.x, now.x):0} / {Mathf.DeltaAngle(kv.Value.y, now.y):0}");
+            }
+            Main.Mod.Logger.Log(sb.ToString());
+        }
         private float _sampleUntil, _nextSample;
         private float _rescanUntil, _nextRescan;
 
@@ -222,6 +255,12 @@ namespace AutoEngineerBrakeFix
         private void SampleClip()
         {
             if (_probe == null || _spout == null || string.IsNullOrEmpty(_spout.key)) return;
+            if (_sequencer != null)
+            {
+                bool prep = _kvo[_sequencer.writePrepareLoadKey].BoolValue;
+                if (prep != _prepSeen) { _prepSeen = prep; _poseDumpAt = Time.unscaledTime + 4f; }
+                if (_poseDumpAt > 0f && Time.unscaledTime >= _poseDumpAt) { _poseDumpAt = 0f; DumpPoses(_prepSeen ? "swung out" : "stowed"); }
+            }
             bool anim = _kvo[_spout.key].BoolValue;
             if (anim != _animSeen)
             {

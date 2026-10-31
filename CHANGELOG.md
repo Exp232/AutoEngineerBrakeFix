@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.8
+
+- Water column diagnostics only (no change in behaviour): after the arm swings out, and again once it is stowed, `Player.log` lists how far every mesh of the column has turned since it was parked (position about the axis / facing). The pipe swings 90° with the clip, so any piece of the stand that shows far less than that is the one left square to the track.
+
 ## 2.6.7
 
 - Water column: takes back 2.6.6's swinging of the head, lever and hanging weights. It put the weights and crane out of place when stowed and spun them when the column turned. Those pieces are back to following the game's clip. Instead the log now records, while the clip plays, where the pipe and each of those pieces point (`clip down` / `clip up` lines in `Player.log`), so the next change can be built on what the clip really does.
