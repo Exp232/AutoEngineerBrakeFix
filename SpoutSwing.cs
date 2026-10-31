@@ -62,6 +62,9 @@ namespace AutoEngineerBrakeFix
         private Transform _wrapper;      // side-to-side columns: the whole animated spout object sits under this, and it is turned
         private Quaternion _wrapperBase;
         private bool _loaderInWrapper;
+        private Transform _probe;         // the spout tip (clearance probe origin), used to see where the clip has swung the pipe
+        private float _phiParked;         // where the pipe points about the column's axis when parked, in the wrapper's frame
+        private float _follow;            // how far the pipe has swung since (degrees)
         private Vector3 _pivotLocal;      // the vertical axis the spout turns about, in this object's space
         private readonly List<Part> _parts = new List<Part>();   // drop-only spouts: only the spout's own parts are turned, after the animation
         private float _parkedMeters;      // how far the spout sits from the fill point before it moves (tells the two kinds apart)
@@ -74,6 +77,7 @@ namespace AutoEngineerBrakeFix
             public float Applied;
             public bool Seen;
             public float Sign = 1f;   // 1: turns with the spout; -1: held still against the turn of the object it sits in
+            public bool Follow;       // swings about the column's axis with the spout pipe (the clip swings only the pipe), whatever the turn
         }
 
         private const float FootRadiusMeters = 0.5f;    // a renderer this close (flat) to the column's axis, and no higher than
@@ -164,6 +168,26 @@ namespace AutoEngineerBrakeFix
                     // would stay put while the arm turns away from it. Turn it with the arm, about the same axis.
                     ScanHandles();
                     _rescanUntil = Time.unscaledTime + 10f;
+
+                    // The clip swings only the spout pipe out over the track; the head, lever and weights stay where they were parked,
+                    // square to the track. Make them swing round with the pipe so the whole stand points where the spout does.
+                    _probe = probe;
+                    _phiParked = PipeAngle();
+                    Transform arm = FindArmNode(spoutT, probe);
+                    if (arm != null)
+                    {
+                        Transform holder = probe;
+                        while (holder.parent != arm) holder = holder.parent;
+                        var names = new List<string>();
+                        foreach (Transform child in arm)
+                        {
+                            if (child == holder || child.GetComponentInChildren<MeshRenderer>(true) == null) continue;
+                            if (_parts.Any(x => child.IsChildOf(x.T) || x.T.IsChildOf(child))) continue;
+                            _parts.Add(new Part { T = child, Follow = true, Sign = 0f });
+                            names.Add(child.name);
+                        }
+                        _followNames = string.Join(", ", names);
+                    }
                 }
                 else
                 {
@@ -188,7 +212,33 @@ namespace AutoEngineerBrakeFix
             DumpOnce();
         }
 
+        private string _followNames = "";
         private float _rescanUntil, _nextRescan;
+
+        /// <summary>The pipe's direction about the column's axis, in the wrapper's frame (degrees).</summary>
+        private float PipeAngle()
+        {
+            if (_wrapper == null || _probe == null) return 0f;
+            Vector3 v = _wrapper.InverseTransformPoint(_probe.position);
+            return Mathf.Atan2(v.x, v.z) * Mathf.Rad2Deg;
+        }
+
+        /// <summary>The node whose children are the stand's moving pieces: the shallowest one (below the pole's own bone) with more than one piece that has a mesh, on the way to the spout tip.</summary>
+        private static Transform FindArmNode(Transform root, Transform probe)
+        {
+            var chain = new List<Transform>();
+            for (Transform c = probe; c != null && c != root; c = c.parent) chain.Add(c);
+            chain.Reverse();   // root's child first
+            for (int depth = 1; depth < chain.Count; depth++)
+            {
+                Transform p = chain[depth - 1];
+                if (depth < 2) continue;   // the pole's own bone is not it
+                int pieces = 0;
+                foreach (Transform child in p) if (child.GetComponentInChildren<MeshRenderer>(true) != null) pieces++;
+                if (pieces >= 2 && chain[depth].parent == p) return p;
+            }
+            return null;
+        }
         private bool _handleLogged;
 
         /// <summary>Finds click handles that the prefab parks outside the animated arm and turns them with it. Safe to repeat.</summary>
@@ -255,6 +305,11 @@ namespace AutoEngineerBrakeFix
                     _shown = Mathf.MoveTowards(_shown, target, Mathf.Max(5f, Main.Settings.SpoutSwingDegreesPerSecond) * Time.deltaTime);
                     if (_wrapper != null) _wrapper.rotation = Quaternion.AngleAxis(_shown, Vector3.up) * _wrapperBase;
                 }
+                if (_probe != null)
+                {
+                    float swing = Mathf.DeltaAngle(_phiParked, PipeAngle());
+                    _follow = swing;
+                }
                 if (_parts.Count > 0) TurnParts();
 
                 // Learn where the loader really fills (it may ride on the animated arm): while the loader may load, the spout is down.
@@ -298,7 +353,7 @@ namespace AutoEngineerBrakeFix
                 bool fresh = !part.Seen
                     || (t.localPosition - part.LastPos).sqrMagnitude > 1e-8f
                     || Quaternion.Angle(t.localRotation, part.LastRot) > 0.01f;
-                float want = part.Sign * _shown;
+                float want = part.Follow ? _follow : part.Sign * _shown;
                 float delta = fresh ? want : want - part.Applied;
                 if (Mathf.Abs(delta) > 1e-4f) t.RotateAround(pivot, Vector3.up, delta);
                 part.Applied = want;
@@ -509,7 +564,7 @@ namespace AutoEngineerBrakeFix
             {
                 AnimationClip clip = _spout.animationClip;
                 sb.AppendLine($"  Spout '{_spout.name}': key '{_spout.key}', clip '{clip?.name}' {clip?.length:0.00} s, speed {_spout.speed:0.##}, parked {_parkedMeters:0.00} m from the fill point (swings in if over {ParkedFarMeters:0.0} m) => {(_swingType ? "side-to-side column" : "drop-only spout")}, limit {MaxDegrees:0}°{(float.IsNaN(_maxOverride) ? "" : " (spoutswing.txt)")}.");
-                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. {(_wrapper != null ? "Turns the whole animated object" + (_parts.Any(x => x.Sign < 0f) ? ", holding still: " + string.Join(", ", _parts.Where(x => x.Sign < 0f).Select(x => x.T.name)) : "") + (_parts.Any(x => x.Sign > 0f) ? ", also turning (outside it): " + string.Join(", ", _parts.Where(x => x.Sign > 0f).Select(x => x.T.name)) : "") : _parts.Count > 0 ? "Turns only " + string.Join(", ", _parts.Select(x => x.T.name)) : "Nothing to turn (no spout parts found)")}; pivot {(Turnable ? V(_pivotLocal) : "-")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
+                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. {(_wrapper != null ? "Turns the whole animated object" + (_parts.Any(x => x.Sign < 0f) ? ", holding still: " + string.Join(", ", _parts.Where(x => x.Sign < 0f).Select(x => x.T.name)) : "") + (_parts.Any(x => x.Follow) ? ", swinging round with the pipe: " + _followNames : "") + (_parts.Any(x => x.Sign > 0f) ? ", also turning (outside it): " + string.Join(", ", _parts.Where(x => x.Sign > 0f).Select(x => x.T.name)) : "") : _parts.Count > 0 ? "Turns only " + string.Join(", ", _parts.Select(x => x.T.name)) : "Nothing to turn (no spout parts found)")}; pivot {(Turnable ? V(_pivotLocal) : "-")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
             }
             if (_sequencer != null)
                 sb.AppendLine($"  Sequencer keys request '{_sequencer.readWantsLoadingKey}', prepare '{_sequencer.writePrepareLoadKey}', canLoad '{_sequencer.writeCanLoadKey}', animate '{_sequencer.writeAnimateLoadKey}', delays {_sequencer.prepareLoadingDelay:0.#}/{_sequencer.startLoadingDelay:0.#} s.");

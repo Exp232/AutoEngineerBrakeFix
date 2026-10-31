@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.6.6
+
+- Water column: the head, counterweight lever and hanging weights now swing round with the spout pipe. The game's clip swings only the pipe out over the track, so after lowering the rest of the stand stayed square to the track while the pipe pointed at an off-centre hatch. They are now turned about the column's axis by however far the pipe has swung, so the whole stand points where the spout does. `Player.log` lists them as "swinging round with the pipe".
+
 ## 2.6.5
 
 - Swinging spouts: the stand now turns to the hatch first and only then lowers. The fill point is held out of reach until the turn has finished (within 1.5°), so loading, and with it the lowering animation, starts after the arm points at the hatch instead of while it is still swinging round.
