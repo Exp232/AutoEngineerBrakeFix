@@ -158,6 +158,17 @@ namespace AutoEngineerBrakeFix
                         _parts.RemoveAll(x => x.T.IsChildOf(t));
                         _parts.Add(new Part { T = t, Sign = -1f });
                     }
+
+                    // The click handle: the prefab parks it (PrefabRuntimeReparent) somewhere other than the animated arm, so it
+                    // would stay put while the arm turns away from it. Turn it with the arm, about the same axis.
+                    foreach (PrefabRuntimeReparent r in GetComponentsInChildren<PrefabRuntimeReparent>(true))
+                    {
+                        Transform handle = r.transform;
+                        Transform home = r.target != null ? r.target : handle.parent;
+                        if (home != null && home.IsChildOf(_wrapper)) continue;   // it rides on the animated arm already
+                        if (handle.IsChildOf(_wrapper) || _parts.Any(x => handle.IsChildOf(x.T))) continue;
+                        _parts.Add(new Part { T = handle, Sign = 1f });
+                    }
                 }
                 else
                 {
@@ -462,7 +473,7 @@ namespace AutoEngineerBrakeFix
             {
                 AnimationClip clip = _spout.animationClip;
                 sb.AppendLine($"  Spout '{_spout.name}': key '{_spout.key}', clip '{clip?.name}' {clip?.length:0.00} s, speed {_spout.speed:0.##}, parked {_parkedMeters:0.00} m from the fill point (swings in if over {ParkedFarMeters:0.0} m) => {(_swingType ? "side-to-side column" : "drop-only spout")}, limit {MaxDegrees:0}°{(float.IsNaN(_maxOverride) ? "" : " (spoutswing.txt)")}.");
-                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. {(_wrapper != null ? "Turns the whole animated object" + (_parts.Count > 0 ? ", holding still: " + string.Join(", ", _parts.Select(x => x.T.name)) : "") : _parts.Count > 0 ? "Turns only " + string.Join(", ", _parts.Select(x => x.T.name)) : "Nothing to turn (no spout parts found)")}; pivot {(Turnable ? V(_pivotLocal) : "-")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
+                sb.AppendLine($"  Probe origin '{(_spout.probeOrigin != null ? _spout.probeOrigin.name : "-")}', stop {_spout.stopDistance:0.00} m. {(_wrapper != null ? "Turns the whole animated object" + (_parts.Any(x => x.Sign < 0f) ? ", holding still: " + string.Join(", ", _parts.Where(x => x.Sign < 0f).Select(x => x.T.name)) : "") + (_parts.Any(x => x.Sign > 0f) ? ", also turning (outside it): " + string.Join(", ", _parts.Where(x => x.Sign > 0f).Select(x => x.T.name)) : "") : _parts.Count > 0 ? "Turns only " + string.Join(", ", _parts.Select(x => x.T.name)) : "Nothing to turn (no spout parts found)")}; pivot {(Turnable ? V(_pivotLocal) : "-")} in the structure; loader {V(_fillLocal)}; arm {_armMeters:0.00} m; loader {(_loaderInWrapper ? "rides on the spout" : "is fixed")}.");
             }
             if (_sequencer != null)
                 sb.AppendLine($"  Sequencer keys request '{_sequencer.readWantsLoadingKey}', prepare '{_sequencer.writePrepareLoadKey}', canLoad '{_sequencer.writeCanLoadKey}', animate '{_sequencer.writeAnimateLoadKey}', delays {_sequencer.prepareLoadingDelay:0.#}/{_sequencer.startLoadingDelay:0.#} s.");

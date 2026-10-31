@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.6.3
+- Swinging spouts, after the 2.6.2 test: the column's base now stays square and the tower is right, but the column's **click handle** did not engage once the arm had turned, and did not turn with it on the stow. The handle is a separate collider ("Control") that the prefab moves out of the animated arm when the column is built (`PrefabRuntimeReparent`), so it stays at the arm's parked spot while the arm turns away. Any such handle that is not on the animated arm is now turned with the arm each frame, about the same axis, and put back when the mod unloads. `Player.log` lists it under "also turning".
+
 ## 2.6.2
 - Swinging spouts, after the 2.6.1 test: the tower's spout and hose chains turned as intended, and the column swung its arm over the tender, but the **column's base turned with the arm** (its square concrete pad ended up crooked beside the track). The base is part of the same animated object that turns. Renderers at the column's foot (within 0.5 m of its axis and no more than 0.25 m above it) are now turned back by the same angle about the same axis each frame, so the pad and flange stay square to the track and only the arm and pole turn. `Player.log` lists the parts held still. The click handle on the arm (outside the turning object) stays where it was; a column whose foot is built differently may need its parts adjusted.
 
