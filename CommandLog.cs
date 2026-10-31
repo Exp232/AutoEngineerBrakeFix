@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Model;
+using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
