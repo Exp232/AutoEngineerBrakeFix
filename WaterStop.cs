@@ -91,6 +91,8 @@ namespace AutoEngineerBrakeFix
         private Column _column;
         private bool _origForward;
         private int _origMaxSpeed;
+        private AutoEngineerMode _origMode = AutoEngineerMode.Road;   // Road, or Waypoint (fast forward needs a Waypoint order)
+        private OrderWaypoint? _origWaypoint;
         private int _setMaxSpeed;
         private string _waypointString;
         private bool _requested;
@@ -166,7 +168,9 @@ namespace AutoEngineerBrakeFix
             {
                 case Phase.Idle:
                 {
-                    if (orders.Mode != AutoEngineerMode.Road || orders.MaxSpeedMph <= 0 || float.IsNaN(water)) return;
+                    bool roadOrders = orders.Mode == AutoEngineerMode.Road;
+                    bool waypointOrders = orders.Mode == AutoEngineerMode.Waypoint && orders.Waypoint.HasValue;
+                    if (!(roadOrders || waypointOrders) || orders.MaxSpeedMph <= 0 || float.IsNaN(water)) return;
                     if (now < _quietUntil) return;
                     float threshold = Mathf.Clamp(Main.Settings.WaterStopPercent, 5f, 90f) / 100f;
                     if (water >= threshold) { _saidNoColumn = false; return; }
@@ -183,7 +187,23 @@ namespace AutoEngineerBrakeFix
                         }
                         return;
                     }
+                    if (waypointOrders)
+                    {
+                        // Waypoint orders (also what fast forward needs): only stop for a column before the destination.
+                        float? remaining = _loco.AutoEngineerPlanner.RemainingWaypointDistance;
+                        if (remaining.HasValue && distance > remaining.Value + 30f)
+                        {
+                            if (!_saidNoColumn)
+                            {
+                                _saidNoColumn = true;
+                                Main.Mod.Logger.Log($"Water stop ({Name}): water {water * 100f:0}%, the nearest column ({column.Id}, {distance:0} m) is beyond the waypoint ({remaining.Value:0} m); no stop.");
+                            }
+                            return;
+                        }
+                    }
                     _column = column;
+                    _origMode = orders.Mode;
+                    _origWaypoint = waypointOrders ? orders.Waypoint : null;
                     _origForward = orders.Forward;
                     _origMaxSpeed = orders.MaxSpeedMph;
                     _setMaxSpeed = orders.MaxSpeedMph;
@@ -210,7 +230,8 @@ namespace AutoEngineerBrakeFix
                         _setMaxSpeed = orders.MaxSpeedMph;   // as the game clamped it
                         _syncSpeed = false;
                     }
-                    if (orders.Mode != AutoEngineerMode.Road || orders.Forward != _origForward || orders.MaxSpeedMph != _setMaxSpeed)
+                    if (orders.Mode != _origMode || orders.Forward != _origForward || orders.MaxSpeedMph != _setMaxSpeed
+                        || (_origMode == AutoEngineerMode.Waypoint && !Nullable.Equals(orders.Waypoint, _origWaypoint)))
                     {
                         Cancel("orders changed by the player");
                         return;
@@ -372,7 +393,7 @@ namespace AutoEngineerBrakeFix
                     if (water >= FullFraction && !SpoutRequested())
                     {
                         Main.Mod.Logger.Log($"Water stop ({Name}): tender filled ({water * 100f:0.0}%) while holding at {_column.Id}.");
-                        Finish("Tender's full, thanks. Back to road orders.");
+                        Finish("Tender's full, thanks. Back to our orders.");
                         return;
                     }
                     if (orders.Mode != AutoEngineerMode.Road || orders.Forward != _origForward || orders.MaxSpeedMph != 0)
@@ -549,7 +570,7 @@ namespace AutoEngineerBrakeFix
                     float water = FuelReader.WaterFraction(FuelReader.Tender(loco));
                     info.Kind = StatusKind.Filling;
                     info.Label = float.IsNaN(water) ? $"Taking water at {place} (mod)" : $"Taking water at {place} (mod): {water * 100f:0}%";
-                    info.Detail = $"Filling to {FullFraction * 100f:0}%, then back to Road orders at {ws._origMaxSpeed} mph.";
+                    info.Detail = $"Filling to {FullFraction * 100f:0}%, then back to {(ws._origMode == AutoEngineerMode.Waypoint ? "the waypoint" : "Road")} orders at {ws._origMaxSpeed} mph.";
                     return true;
                 }
             }
@@ -576,7 +597,7 @@ namespace AutoEngineerBrakeFix
         private void Finish(string say)
         {
             if (_column != null) _cooldown[_column.Id] = Time.time + ColumnCooldownSeconds;
-            Helper.SetOrdersValue(AutoEngineerMode.Road, _origForward, _origMaxSpeed, null, null);
+            Helper.SetOrdersValue(_origMode, _origForward, _origMaxSpeed, null, _origMode == AutoEngineerMode.Waypoint ? _origWaypoint : null);
             Say(say);
             _phase = Phase.Idle;
             _column = null;

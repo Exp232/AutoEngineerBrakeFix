@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.5.8
+- Water stop now also works for an engineer on **Waypoint orders**. Fast forward (`FastForwardWrangler`) only runs while an engineer has a Waypoint order, so the stop, which started only from Road orders, never fired when the engineer was switched to Waypoint mode to fast forward. It now takes water for a column that lies before the waypoint (the engineer's own remaining waypoint distance decides; a column beyond the destination is skipped), and puts the original waypoint, direction and speed back afterwards. Hold (spotting failed) still stops in Road mode at speed 0. A stop in progress is cancelled if you change the mode, waypoint, direction or speed. Note: fast forward ends by itself when the engineer is about to arrive at a waypoint, which includes the spot waypoint at the column.
+
 ## 2.5.7
 - Legacy speed limits: the speed boards are gone. Putting a board at each end of every limited stretch gave far too many on sidings. The mainline fix (clearing the legacy limit inside CTC blocks) is unchanged, and branches, yards and spurs keep their limits without boards. Boards left in a save by 2.5.5 are taken down once per load.
 - Water stop: the log now records the game's time scale when a stop is planned and when it switches to Waypoint mode, to find out what happens during fast forward. Fast forward (`FastForwardWrangler`) only runs while an engineer has a Waypoint order, ends when none has, and stops on any game notice; a Road-mode water stop was not designed around that yet.
