@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.5.10
+- Water stop, 2.5.9 test: both trains filled. EMR 5000 stopped 0.21 m past (stop gap 1.24 m); EMR 1 stopped 0.78 m past on the approach (gap 0.67 m), then needed two corrections (0.60 m short, then 0.14 m short) because its first correction still used the default gap.
+  - The learnt stop gaps are now kept per locomotive in `stopgaps.txt` in the mod folder and loaded next time, so the first approach of a later game already aims with them (they were forgotten at every restart).
+  - The default gap for a correction's waypoint is 0.7 m (was 1.2 m): corrections measured 0.57-0.75 m on EMR 1.
+
 ## 2.5.9
 - Water stop, small consists: the 2.5.8 test shows the train stops a different distance before its waypoint depending on the consist (EMR 5000 shoving 274 m: 1.4-1.8 m; EMR 1 alone: about 0.6-0.7 m). EMR 5000 filled on the first spot (0.33 m short, inside the 0.55 m reach). EMR 1 stopped 0.78 m past the spout, and its three corrections, each placed a fixed 1.2 m beyond the move, swung 0.78 past, 0.64 short, 0.62 past, 0.64 short, because the train really stops about 0.57 m before a correction's waypoint.
   - The mod now learns how far before its waypoint the train stops, per locomotive: from the approach (the aim past the spout against where the hatch ended up) and from each correction (the waypoint distance against the distance actually moved). The next approach aims with the learnt figure, and corrections use theirs (never under 1.15 m out, since a waypoint within about a metre counts as reached at once). The log shows both figures.

@@ -52,7 +52,7 @@ namespace AutoEngineerBrakeFix
         // the waypoint. Waypoint Queue uses 0.5 m. The same allowance makes a correction waypoint land where it should.
         private const float StopPastSpoutMeters = 1.45f;
         // A correction is measured standing, so only the arrival radius (about 1 m) and some creep apply.
-        private const float CorrectionPastMeters = 1.2f;
+        private const float CorrectionPastMeters = 0.7f;   // EMR 1 corrections stopped 0.6-0.75 m before their waypoint
         private const float ApproachTimeoutSeconds = 1200f;
         private const float NoFlowTimeoutSeconds = 90f;
         private const float FullFraction = 0.995f;
@@ -124,10 +124,59 @@ namespace AutoEngineerBrakeFix
         private float _lastDistanceTime;
         private readonly Dictionary<string, float> _cooldown = new Dictionary<string, float>();
 
+        // The learnt gaps are kept per locomotive in stopgaps.txt in the mod folder ("<car id> <approach> <correction>"),
+        // so the first approach of a later game already aims right.
+        private static Dictionary<string, float[]> _gapStore;
+
+        private static string GapFile => System.IO.Path.Combine(Main.Mod.Path, "stopgaps.txt");
+
+        private static Dictionary<string, float[]> Gaps()
+        {
+            if (_gapStore != null) return _gapStore;
+            _gapStore = new Dictionary<string, float[]>();
+            try
+            {
+                if (System.IO.File.Exists(GapFile))
+                {
+                    foreach (string line in System.IO.File.ReadAllLines(GapFile))
+                    {
+                        string[] p = line.Split(' ');
+                        if (p.Length == 3 && float.TryParse(p[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float a)
+                            && float.TryParse(p[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float c))
+                            _gapStore[p[0]] = new[] { a, c };
+                    }
+                }
+            }
+            catch (Exception e) { Main.Mod.Logger.Warning("Water stop: could not read stopgaps.txt: " + e.Message); }
+            return _gapStore;
+        }
+
+        private void SaveGaps()
+        {
+            try
+            {
+                Gaps()[_loco.id] = new[] { _approachGap, _correctionGap };
+                var lines = new List<string>();
+                foreach (KeyValuePair<string, float[]> kv in Gaps())
+                    lines.Add(string.Format(System.Globalization.CultureInfo.InvariantCulture, "{0} {1:0.00} {2:0.00}", kv.Key, kv.Value[0], kv.Value[1]));
+                System.IO.File.WriteAllLines(GapFile, lines.ToArray());
+            }
+            catch (Exception e) { Main.Mod.Logger.Warning("Water stop: could not write stopgaps.txt: " + e.Message); }
+        }
+
         private void Awake()
         {
             _ae = GetComponent<AutoEngineer>();
             _loco = GetComponent<BaseLocomotive>();
+            try
+            {
+                if (_loco != null && Gaps().TryGetValue(_loco.id, out float[] g))
+                {
+                    _approachGap = Mathf.Clamp(g[0], 0.3f, 2.5f);
+                    _correctionGap = Mathf.Clamp(g[1], 0.3f, 2f);
+                }
+            }
+            catch (Exception) { }
         }
 
         private void OnDisable()
@@ -484,6 +533,7 @@ namespace AutoEngineerBrakeFix
                 _approachGap = Mathf.Clamp(_approachAim + miss, 0.3f, 2.5f);
                 Main.Mod.Logger.Log($"Water stop ({Name}): the train stopped {_approachGap:0.00} m before its waypoint (aim {_approachAim:0.00} m past the spout).");
                 _approachAim = float.NaN;
+                SaveGaps();
             }
             else if (_lastCorrSign != 0f && !float.IsNaN(_lastMiss))
             {
@@ -494,6 +544,7 @@ namespace AutoEngineerBrakeFix
                     Main.Mod.Logger.Log($"Water stop ({Name}): the correction moved {moved:0.00} m of {_lastCorrOut:0.00} m, so the train stops {_correctionGap:0.00} m before a correction's waypoint.");
                 }
                 _lastCorrSign = 0f;
+                SaveGaps();
             }
             if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && off > reach)
             {
