@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.5.9
+- Water stop, small consists: the 2.5.8 test shows the train stops a different distance before its waypoint depending on the consist (EMR 5000 shoving 274 m: 1.4-1.8 m; EMR 1 alone: about 0.6-0.7 m). EMR 5000 filled on the first spot (0.33 m short, inside the 0.55 m reach). EMR 1 stopped 0.78 m past the spout, and its three corrections, each placed a fixed 1.2 m beyond the move, swung 0.78 past, 0.64 short, 0.62 past, 0.64 short, because the train really stops about 0.57 m before a correction's waypoint.
+  - The mod now learns how far before its waypoint the train stops, per locomotive: from the approach (the aim past the spout against where the hatch ended up) and from each correction (the waypoint distance against the distance actually moved). The next approach aims with the learnt figure, and corrections use theirs (never under 1.15 m out, since a waypoint within about a metre counts as reached at once). The log shows both figures.
+
 ## 2.5.8
 - Water stop now also works for an engineer on **Waypoint orders**. Fast forward (`FastForwardWrangler`) only runs while an engineer has a Waypoint order, so the stop, which started only from Road orders, never fired when the engineer was switched to Waypoint mode to fast forward. It now takes water for a column that lies before the waypoint (the engineer's own remaining waypoint distance decides; a column beyond the destination is skipped), and puts the original waypoint, direction and speed back afterwards. Hold (spotting failed) still stops in Road mode at speed 0. A stop in progress is cancelled if you change the mode, waypoint, direction or speed. Note: fast forward ends by itself when the engineer is about to arrive at a waypoint, which includes the spot waypoint at the column.
 

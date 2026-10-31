@@ -104,6 +104,14 @@ namespace AutoEngineerBrakeFix
         private bool _saidNoColumn;
         private int _corrections;
         private float _lastMiss = float.NaN;
+        // How far before its waypoint this engine's train really stops, learnt from the last stops (per locomotive):
+        // the first approach aims StopPastSpoutMeters past the spout; the corrections' waypoints are placed a gap
+        // beyond the move. Small consists stop closer to the waypoint than long ones (EMR 1: 0.6-0.7 m, EMR 5000: 1.4-1.8 m).
+        private float _approachGap = StopPastSpoutMeters;
+        private float _correctionGap = CorrectionPastMeters;
+        private float _approachAim = float.NaN;   // the aim of the approach waypoint (past the spout), until measured
+        private float _lastCorrOut;               // the last correction's waypoint distance
+        private float _lastCorrSign;              // +1 pulled ahead (short), -1 backed up (past), 0 none yet
         private int _stuckCorrections;
         private AutoEngineerMode _expectMode = AutoEngineerMode.Waypoint;   // the mode this component last ordered
         private bool _flowSeen;
@@ -211,6 +219,7 @@ namespace AutoEngineerBrakeFix
                     _corrections = 0;
                     _correctedAt = -1f;
                     _lastMiss = float.NaN;
+                    _lastCorrSign = 0f;
                     _stuckCorrections = 0;
                     _refills = 0;
                     _lastDistance = distance;
@@ -284,6 +293,7 @@ namespace AutoEngineerBrakeFix
                         Cancel("could not work out where to stop");
                         return;
                     }
+                    _approachAim = _approachGap;
                     _waypointString = Graph.LocationToString(target.Clamped());
                     Helper.SetOrdersValue(AutoEngineerMode.Waypoint, _origForward, Mathf.Min(_setMaxSpeed, approach), null, new OrderWaypoint(_waypointString, null));
                     _phase = Phase.Approaching;
@@ -468,6 +478,23 @@ namespace AutoEngineerBrakeFix
 
             float reach = ReachMeters();
             float off = Mathf.Sqrt(miss * miss + lateral * lateral);
+            if (!float.IsNaN(_approachAim) && _corrections == 0)
+            {
+                // The approach waypoint was _approachAim past the spout; the hatch stopped -miss past it.
+                _approachGap = Mathf.Clamp(_approachAim + miss, 0.3f, 2.5f);
+                Main.Mod.Logger.Log($"Water stop ({Name}): the train stopped {_approachGap:0.00} m before its waypoint (aim {_approachAim:0.00} m past the spout).");
+                _approachAim = float.NaN;
+            }
+            else if (_lastCorrSign != 0f && !float.IsNaN(_lastMiss))
+            {
+                float moved = _lastCorrSign * (_lastMiss - miss);
+                if (moved > MovedAtLeastMeters)
+                {
+                    _correctionGap = Mathf.Clamp(_lastCorrOut - moved, 0.3f, 2f);
+                    Main.Mod.Logger.Log($"Water stop ({Name}): the correction moved {moved:0.00} m of {_lastCorrOut:0.00} m, so the train stops {_correctionGap:0.00} m before a correction's waypoint.");
+                }
+                _lastCorrSign = 0f;
+            }
             if (!float.IsNaN(_lastMiss) && Mathf.Abs(miss - _lastMiss) < MovedAtLeastMeters && off > reach)
             {
                 _stuckCorrections++;
@@ -487,17 +514,20 @@ namespace AutoEngineerBrakeFix
             // as reached at once, and the train stops about that far before it. Neither a short waypoint nor a short Yard-mode move makes the train move
             // (2.5.4 and 2.5.5). Short: pull ahead. Past: back up with the other end leading, so that end arrives.
             bool fwd = miss > 0f ? _origForward : !_origForward;
+            float corrOut = Mathf.Max(Mathf.Abs(miss) + _correctionGap, 1.15f);   // under about a metre counts as reached at once
             Location lead = HeadLocation(fwd, out _);
-            Location target = lead.IsValid ? Graph.Shared.LocationByMoving(lead, Mathf.Abs(miss) + CorrectionPastMeters, false, true) : Location.Invalid;
+            Location target = lead.IsValid ? Graph.Shared.LocationByMoving(lead, corrOut, false, true) : Location.Invalid;
             if (!target.IsValid) { why = "there is no track to move along"; return false; }
             _corrections++;
+            _lastCorrOut = corrOut;
+            _lastCorrSign = miss > 0f ? 1f : -1f;
             _waypointString = Graph.LocationToString(target.Clamped());
             Helper.SetOrdersValue(AutoEngineerMode.Waypoint, fwd, Mathf.Min(_setMaxSpeed, 10), null, new OrderWaypoint(_waypointString, null));
             _expectMode = AutoEngineerMode.Waypoint;
             _graceUntil = now + 3f;
             _correctedAt = now;
             Say(miss > 0f ? "Pulling up to the spout." : "Backing up to the spout.");
-            Main.Mod.Logger.Log($"Water stop ({Name}): correction {_corrections}, {(miss > 0f ? "ahead" : "back")} {Mathf.Abs(miss):0.00} m (waypoint {Mathf.Abs(miss) + CorrectionPastMeters:0.00} m out, {_waypointString}).");
+            Main.Mod.Logger.Log($"Water stop ({Name}): correction {_corrections}, {(miss > 0f ? "ahead" : "back")} {Mathf.Abs(miss):0.00} m (waypoint {corrOut:0.00} m out, {_waypointString}).");
             return false;
         }
 
@@ -759,7 +789,7 @@ namespace AutoEngineerBrakeFix
             if (graph == null || headToHatch <= 0.5f) return false;
 
             Location toward = graph.LocationOrientedToward(column.Location, hatchAt);
-            target = graph.LocationByMoving(toward, -(headToHatch + StopPastSpoutMeters), false, true);
+            target = graph.LocationByMoving(toward, -(headToHatch + _approachGap), false, true);
             return target.IsValid;
         }
 
