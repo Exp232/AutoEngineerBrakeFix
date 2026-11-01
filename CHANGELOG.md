@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.8.0
+
+- Works with the new **Mod Settings Hub** (`exp232/modsettingshub`): when it is installed, the settings page appears in its window (Ctrl+F7 or the button in the top-right menu), and Ctrl+F8 opens the hub on this mod's page. Without the hub nothing changes: Ctrl+F8 opens this mod's own window as before. The link is by reflection (`HubLink.cs`), works in either load order, and is not listed in `Info.json`. No change to driving or fuel use.
+
 ## 2.7.5
 
 - Logging only, no change to driving or fuel use: **diesel locomotives are now in the fuel logs**. The sampler log (`ae_*.csv`) fills `fuelId` ("diesel") and `fuelQty` (gallons in the locomotive's own tank, read from its fuel load slot) for a diesel, and has a new `dieselGps` column (the prime mover's fuel use, gallons a second, the same figure the game takes out of the tank). The fuel summary (`fuel_summary_*.csv`) has four new columns before `setup`: `dieselGal`, `dieselGalPerMile`, `dieselGalPer1000Gtm` and `dieselStandingGal` (fuel burned below 0.3 mph). Steam columns are unchanged and stay 0 for a diesel. A new column shifts the later columns; read them by name.

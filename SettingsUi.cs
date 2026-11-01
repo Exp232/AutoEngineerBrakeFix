@@ -19,6 +19,7 @@ namespace AutoEngineerBrakeFix
 
         internal static void Toggle()
         {
+            if (HubLink.Toggle()) return;   // the Mod Settings Hub is installed: it shows this mod's page
             var windows = WindowManager.Shared;
             if (windows == null) return;   // main menu: the window system is not up yet
             EnsureRegistered(windows);
@@ -38,96 +39,107 @@ namespace AutoEngineerBrakeFix
             });
         }
 
+        // The window as the mod opens it itself: the page inside a scroll view.
         private static void Build(UIPanelBuilder builder)
         {
             try
             {
+                builder.VScrollView(BuildPage);
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.LogException(e);
+            }
+        }
+
+        /// <summary>The page itself, without a scroll view, so it also fits into the Mod Settings Hub window.</summary>
+        internal static void BuildPage(UIPanelBuilder page)
+        {
+            try
+            {
                 var s = Main.Settings;
-                builder.VScrollView(page =>
+                page.AddTitle("Auto Engineer", "AutoEngineerBrakeFix " + Main.Mod.Info.Version);
+
+                page.AddSection("Fuel saving", b =>
                 {
-                    page.AddTitle("Auto Engineer", "AutoEngineerBrakeFix " + Main.Mod.Info.Version);
+                    Note(b, "Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
+                    Slider(b, "Brake tap limit", () => s.BrakeTapSuppressMph, v => s.BrakeTapSuppressMph = v, 0f, 5f, 0.5f,
+                        v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
+                    Note(b, "Coast band: closes the throttle when coasting holds the speed within this band below the target (or the grade is still picking the train up), and waits to brake until the train is this far over. 0 = off.");
+                    Slider(b, "Coast band", () => s.CoastBandMph, v => s.CoastBandMph = v, 0f, 3f, 0.5f,
+                        v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
+                    Note(b, "Coast band pickup: on a downhill, power stays off only if the grade alone reaches the target within this many seconds; otherwise the engineer accelerates. 0 = always off.");
+                    Slider(b, "Pickup horizon", () => s.CoastBandAssistSeconds, v => s.CoastBandAssistSeconds = v, 0f, 90f, 5f,
+                        v => v <= 0f ? "always" : v.ToString("0") + " s");
+                    Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
+                    Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
+                        v => v <= 0f ? "off" : v.ToString("0") + " s");
+                    Note(b, "Shorter cutoff: how much power it may give up for a shorter cutoff.");
+                    Slider(b, "Cutoff tolerance", () => s.CutoffTolerancePercent, v => s.CutoffTolerancePercent = v, 0f, 10f, 0.5f,
+                        v => v.ToString("0.0") + " %");
+                });
 
-                    page.AddSection("Fuel saving", b =>
-                    {
-                        Note(b, "Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
-                        Slider(b, "Brake tap limit", () => s.BrakeTapSuppressMph, v => s.BrakeTapSuppressMph = v, 0f, 5f, 0.5f,
-                            v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
-                        Note(b, "Coast band: closes the throttle when coasting holds the speed within this band below the target (or the grade is still picking the train up), and waits to brake until the train is this far over. 0 = off.");
-                        Slider(b, "Coast band", () => s.CoastBandMph, v => s.CoastBandMph = v, 0f, 3f, 0.5f,
-                            v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
-                        Note(b, "Coast band pickup: on a downhill, power stays off only if the grade alone reaches the target within this many seconds; otherwise the engineer accelerates. 0 = always off.");
-                        Slider(b, "Pickup horizon", () => s.CoastBandAssistSeconds, v => s.CoastBandAssistSeconds = v, 0f, 90f, 5f,
-                            v => v <= 0f ? "always" : v.ToString("0") + " s");
-                        Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
-                        Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
-                            v => v <= 0f ? "off" : v.ToString("0") + " s");
-                        Note(b, "Shorter cutoff: how much power it may give up for a shorter cutoff.");
-                        Slider(b, "Cutoff tolerance", () => s.CutoffTolerancePercent, v => s.CutoffTolerancePercent = v, 0f, 10f, 0.5f,
-                            v => v.ToString("0.0") + " %");
-                    });
+                page.AddSection("Fuel use", b =>
+                {
+                    b.AddFieldToggle("Realistic fuel", () => s.RealisticFuel, v => { s.RealisticFuel = v; Save(); });
+                    Note(b, "Steam and coal follow the engine's own power instead of the game's speed-based curve, so fast running no longer costs too much. Off = the game's own use. Takes effect at once; steam rate, efficiency and coal scale are in Settings.xml.");
+                });
 
-                    page.AddSection("Fuel use", b =>
-                    {
-                        b.AddFieldToggle("Realistic fuel", () => s.RealisticFuel, v => { s.RealisticFuel = v; Save(); });
-                        Note(b, "Steam and coal follow the engine's own power instead of the game's speed-based curve, so fast running no longer costs too much. Off = the game's own use. Takes effect at once; steam rate, efficiency and coal scale are in Settings.xml.");
-                    });
+                page.AddSection("Water stop (Road mode)", b =>
+                {
+                    b.AddFieldToggle("Water stop", () => s.WaterStop, v => { s.WaterStop = v; Save(); });
+                    Note(b, "When the tender runs low, a Road-mode engineer takes water at the next column ahead on the lined route. It switches to Waypoint mode only in the column's signal block, then goes back to Road mode.");
+                    Slider(b, "Stop below", () => s.WaterStopPercent, v => s.WaterStopPercent = v, 10f, 60f, 5f,
+                        v => v.ToString("0") + " % water");
+                    Slider(b, "Approach speed", () => s.WaterStopApproachMph, v => s.WaterStopApproachMph = v, 10f, 35f, 5f,
+                        v => v.ToString("0") + " mph");
+                });
 
-                    page.AddSection("Water stop (Road mode)", b =>
-                    {
-                        b.AddFieldToggle("Water stop", () => s.WaterStop, v => { s.WaterStop = v; Save(); });
-                        Note(b, "When the tender runs low, a Road-mode engineer takes water at the next column ahead on the lined route. It switches to Waypoint mode only in the column's signal block, then goes back to Road mode.");
-                        Slider(b, "Stop below", () => s.WaterStopPercent, v => s.WaterStopPercent = v, 10f, 60f, 5f,
-                            v => v.ToString("0") + " % water");
-                        Slider(b, "Approach speed", () => s.WaterStopApproachMph, v => s.WaterStopApproachMph = v, 10f, 35f, 5f,
-                            v => v.ToString("0") + " mph");
-                    });
+                page.AddSection("Legacy speed limits", b =>
+                {
+                    b.AddFieldToggle("Fix legacy limits", () => s.LegacySpeedLimits, v => { s.LegacySpeedLimits = v; Save(); });
+                    Note(b, "The game still enforces the map's old per-track speed limits but no longer shows them. On: they are cleared on the mainline (track in CTC signal blocks) and kept on branches, yards and spurs. Takes a few seconds; off puts them back.");
+                });
 
-                    page.AddSection("Legacy speed limits", b =>
-                    {
-                        b.AddFieldToggle("Fix legacy limits", () => s.LegacySpeedLimits, v => { s.LegacySpeedLimits = v; Save(); });
-                        Note(b, "The game still enforces the map's old per-track speed limits but no longer shows them. On: they are cleared on the mainline (track in CTC signal blocks) and kept on branches, yards and spurs. Takes a few seconds; off puts them back.");
-                    });
+                page.AddSection("Engineer status", b =>
+                {
+                    b.AddFieldToggle("Detailed status", () => s.DetailedStatus, v => { s.DetailedStatus = v; Save(); });
+                    Note(b, "The status line under the auto engineer controls names what sets the speed (posted or railroad limit, track class, curve, curve held down by the equipment, engine top speed, this mod's water stop and approach hold) and how far ahead it is. Hover it for the details and the targets ahead.");
+                    b.AddFieldToggle("Metric distances", () => s.StatusMetric, v => { s.StatusMetric = v; Save(); });
+                    Note(b, "Off: feet and miles. On: metres and kilometres.");
+                });
 
-                    page.AddSection("Engineer status", b =>
-                    {
-                        b.AddFieldToggle("Detailed status", () => s.DetailedStatus, v => { s.DetailedStatus = v; Save(); });
-                        Note(b, "The status line under the auto engineer controls names what sets the speed (posted or railroad limit, track class, curve, curve held down by the equipment, engine top speed, this mod's water stop and approach hold) and how far ahead it is. Hover it for the details and the targets ahead.");
-                        b.AddFieldToggle("Metric distances", () => s.StatusMetric, v => { s.StatusMetric = v; Save(); });
-                        Note(b, "Off: feet and miles. On: metres and kilometres.");
-                    });
+                page.AddSection("Planner weights (1 = the game's own)", b =>
+                {
+                    Slider(b, "Overspeed", () => s.PlanOverspeedScale, v => s.PlanOverspeedScale = v, 0f, 3f, 0.05f, Weight);
+                    Slider(b, "Undershoot", () => s.PlanUndershootScale, v => s.PlanUndershootScale = v, 0f, 3f, 0.05f, Weight);
+                    Slider(b, "Undershoot margin", () => s.PlanUndershootDeadbandScale, v => s.PlanUndershootDeadbandScale = v, 0f, 3f, 0.05f, Weight);
+                    Slider(b, "Ceiling", () => s.PlanCeilingScale, v => s.PlanCeilingScale = v, 0f, 3f, 0.05f, Weight);
+                    Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 3f, 0.05f, Weight);
+                });
 
-                    page.AddSection("Planner weights (1 = the game's own)", b =>
-                    {
-                        Slider(b, "Overspeed", () => s.PlanOverspeedScale, v => s.PlanOverspeedScale = v, 0f, 3f, 0.05f, Weight);
-                        Slider(b, "Undershoot", () => s.PlanUndershootScale, v => s.PlanUndershootScale = v, 0f, 3f, 0.05f, Weight);
-                        Slider(b, "Undershoot margin", () => s.PlanUndershootDeadbandScale, v => s.PlanUndershootDeadbandScale = v, 0f, 3f, 0.05f, Weight);
-                        Slider(b, "Ceiling", () => s.PlanCeilingScale, v => s.PlanCeilingScale = v, 0f, 3f, 0.05f, Weight);
-                        Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 3f, 0.05f, Weight);
-                    });
+                page.AddSection("Logging", b =>
+                {
+                    b.AddFieldToggle("Fuel summary", () => s.LogFuelSummary, v => { s.LogFuelSummary = v; Save(); });
+                });
 
-                    page.AddSection("Logging", b =>
-                    {
-                        b.AddFieldToggle("Fuel summary", () => s.LogFuelSummary, v => { s.LogFuelSummary = v; Save(); });
-                    });
+                page.AddSection("Fixes", b =>
+                {
+                    b.AddFieldToggle("Fuel in fast-forward", () => s.FuelFollowsTimeWarp, v => { s.FuelFollowsTimeWarp = v; Save(); });
+                    Note(b, "The game charges one second of fuel per update however much time passed, so fast-forward used about a third of the coal. This charges the real game time.");
+                    b.AddFieldToggle("Fusee in fast-forward", () => s.GuardFuseeCamera, v => { s.GuardFuseeCamera = v; Save(); });
+                    Note(b, "Fast-forward switches the main camera off and the game's fusee code then throws an error on every frame. This skips the fusee update while there is no camera.");
+                });
 
-                    page.AddSection("Fixes", b =>
-                    {
-                        b.AddFieldToggle("Fuel in fast-forward", () => s.FuelFollowsTimeWarp, v => { s.FuelFollowsTimeWarp = v; Save(); });
-                        Note(b, "The game charges one second of fuel per update however much time passed, so fast-forward used about a third of the coal. This charges the real game time.");
-                        b.AddFieldToggle("Fusee in fast-forward", () => s.GuardFuseeCamera, v => { s.GuardFuseeCamera = v; Save(); });
-                        Note(b, "Fast-forward switches the main camera off and the game's fusee code then throws an error on every frame. This skips the fusee update while there is no camera.");
-                    });
+                page.AddSection("", b =>
+                {
+                    b.AddButton("Reset these to defaults", ResetDefaults);
+                    Note(b, "Saved to Settings.xml as you change them. Other settings, and anything that switches a feature on or off at start-up, are edited in that file and need a restart.");
+                });
 
-                    page.AddSection("", b =>
-                    {
-                        b.AddButton("Reset these to defaults", ResetDefaults);
-                        Note(b, "Saved to Settings.xml as you change them. Other settings, and anything that switches a feature on or off at start-up, are edited in that file and need a restart.");
-                    });
-
-                    page.AddSection("Self-check", b =>
-                    {
-                        foreach (string line in SelfCheck.Report) Note(b, line);
-                    });
+                page.AddSection("Self-check", b =>
+                {
+                    foreach (string line in SelfCheck.Report) Note(b, line);
                 });
             }
             catch (Exception e)

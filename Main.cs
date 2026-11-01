@@ -102,6 +102,10 @@ namespace AutoEngineerBrakeFix
                 Mod.Logger.Warning("Settings window hotkey could not be set up: " + e.Message);
             }
 
+            // Puts this mod's settings page into the Mod Settings Hub when that is installed (found by reflection,
+            // in either load order); without it the mod opens its own window as before.
+            HubLink.Register(context.ModIdentifier, "Auto Engineer Brake Fix", Mod.Info.Version, SettingsUi.BuildPage);
+
             try
             {
                 // Does nothing until the setting is on (the self-check switches the setting off if the game changed).
@@ -124,6 +128,7 @@ namespace AutoEngineerBrakeFix
         internal static void Shutdown()
         {
             Active = false;
+            HubLink.Unregister();
             if (_harmony != null)
             {
                 _harmony.UnpatchAll(_harmony.Id);
