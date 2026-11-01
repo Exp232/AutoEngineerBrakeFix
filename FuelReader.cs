@@ -62,9 +62,38 @@ namespace AutoEngineerBrakeFix
             return (tender.GetLoadInfo(slot)?.Quantity ?? 0f) / capacity;
         }
 
+        /// <summary>
+        /// Diesel fuel use in gallons per second (DieselLocomotive.PeriodicUpdate takes PrimeMover.FuelConsumptionRate x dt
+        /// out of the fuel slot), or NaN for any other locomotive.
+        /// </summary>
+        internal static float DieselRate(BaseLocomotive loco)
+        {
+            var diesel = loco as DieselLocomotive;
+            if (diesel == null || diesel.primeMover == null) return float.NaN;
+            return diesel.primeMover.FuelConsumptionRate;
+        }
+
+        /// <summary>Gallons of fuel in a diesel locomotive's own tank (its FuelLoadId slot), or NaN.</summary>
+        private static float DieselFuel(DieselLocomotive diesel)
+        {
+            string loadId = (diesel.Definition as LocomotiveDefinition)?.FuelLoadId;
+            if (string.IsNullOrEmpty(loadId)) return float.NaN;
+            int slot = diesel.Definition.LoadSlots.FindIndex((LoadSlot loadSlot) => loadSlot.RequiredLoadIdentifier == loadId);
+            if (slot < 0) return float.NaN;
+            return diesel.GetLoadInfo(slot)?.Quantity ?? 0f;
+        }
+
         internal static Reading Read(BaseLocomotive loco)
         {
             Reading result = Reading.Empty();
+
+            var diesel = loco as DieselLocomotive;
+            if (diesel != null)
+            {
+                result.FuelId = "diesel";
+                result.Fuel = DieselFuel(diesel);
+                return result;
+            }
 
             var steam = loco as SteamLocomotive;
             if (steam == null || MFuelCar == null) return result;

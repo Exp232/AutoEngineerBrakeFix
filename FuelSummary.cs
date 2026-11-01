@@ -26,12 +26,12 @@ namespace AutoEngineerBrakeFix
         private const float MpsToMph = 2.23694f;
         private const float CylinderPsi = 1f;   // average cylinder pressure above this counts as braking
 
-        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy,grossTons,gtMiles,coalPer1000Gtm,waterGalPer1000Gtm,powerCuts,brakesHeld,setup";
+        private const string Header = "clock,loco,minutes,miles,coalLb,coalPerMile,waterGal,poweredLb,coastingLb,brakingLb,bothLb,poweredMin,coastingMin,brakingMin,bothMin,standingMin,brakeApps,tapApps,tapsSuppressed,tapWhy,grossTons,gtMiles,coalPer1000Gtm,waterGalPer1000Gtm,powerCuts,brakesHeld,dieselGal,dieselGalPerMile,dieselGalPer1000Gtm,dieselStandingGal,setup";
 
         private sealed class Tally
         {
             public float LastWrite = float.NaN;
-            public double Coal, Water, Dist, Seconds, GrossTonMiles;
+            public double Coal, Water, Dist, Seconds, GrossTonMiles, Diesel, DieselStanding;
             public float Tons = float.NaN;
             public readonly double[] PhaseCoal = new double[5];   // powered, coasting, braking, both, standing
             public readonly double[] PhaseSeconds = new double[5];
@@ -62,7 +62,7 @@ namespace AutoEngineerBrakeFix
             if (ae != null) Tallies.GetOrCreateValue(ae).BrakesHeld++;
         }
 
-        internal static void Tick(AutoEngineer ae, float dt, float speedMps, float throttle, float trainCylPsi, float locoCylPsi, float coalLbs, float waterGps, float grossTons)
+        internal static void Tick(AutoEngineer ae, float dt, float speedMps, float throttle, float trainCylPsi, float locoCylPsi, float coalLbs, float waterGps, float grossTons, float dieselGps = float.NaN)
         {
             Tally t = Tallies.GetOrCreateValue(ae);
             float now = Time.fixedTime;
@@ -78,6 +78,9 @@ namespace AutoEngineerBrakeFix
             bool powered = throttle > 0.01f;
 
             int phase = v < 0.3f ? 4 : powered && anyBrake ? 3 : anyBrake ? 2 : powered ? 0 : 1;
+            float diesel = float.IsNaN(dieselGps) ? 0f : dieselGps * dt;
+            t.Diesel += diesel;
+            if (phase == 4) t.DieselStanding += diesel;
             t.Coal += coal; t.Water += water; t.Dist += v * dt; t.Seconds += dt;
             t.PhaseCoal[phase] += coal; t.PhaseSeconds[phase] += dt;
             if (!float.IsNaN(grossTons))
@@ -131,6 +134,8 @@ namespace AutoEngineerBrakeFix
                 t.GrossTonMiles > 20 ? N(t.Coal / t.GrossTonMiles * 1000.0, "0.0") : "",
                 t.GrossTonMiles > 20 ? N(t.Water / t.GrossTonMiles * 1000.0, "0.0") : "",
                 t.PowerCuts.ToString(CultureInfo.InvariantCulture), t.BrakesHeld.ToString(CultureInfo.InvariantCulture),
+                N(t.Diesel, "0.0"), miles > 0.05 && t.Diesel > 0 ? N(t.Diesel / miles, "0.00") : "",
+                t.GrossTonMiles > 20 && t.Diesel > 0 ? N(t.Diesel / t.GrossTonMiles * 1000.0, "0.00") : "", N(t.DieselStanding, "0.0"),
                 Main.Settings.Describe());
 
             lock (Lock)

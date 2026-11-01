@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.7.5
+
+- Logging only, no change to driving or fuel use: **diesel locomotives are now in the fuel logs**. The sampler log (`ae_*.csv`) fills `fuelId` ("diesel") and `fuelQty` (gallons in the locomotive's own tank, read from its fuel load slot) for a diesel, and has a new `dieselGps` column (the prime mover's fuel use, gallons a second, the same figure the game takes out of the tank). The fuel summary (`fuel_summary_*.csv`) has four new columns before `setup`: `dieselGal`, `dieselGalPerMile`, `dieselGalPer1000Gtm` and `dieselStandingGal` (fuel burned below 0.3 mph). Steam columns are unchanged and stay 0 for a diesel. A new column shifts the later columns; read them by name.
+
 ## 2.7.4
 
 - Water stop: a station stop on the way to the column now comes first. At Almond the platform is 167 m short of the column, and the column's block is long, so the water stop switched to Waypoint mode 1.1 km out and the station stop ran under it. Now, while a "Station Stop" target is listed between the train and the column, the water stop stays armed in Road orders (the game serves the station as usual) and takes over once the platform is behind it. The log says "a station stop comes before the column ... waiting". The detailed status shows Station Stop, not Water Spotting, while the station is what the train is stopping for.

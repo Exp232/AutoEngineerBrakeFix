@@ -117,7 +117,7 @@ namespace AutoEngineerBrakeFix
                     _locoCylPsi = float.IsNaN(l) ? 0f : l;
                 }
                 FuelSummary.Tick(_ae, Time.fixedDeltaTime, loco.velocity, ReadFloat(control, "Throttle"), _trainCylPsi, _locoCylPsi,
-                    SteamValue(loco, 2), SteamValue(loco, 1), GrossTons(loco));
+                    SteamValue(loco, 2), SteamValue(loco, 1), GrossTons(loco), FuelReader.DieselRate(loco));
             }
             catch (Exception e)
             {
@@ -243,7 +243,8 @@ namespace AutoEngineerBrakeFix
                 .Add("tenders", fuel.Tenders)
                 .Add("teLbf", SteamValue(loco, 0))
                 .Add("waterGps", SteamValue(loco, 1))
-                .Add("coalLbs", SteamValue(loco, 2));
+                .Add("coalLbs", SteamValue(loco, 2))
+                .Add("dieselGps", FuelReader.DieselRate(loco));
 
             AddSignal(row, targets);
             AddGuidance(row);
