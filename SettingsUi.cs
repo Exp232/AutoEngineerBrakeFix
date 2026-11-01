@@ -19,7 +19,6 @@ namespace AutoEngineerBrakeFix
 
         internal static void Toggle()
         {
-            if (HubLink.Toggle()) return;   // the Mod Settings Hub is installed: it shows this mod's page
             var windows = WindowManager.Shared;
             if (windows == null) return;   // main menu: the window system is not up yet
             EnsureRegistered(windows);

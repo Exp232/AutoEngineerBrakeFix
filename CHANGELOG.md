@@ -1,8 +1,12 @@
 # Changelog
 
+## 2.8.1
+
+- Mod Settings Hub: Ctrl+F8 opens this mod's own settings window again, as before 2.8.0, whether or not the hub is installed (2.8.0 sent it to the hub). The page still appears in the hub's window. No change to driving or fuel use.
+
 ## 2.8.0
 
-- Works with the new **Mod Settings Hub** (`exp232/modsettingshub`): when it is installed, the settings page appears in its window (Ctrl+F7 or the button in the top-right menu), and Ctrl+F8 opens the hub on this mod's page. Without the hub nothing changes: Ctrl+F8 opens this mod's own window as before. The link is by reflection (`HubLink.cs`), works in either load order, and is not listed in `Info.json`. No change to driving or fuel use.
+- Works with the new **Mod Settings Hub** (`exp232/modsettingshub`): when it is installed, the settings page appears in its window (Ctrl+F7 or the button in the top-right menu). The link is by reflection (`HubLink.cs`), works in either load order, and is not listed in `Info.json`. No change to driving or fuel use.
 
 ## 2.7.5
 

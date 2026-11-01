@@ -53,14 +53,6 @@ namespace AutoEngineerBrakeFix
             }
         }
 
-        /// <summary>Shows or hides this mod's page in the hub. False when the hub is missing or could not do it.</summary>
-        internal static bool Toggle()
-        {
-            if (!_registered) return false;
-            object handled = Call("ToggleFor", new[] { typeof(string) }, new object[] { _id });
-            return handled is bool && (bool)handled;
-        }
-
         private static void OnAssemblyLoad(object sender, AssemblyLoadEventArgs args)
         {
             if (args.LoadedAssembly.GetName().Name == HubAssembly) TryRegister();
