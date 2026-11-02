@@ -159,7 +159,7 @@ namespace AutoEngineerBrakeFix
                     AlwaysPatch = true,
                     On = () => s.AvoidPowerIntoReductions,
                     TurnOff = () => s.AvoidPowerIntoReductions = false,
-                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.AllTargets", "Targets.AverageGradeUnder" },
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.AllTargets", "Targets.AverageGradeUnder" },
                     Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
                 },
                 new Feature
@@ -176,7 +176,7 @@ namespace AutoEngineerBrakeFix
                     AlwaysPatch = true,
                     On = () => s.StallGuard,
                     TurnOff = () => s.StallGuard = false,
-                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae", "AutoEngineer.StartMovement()", "AutoEngineer.SetTargets(Targets)", "AutoEngineer._targets", "AutoEngineer._control", "Targets.Mode", "Targets.MaxSpeedMph", "Targets.AverageGradeUnder", "AutoEngineerPlanner.Say(string)" },
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer.StartMovement()", "AutoEngineer.SetTargets(Targets)", "AutoEngineer._targets", "AutoEngineer._control", "Targets.Mode", "Targets.MaxSpeedMph", "Targets.AverageGradeUnder", "AutoEngineerPlanner.Say(string)" },
                     Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch), typeof(AutoEngineer_OnEnable_Patch), typeof(AutoEngineer_StartMovement_Patch), typeof(AutoEngineer_SetTargets_Patch) },
                 },
                 new Feature
@@ -377,7 +377,7 @@ namespace AutoEngineerBrakeFix
             var wanted = new List<Type>();
             foreach (var f in features)
             {
-                string[] missing = f.Needs.Where(n => !found[n]).ToArray();
+                string[] missing = f.Needs.Where(n => !found.TryGetValue(n, out var okN) || !okN).ToArray();
                 if (!f.On())
                 {
                     if (f.AlwaysPatch && missing.Length == 0)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.4
+
+- **Fix: the mod failed to load in 2.9.0-2.9.3** ("The given key 'AutoEngineer.SpeedControlLoop._ae' was not present"). The stall guard and no-power-into-reductions self-check entries named a target the check does not list. They now use the listed one, and an unknown target counts as missing instead of stopping the load.
+
 ## 2.9.3
 
 - No code change. `CLAUDE.md` rewritten for the 0.6 rollout controller and the BuildWatcher build workflow.
