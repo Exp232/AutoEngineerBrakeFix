@@ -179,17 +179,16 @@ namespace AutoEngineerBrakeFix
             st.StandTimer = 0f;
             ReadOrders(ae, out st.LatchMode, out st.LatchSign);
             st.WpHold = false;
-            if (TryOrders(ae, out Orders orders) && orders.Mode == AutoEngineerMode.Waypoint)
+            if (TryOrders(ae, out Orders orders) && (orders.Mode == AutoEngineerMode.Waypoint || orders.Mode == AutoEngineerMode.Road))
             {
-                // Waypoint mode: the planner would keep re-planning and driving at the grade, so set the speed order
+                // Waypoint and Road modes: the planner would keep re-planning and driving at the grade, so set the speed order
                 // to 0 (as the game does for an empty tender) and tell the player how to try again.
                 st.WpHold = true;
                 st.LatchWaypoint = orders.Waypoint;
                 st.NextHold = now + 0.25f;
                 try
                 {
-                    var persistence = new AutoEngineerPersistence(ae.Locomotive.KeyValueObject);
-                    persistence.Orders = orders.WithMaxSpeedMph(0);
+                    new AutoEngineerPersistence(ae.Locomotive.KeyValueObject).Orders = orders.WithMaxSpeedMph(0);
                     logLine += " Speed order set to 0 mph.";
                     say += " Speed set to 0 mph - set a speed again to retry.";
                 }
@@ -213,14 +212,14 @@ namespace AutoEngineerBrakeFix
         }
 
         /// <summary>
-        /// Waypoint mode: the train rolls back against its order. That is a grade the train cannot climb, so the
+        /// Waypoint and Road modes: the train rolls back against its order. That is a grade the train cannot climb, so the
         /// stall is declared at once (the speed order goes to 0, the brakes hold, the player is told). The detector is
         /// armed once the train has moved the ordered way or the engineer has applied power to a standing train; a new
         /// direction or waypoint disarms it, so the run-out of the old direction after a reversal is not a rollback.
         /// </summary>
         private static bool CheckRollback(AutoEngineer ae, State st)
         {
-            if (!TryOrders(ae, out Orders o) || o.Mode != AutoEngineerMode.Waypoint || o.MaxSpeedMph <= 0) { st.Armed = false; return false; }
+            if (!TryOrders(ae, out Orders o) || (o.Mode != AutoEngineerMode.Waypoint && o.Mode != AutoEngineerMode.Road) || o.MaxSpeedMph <= 0) { st.Armed = false; return false; }
             int fwd = o.Forward ? 1 : -1;
             if (fwd != st.SeenForward || !Nullable.Equals(o.Waypoint, st.SeenWaypoint))
             {

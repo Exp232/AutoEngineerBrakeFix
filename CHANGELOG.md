@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.9.7
+
+- **Road mode too**: a rollback (and any other stall) in Road mode now has the same effect as in Waypoint mode. The guard latches, sets the speed order to 0 mph, holds the brakes and tells the player; setting a speed again clears it.
 ## 2.9.6
 
 - **Rollback latches the stall guard at once** (Waypoint mode). The 4 s full-throttle count from 2.9.5 is gone: as soon as the train rolls back against its order (over 0.5 mph) the guard latches, sets the speed order to 0 mph, holds the brakes and tells the player. It is armed once the train has moved the ordered way or power has been applied to a standing train; a new direction or waypoint disarms it, so the run-out after a reversal does not count.

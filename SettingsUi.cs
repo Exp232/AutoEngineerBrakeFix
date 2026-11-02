@@ -99,7 +99,7 @@ namespace AutoEngineerBrakeFix
                 page.AddSection("Stall guard", b =>
                 {
                     b.AddFieldToggle("Stall guard", () => s.StallGuard, v => { s.StallGuard = v; Save(); });
-                    Note(b, "A train that cannot climb a grade or get moving is held with the brakes and the engineer says so, instead of looping through full throttle and rolling back. Clears when the engineer is switched off and on, or its direction or mode changes. In Waypoint mode it also sets the speed order to 0 mph; set a speed again to retry.");
+                    Note(b, "A train that cannot climb a grade or get moving is held with the brakes and the engineer says so, instead of looping through full throttle and rolling back. Clears when the engineer is switched off and on, or its direction or mode changes. In Waypoint and Road modes it also sets the speed order to 0 mph; set a speed again to retry.");
                     Slider(b, "Stall time", () => s.StallSeconds, v => s.StallSeconds = v, 3f, 30f, 1f,
                         v => v.ToString("0") + " s");
                 });
