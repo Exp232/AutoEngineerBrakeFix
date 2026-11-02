@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Model.AI;
-using UnityEngine;
 
 namespace AutoEngineerBrakeFix
 {
@@ -15,22 +13,9 @@ namespace AutoEngineerBrakeFix
         Throttle
     }
 
-    internal sealed class EngineerInfo
-    {
-        /// <summary>Times the fix stopped a new brake application the game's PID wanted to make.</summary>
-        public int BlockedApplies;
-
-        /// <summary>Times the fix released a brake the game's PID would have left applied.</summary>
-        public int ForcedReleases;
-
-        /// <summary>The throttle PID's registration, used by the glider.</summary>
-        public PidInfo ThrottlePid;
-    }
-
     internal sealed class PidInfo
     {
         public AutoEngineer Engineer;
-        public EngineerInfo Info;
         public PidKind Kind;
 
         // Throttle smoothing state (only used for PidKind.Throttle).
@@ -48,38 +33,16 @@ namespace AutoEngineerBrakeFix
     }
 
     /// <summary>
-    /// The fix. In road mode the auto-engineer regulates speed with a throttle PID and a brake PID that are
-    /// centered on the same setpoint, with no gap between them. Logs from a loaded train showed the train brake
-    /// being applied by the PID's derivative term as the speed error closed toward zero (even at full throttle),
-    /// and then staying on for minutes because it only releases when the PID output drops below
-    /// trainBrakeReleaseBelowOutput, which a train holding speed never does.
-    ///
-    /// The rule: while the throttle is open and speed is not above the padded setpoint by more than a margin,
-    /// the brake PID's output is replaced with a release value. Real overspeed (error beyond the margin) is
-    /// left to the game's own logic, and nothing changes while the throttle is closed (descents, stops).
-    ///
-    /// We never touch MaintainSpeed() itself (a coroutine); we only adjust the return value of
-    /// PIDController.Compute for the two brake PIDs that belong to a registered AutoEngineer.
+    /// Access to the engineer's control state (throttle, brakes) by reflection, shared by the stall guard, the
+    /// throttle smoother and the glider. The old brake-drag fix that lived here worked on the PID speed loop that
+    /// 0.6.0 removed, and is gone.
     /// </summary>
     internal static class BrakeFix
     {
-        private const float MpsPerMph = 0.44703928f; // same constant the game uses
-        private const float ThrottleOpenThreshold = 0.05f;
-        private const float ApplyThreshold = 0.01f;  // the game applies the train brake above this PID output
         private const float BrakeOnThreshold = 0.001f;
         private const BindingFlags Members = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
         private static readonly FieldInfo FControl = AccessTools.Field(typeof(AutoEngineer), "_control");
-        private static readonly FieldInfo FConfig = AccessTools.Field(typeof(AutoEngineer), "_config");
-        private static readonly FieldInfo FIndependentPid = AccessTools.Field(typeof(AutoEngineer), "independentController");
-        private static readonly FieldInfo FThrottlePid = AccessTools.Field(typeof(AutoEngineer), "throttleController");
-        private static readonly FieldInfo FTrainBrakePid = AccessTools.Field(typeof(AutoEngineer), "trainBrakeController");
-
-        private static readonly ConditionalWeakTable<PIDController, PidInfo> Pids =
-            new ConditionalWeakTable<PIDController, PidInfo>();
-
-        private static readonly ConditionalWeakTable<AutoEngineer, EngineerInfo> Engineers =
-            new ConditionalWeakTable<AutoEngineer, EngineerInfo>();
 
         // The control helper's Throttle/TrainBrake/LocomotiveBrake may be properties or fields; resolve once per name.
         private sealed class Accessor
@@ -90,148 +53,15 @@ namespace AutoEngineerBrakeFix
 
         private static readonly Dictionary<string, Accessor> ControlAccessors = new Dictionary<string, Accessor>();
 
-        private static bool _loggedError;
-
         /// <summary>Called from the AutoEngineer.OnEnable postfix, once per enable.</summary>
         internal static void Register(AutoEngineer ae)
         {
-            EngineerInfo info = Engineers.GetOrCreateValue(ae);
             StallGuard.Reset(ae);
-            RegisterPid(ae, info, FIndependentPid, PidKind.Independent);
-            RegisterPid(ae, info, FTrainBrakePid, PidKind.TrainBrake);
-            RegisterPid(ae, info, FThrottlePid, PidKind.Throttle);
-        }
-
-        private static void RegisterPid(AutoEngineer ae, EngineerInfo info, FieldInfo field, PidKind kind)
-        {
-            var pid = field?.GetValue(ae) as PIDController;
-            if (pid == null) return;
-
-            Pids.Remove(pid); // ConditionalWeakTable on .NET Framework has no AddOrUpdate
-            var pidInfo = new PidInfo { Engineer = ae, Info = info, Kind = kind };
-            Pids.Add(pid, pidInfo);
-            if (kind == PidKind.Throttle) info.ThrottlePid = pidInfo;
-        }
-
-        internal static int GetBlockedApplies(AutoEngineer ae)
-        {
-            return Engineers.TryGetValue(ae, out EngineerInfo info) ? info.BlockedApplies : 0;
-        }
-
-        internal static int GetForcedReleases(AutoEngineer ae)
-        {
-            return Engineers.TryGetValue(ae, out EngineerInfo info) ? info.ForcedReleases : 0;
-        }
-
-        /// <summary>Postfix body for PIDController.Compute. 'error' is what the PID was given; 'result' its output.</summary>
-        internal static void Apply(PIDController pid, float error, ref float result)
-        {
-            try
-            {
-                if (!Main.Active) return;
-                if (float.IsNaN(error)) return;
-                if (!Pids.TryGetValue(pid, out PidInfo owner)) return;
-
-                if (owner.Kind == PidKind.Throttle)
-                {
-                    if (StallGuard.Check(owner.Engineer, ref result)) { owner.Gliding = false; owner.Last = 0f; owner.HasLast = false; return; }
-                    DecelHold.Apply(owner.Engineer, ref result);
-                    ThrottleSmoother.Apply(owner, error, ref result);
-                    return;
-                }
-
-                if (StallGuard.IsLatched(owner.Engineer)) { result = owner.Kind == PidKind.TrainBrake ? StallGuard.BrakeLevel(owner.Engineer) : 1f; return; }
-                {
-                    var cfg = FConfig?.GetValue(owner.Engineer) as AutoEngineerConfig;
-                    bool covered = owner.Kind == PidKind.TrainBrake && DecelHold.ResidualCover(owner.Engineer, cfg, ref result);
-                    if (!covered)
-                    {
-                        if (owner.Kind == PidKind.TrainBrake) DecelHold.HoldBrake(owner.Engineer, cfg, ref result);
-                        DecelHold.HoldCoast(owner.Engineer, cfg, error, owner.Kind == PidKind.TrainBrake, ref result);
-                    }
-                }
-
-                if (!Main.Settings.FixEnabled) return;
-                if (owner.Kind == PidKind.Independent && !Main.Settings.FixLocomotiveBrake) return;
-
-                // Throttle is set earlier in the same tick, so this is the value the AI just chose.
-                if (ReadControl(owner.Engineer, "Throttle") <= ThrottleOpenThreshold) return;
-
-                var config = FConfig?.GetValue(owner.Engineer) as AutoEngineerConfig;
-
-                // The AI squares (brakeErrorPower) the overspeed before feeding the brake PID, and the error is
-                // negative when we are too fast. Convert the margin into the same units.
-                float power = BrakeErrorPower(config);
-                float marginMps = Mathf.Max(0f, Main.Settings.OverspeedMarginMph) * MpsPerMph;
-                float limit = -Mathf.Pow(marginMps, power);
-                if (error < limit) return; // genuinely overspeeding: leave the brake logic alone
-
-                if (owner.Kind == PidKind.TrainBrake)
-                {
-                    // The caller releases the train brake when output < trainBrakeReleaseBelowOutput, applies it when
-                    // output > 0.01 (and above the current setting), and otherwise leaves it exactly as it is.
-                    float releaseBelow = ReleaseBelowOutput(config);
-                    if (result < releaseBelow) return; // already a release
-
-                    bool brakeIsOn = ReadControl(owner.Engineer, "TrainBrake") > BrakeOnThreshold;
-                    if (brakeIsOn)
-                    {
-                        // The game would have left this brake applied (or applied it harder).
-                        result = releaseBelow - 0.01f;
-                        owner.Info.ForcedReleases++;
-                    }
-                    else if (result > ApplyThreshold)
-                    {
-                        // The game would have made a new application.
-                        result = releaseBelow - 0.01f;
-                        owner.Info.BlockedApplies++;
-                    }
-                    // else: brake is off and the PID is not asking for one, so the game does nothing. Leave it.
-                }
-                else if (result > 0.0005f)
-                {
-                    // Locomotive brake: output is applied directly, so zero means released.
-                    bool brakeIsOn = ReadControl(owner.Engineer, "LocomotiveBrake") > BrakeOnThreshold;
-                    result = 0f;
-                    if (brakeIsOn) owner.Info.ForcedReleases++;
-                    else owner.Info.BlockedApplies++;
-                }
-            }
-            catch (Exception e)
-            {
-                if (!_loggedError)
-                {
-                    _loggedError = true;
-                    Main.Mod.Logger.Log("BrakeFix error (further errors suppressed):");
-                    Main.Mod.Logger.LogException(e);
-                }
-            }
-        }
-
-        // 0.6.0 dropped the PID tuning from AutoEngineerConfig. Read it by reflection so the mod still builds;
-        // when a field is missing these give the same fallbacks used when there is no config at all.
-        private static readonly FieldInfo FBrakeErrorPower = AccessTools.Field(typeof(AutoEngineerConfig), "brakeErrorPower");
-        private static readonly FieldInfo FReleaseBelow = AccessTools.Field(typeof(AutoEngineerConfig), "trainBrakeReleaseBelowOutput");
-        private static readonly FieldInfo FPadding = AccessTools.Field(typeof(AutoEngineerConfig), "paddingForSpeedMph");
-
-        internal static float BrakeErrorPower(AutoEngineerConfig config) =>
-            config != null && FBrakeErrorPower != null ? (float)FBrakeErrorPower.GetValue(config) : 1f;
-
-        internal static float ReleaseBelowOutput(AutoEngineerConfig config) =>
-            config != null && FReleaseBelow != null ? (float)FReleaseBelow.GetValue(config) : -0.01f;
-
-        internal static AnimationCurve PaddingForSpeedMph(AutoEngineerConfig config) =>
-            config != null && FPadding != null ? FPadding.GetValue(config) as AnimationCurve : null;
-
-        internal static AutoEngineerConfig GetConfig(AutoEngineer ae)
-        {
-            return FConfig?.GetValue(ae) as AutoEngineerConfig;
         }
 
         internal static PidInfo ThrottleInfo(AutoEngineer ae)
         {
-            if (Engineers.TryGetValue(ae, out EngineerInfo info) && info.ThrottlePid != null) return info.ThrottlePid;
-            return RolloutThrottle.Peek(ae);   // 0.6: no throttle PID; the rollout controller's smoothing state
+            return RolloutThrottle.Peek(ae);   // the rollout controller's smoothing state
         }
 
         /// <summary>True if the train brake or the locomotive brake is currently applied.</summary>
@@ -284,16 +114,6 @@ namespace AutoEngineerBrakeFix
             if (accessor.Property != null) return Convert.ToSingle(accessor.Property.GetValue(control, null));
             if (accessor.Field != null) return Convert.ToSingle(accessor.Field.GetValue(control));
             return 0f;
-        }
-    }
-
-    [HarmonyPatch(typeof(PIDController), nameof(PIDController.Compute))]
-    internal static class PIDController_Compute_Patch
-    {
-        // Parameter names must match the original: Compute(float error, float dt).
-        private static void Postfix(PIDController __instance, float error, ref float __result)
-        {
-            BrakeFix.Apply(__instance, error, ref __result);
         }
     }
 }

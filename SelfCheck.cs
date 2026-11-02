@@ -68,9 +68,6 @@ namespace AutoEngineerBrakeFix
                 ["AutoEngineer._control"] = () => Field(AE, "_control", null),
                 ["AutoEngineer._config"] = () => Field(AE, "_config", typeof(AutoEngineerConfig)),
                 ["AutoEngineer._debugContextualTargetVelocity"] = () => Field(AE, "_debugContextualTargetVelocity", typeof(float)),
-                ["AutoEngineer.throttleController"] = () => Field(AE, "throttleController", typeof(PIDController)),
-                ["AutoEngineer.trainBrakeController"] = () => Field(AE, "trainBrakeController", typeof(PIDController)),
-                ["AutoEngineer.independentController"] = () => Field(AE, "independentController", typeof(PIDController)),
 
                 ["AutoEngineer.TrainBrake"] = () => BrakeGuidance.TrainBrakeType != null,
                 ["AutoEngineer.TrainBrake._ae"] = () => BrakeGuidance.TrainBrakeType != null && Field(BrakeGuidance.TrainBrakeType, "_ae", typeof(AutoEngineer)),
@@ -98,8 +95,6 @@ namespace AutoEngineerBrakeFix
                 ["CTCSignal.id, LastShownAspect, DisplayName"] =
                     () => Member(typeof(CTCSignal), "id") && Member(typeof(CTCSignal), "LastShownAspect") && Member(typeof(CTCSignal), "DisplayName"),
 
-                ["PIDController.Compute(float error, float)"] =
-                    () => Method(typeof(PIDController), "Compute", new[] { typeof(float), typeof(float) }, typeof(float), "error"),
                 ["IntegrationSet.Element"] = () => element != null,
                 ["IntegrationSet.Element.car"] = () => element != null && (AccessTools.Field(element, "car") != null || AccessTools.Property(element, "car") != null),
                 ["IntegrationSet.CalculateRetardingForce(Element, float absVelocity)"] =

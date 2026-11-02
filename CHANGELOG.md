@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.1
+
+- **Old speed-loop code removed.** The brake-drag fix, the throttle and brake holds, the early brake release, residual braking, the PID registration and the PID columns in the diagnostic CSV (`thr_*`, `ind_*`, `tb_*`, `resMph`, `resNeedMph`, `fixBlocked`, `fixReleased`) are gone, along with their settings (`FixEnabled`, `FixLocomotiveBrake`, `SlamThrottleOnOverspeed`, `HoldThrottleWhileSlowing`, `HoldBrakeWhileSlowing`, `BrakeStartOverMph`, `BrakeReleaseLeadSeconds`, `BrakeResidual*`); an existing `Settings.xml` with them loads fine and they are dropped on the next save. `BrakeFix.cs` now only holds the control-state helpers, `DecelHold.cs` the shared target-list reads and the stay-stopped patch.
+
 ## 2.9.0
 
 - **Stall guard is back** on the 0.6 rollout controller. It was built on the old PID loop and reported unavailable since 0.6.0. It now runs on every `ApplyRolloutCommand` (first, before the other filters): full throttle for `StallSeconds` on a grade at under 4 mph without gaining speed latches it, and a latched command becomes throttle 0, locomotive brake full, train brake 60% then full. The can't-start check, the start-up hold and the clear-on-direction/mode-change are unchanged. Settings window: "Stall guard" toggle and "Stall time" slider.

@@ -1,6 +1,6 @@
 # Auto Engineer Brake Fix (Railroader)
 
-Makes the AI engineer drive like a person: no brake dragging, fewer wasted coal and water, a smooth throttle,
+Makes the AI engineer drive like a person: fewer wasted coal and water, a smooth throttle,
 gentle brake sets for signals, and no creeping past a stop.
 
 All options are on by default, except realistic fuel use, and can be switched off individually in `Settings.xml` in the mod folder (read at start-up).
@@ -25,8 +25,7 @@ The stock AI can flip the throttle between 0 and 25% every half second (on 0.6 t
 - **Approach signals**: the game applies the Approach speed limit "right now", which makes the AI brake at full effort. The mod applies it at the signal, so the train slows gradually, and keeps the limit until the next signal is registered so the train doesn't speed up in between.
 
 ## Slowing down and stopping
-- **Throttle hold**: while slowing for a stop or limit, or just after a brake application, the throttle stays closed unless the train drops clearly below its target. This removes the brake/throttle cycle on gentle downhills and on the way down to a stop.
-- **Brake hold**: while slowing for a falling target, a light brake application is not released until the train is clearly under the target, so it builds steadily instead of flickering.
+- **No power into reductions**: with a lower speed limit (5 mph or more) in sight and the train already at or above it, the throttle is closed so the train coasts down before braking. Not applied on climbs steeper than 1.5% or below 5 mph.
 - **Stay stopped**: within 2.5 m of a stop target the AI now holds the stop; the stock AI can treat a train stopped 1-3 m short of a signal as "should be moving" and creep past it.
 
 ## Gentle direction-change stop (0.6.0)
@@ -90,10 +89,10 @@ Press **Ctrl+F8** in game (not at the main menu) to open the settings window: sl
 With the [Mod Settings Hub](https://github.com/Exp232/ModSettingsHub) installed (optional), this page also appears in the hub's window (Ctrl+F7, or the button in the top-right menu). Ctrl+F8 still opens this mod's own window.
 
 ## Settings (summary)
-Brake fix on/off and overspeed margin; locomotive brake; shorter cutoff on/off, power given up, steep-grade limit; throttle smoothing, glide, close-on-overspeed; throttle hold, brake hold, stay stopped; speed-limit lead and release lead, stall guard; direction-change brake limit and the five planner weight multipliers; realistic fuel use (steam rate, cutoff effect, coal scale); brake tap suppression (`BrakeTapSuppressMph`, 2 by default, off at 0) and the fuel summary log (`LogFuelSummary`; it also records the train's gross tons and coal and water per 1,000 gross ton-miles, and for a diesel its fuel in gallons, per mile and per 1,000 gross ton-miles; the diagnostic log has `tons`, `fuelQty` and `dieselGps` columns); signal sight distance, approach limit at the signal, hold after the signal, approach speed when no signal follows (25 = stock), `CtcDropBlocks` (temporary map workaround for Sylva West eastbound, `signalId:blockId` pairs, empty = off); experimental planning sliders (look-ahead multiplier, assumed braking), both stock by default; diagnostic logger (off by default, writes CSVs under the mod folder's `logs`, including `signals_*.csv` with one line per signal or aspect change and `ctc_dump_*.txt`, a once-per-session list of every CTC block span and signal (read-only); with decision logging on, each row also has the controller's chosen action, its cost, the cost of holding, and the cost of each first action).
+Overspeed margin; shorter cutoff on/off, power given up, steep-grade limit; throttle smoothing, glide; no power into reductions, stay stopped; speed-limit lead, stall guard; direction-change brake limit and the five planner weight multipliers; realistic fuel use (steam rate, cutoff effect, coal scale); brake tap suppression (`BrakeTapSuppressMph`, 2 by default, off at 0) and the fuel summary log (`LogFuelSummary`; it also records the train's gross tons and coal and water per 1,000 gross ton-miles, and for a diesel its fuel in gallons, per mile and per 1,000 gross ton-miles; the diagnostic log has `tons`, `fuelQty` and `dieselGps` columns); signal sight distance, approach limit at the signal, hold after the signal, approach speed when no signal follows (25 = stock), `CtcDropBlocks` (temporary map workaround for Sylva West eastbound, `signalId:blockId` pairs, empty = off); experimental planning sliders (look-ahead multiplier, assumed braking), both stock by default; diagnostic logger (off by default, writes CSVs under the mod folder's `logs`, including `signals_*.csv` with one line per signal or aspect change and `ctc_dump_*.txt`, a once-per-session list of every CTC block span and signal (read-only); with decision logging on, each row also has the controller's chosen action, its cost, the cost of holding, and the cost of each first action).
 
 ## Compatibility
-Built for Railroader 0.6.0. Patches the auto-engineer's PID results, its target list and contextual target speed, and the planner's signal-sight distances. Other mods patching the same code may conflict (it has been run alongside WaypointQueue). Disable it in the game's mod list to restore stock behaviour.
+Built for Railroader 0.6.0. Patches the auto-engineer's rollout controller commands, its target list and contextual target speed, and the planner's signal-sight distances. Other mods patching the same code may conflict (it has been run alongside WaypointQueue). Disable it in the game's mod list to restore stock behaviour.
 
 ## Known limits
 Tested on a handful of steam-hauled freight runs, mostly up to 1% grades. Fuel savings depend on the route and train.

@@ -21,16 +21,9 @@ namespace AutoEngineerBrakeFix
         private static readonly FieldInfo FControl = AccessTools.Field(typeof(AutoEngineer), "_control");
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly FieldInfo FContextualTarget = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
-        private static readonly FieldInfo FThrottlePid = AccessTools.Field(typeof(AutoEngineer), "throttleController");
-        private static readonly FieldInfo FIndependentPid = AccessTools.Field(typeof(AutoEngineer), "independentController");
-        private static readonly FieldInfo FTrainBrakePid = AccessTools.Field(typeof(AutoEngineer), "trainBrakeController");
         private static readonly MethodInfo MShouldUseLocoBrake = AccessTools.Method(typeof(AutoEngineer), "ShouldUseLocomotiveBrake");
         private static readonly MethodInfo MLookahead = AccessTools.Method(typeof(AutoEngineer), "CalculateLookaheadDistance", Type.EmptyTypes);
         private static readonly MethodInfo MAvgTrainCylinder = AccessTools.Method(typeof(AutoEngineer), "AverageTrainBrakeCylinder");
-
-        // PIDController's last output is private; the public API only exposes error and integrator terms.
-        // Note this is the PID's own output, before the brake fix adjusts the value returned to the AI.
-        private static readonly FieldInfo FPidPreviousControl = AccessTools.Field(typeof(PIDController), "_previousControl");
 
         // The rollout controller (0.6.0) lives inside AutoEngineer's private speed-control loop.
         private static readonly FieldInfo FSpeedLoop = AccessTools.Field(typeof(AutoEngineer), "_speedControlLoop");
@@ -232,11 +225,7 @@ namespace AutoEngineerBrakeFix
                 .Add("brakePath", BrakePath())
                 .Add("locoCylPsi", SafeLocoCylinder(loco))
                 .Add("carCylAvgPsi", SafeCarCylinderAverage())
-                .Add("resMph", DecelHold.DebugResidual(_ae))
-                .Add("resNeedMph", DecelHold.DebugNeed(_ae))
                 .Add("overlap", overlap ? 1 : 0)
-                .Add("fixBlocked", BrakeFix.GetBlockedApplies(_ae))
-                .Add("fixReleased", BrakeFix.GetForcedReleases(_ae))
                 .Add("fuelId", fuel.FuelId)
                 .Add("fuelQty", fuel.Fuel)
                 .Add("waterQty", fuel.Water)
@@ -249,13 +238,6 @@ namespace AutoEngineerBrakeFix
             AddSignal(row, targets);
             AddGuidance(row);
             AddCommand(row);
-
-            AddPid(row, "thr", FThrottlePid?.GetValue(_ae) as PIDController);
-            AddPid(row, "ind", FIndependentPid?.GetValue(_ae) as PIDController);
-
-            var trainPid = FTrainBrakePid?.GetValue(_ae) as PIDController;
-            AddPid(row, "tb", trainPid);
-            row.Add("tb_dGain", trainPid != null ? trainPid.derivativeGain : float.NaN);
 
             LogWriter.Write(row);
         }
@@ -354,26 +336,6 @@ namespace AutoEngineerBrakeFix
             }
 
             return _fuel;
-        }
-
-        /// <summary>
-        /// Note: only one of the two brake PIDs is updated on any given tick (which one depends on
-        /// brakePath), so the other one's columns hold stale values from when it last ran.
-        /// </summary>
-        private static void AddPid(RowBuilder row, string prefix, PIDController pid)
-        {
-            if (pid == null)
-            {
-                row.Add(prefix + "_err", float.NaN).Add(prefix + "_out", float.NaN).Add(prefix + "_int", float.NaN)
-                   .Add(prefix + "_iTerm", float.NaN).Add(prefix + "_dTerm", float.NaN);
-                return;
-            }
-
-            row.Add(prefix + "_err", pid.PreviousError)
-               .Add(prefix + "_out", ReadFloat(pid, FPidPreviousControl))
-               .Add(prefix + "_int", pid.Integrator)
-               .Add(prefix + "_iTerm", pid.DebugIntegrator)
-               .Add(prefix + "_dTerm", pid.DebugDerivative);
         }
 
         private string BrakePath()

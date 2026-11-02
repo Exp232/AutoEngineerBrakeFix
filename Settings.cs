@@ -12,10 +12,7 @@ namespace AutoEngineerBrakeFix
 
         internal const int CurrentSettingsVersion = 2;
 
-        // ---- Brake fix ----
-
-        /// <summary>Master switch for the brake fix.</summary>
-        public bool FixEnabled = true;
+        // ---- Overspeed ----
 
         /// <summary>
         /// How far (mph) above the auto-engineer's own padded setpoint the train may be before the brake is
@@ -23,9 +20,6 @@ namespace AutoEngineerBrakeFix
         /// under the track limit at 20 mph and above, so 0.5 mph here is still at or below the limit.
         /// </summary>
         public float OverspeedMarginMph = 0.5f;
-
-        /// <summary>Also apply the rule to the locomotive (independent) brake the AI uses on light engines.</summary>
-        public bool FixLocomotiveBrake = true;
 
         // ---- Cutoff (experimental) ----
 
@@ -49,38 +43,14 @@ namespace AutoEngineerBrakeFix
         /// <summary>Also move the lever continuously between the AI's half-second updates.</summary>
         public bool GlideThrottle = true;
 
-        /// <summary>Close the throttle at once when the train is over the setpoint and braking (instead of the AI's 0.25-per-tick steps).</summary>
-        public bool SlamThrottleOnOverspeed = true;
-
-        /// <summary>Keep the throttle closed while slowing for a falling target, unless the train is clearly under it.</summary>
-        public bool HoldThrottleWhileSlowing = true;
-
-        /// <summary>While slowing for a falling target, keep the train brake applied until the train is clearly under the target.</summary>
-        public bool HoldBrakeWhileSlowing = true;
-
         /// <summary>Stand still once within a couple of metres of a stop target instead of creeping past it.</summary>
         public bool HoldStopAtStopTargets = true;
-
-        /// <summary>Do not start braking until this many mph over a steady limit (0 = stock). Slowing for a lower limit is unaffected.</summary>
-        public float BrakeStartOverMph = 1f;
 
         /// <summary>No power while a lower speed limit is in sight and the train is at or above that speed.</summary>
         public bool AvoidPowerIntoReductions = true;
 
         /// <summary>Start slowing for a lower limit as if it began this many seconds of travel sooner (0 = stock). 10 since 2.4.3 (6 before): on the Bryson to Sylva round trip it used about 3% less coal than 6 for the same time; 14 gave no more.</summary>
         public float SpeedReductionLeadSeconds = 10f;
-
-        /// <summary>Release the train brake when the speed it is heading for this many seconds ahead reaches the target (0 = stock).</summary>
-        public float BrakeReleaseLeadSeconds = 3f;
-
-        /// <summary>Count the speed the brake cylinders will still take off while they bleed down: release the train brake once that covers the reduction needed, and do not apply more.</summary>
-        public bool BrakeResidual = true;
-
-        /// <summary>Speed lost after a release is about (cylinder psi squared) / this, in mph. 60 fits a 52-car train; lower brakes less, higher brakes more.</summary>
-        public float BrakeResidualDivisor = 60f;
-
-        /// <summary>The brake is released once the train is expected to settle within this many mph of the limit.</summary>
-        public float BrakeResidualMarginMph = 0.5f;
 
         /// <summary>Detect a stall on a grade (full throttle, almost stopped, climbing): brake, stay put and announce it.</summary>
         public bool StallGuard = true;

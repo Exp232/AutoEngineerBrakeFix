@@ -58,14 +58,6 @@ namespace AutoEngineerBrakeFix
             float bypass = Mathf.Max(0.05f, Main.Settings.OverspeedMarginMph) * MpsPerMph;
             if (error < -bypass && result < owner.Last)
             {
-                // The AI's own PID only lets the throttle fall 0.25 per tick, so it would step down over about two
-                // seconds while the brake is already applying. Shut it at once when the brake is on or the train is
-                // clearly over the setpoint (mild overspeed with no brake yet keeps the AI's own gradual closing).
-                bool brakeOn = BrakeFix.ReadBrakeRequested(owner.Engineer);
-                if (slam && Main.Settings.SlamThrottleOnOverspeed && (brakeOn || error < -2f * bypass))
-                {
-                    result = 0f;
-                }
                 owner.Last = result;
                 owner.Gliding = false;
                 owner.Floor = 0f;
