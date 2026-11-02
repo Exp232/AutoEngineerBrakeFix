@@ -146,19 +146,9 @@ namespace AutoEngineerBrakeFix
         private static List<Feature> Features()
         {
             var s = Main.Settings;
-            string[] pidLoop = { "AutoEngineer.OnEnable()", "PIDController.Compute(float error, float)" };
-            Type[] pidPatches = { typeof(AutoEngineer_OnEnable_Patch), typeof(PIDController_Compute_Patch) };
 
             return new List<Feature>
             {
-                new Feature
-                {
-                    Name = "Brake-drag fix",
-                    On = () => s.FixEnabled,
-                    TurnOff = () => s.FixEnabled = false,
-                    Needs = pidLoop.Concat(new[] { "AutoEngineer._control", "AutoEngineer._config", "AutoEngineer.trainBrakeController", "AutoEngineer.independentController", "AutoEngineer.throttleController" }).ToArray(),
-                    Patches = pidPatches,
-                },
                 new Feature
                 {
                     Name = "Throttle smoothing",
@@ -170,19 +160,12 @@ namespace AutoEngineerBrakeFix
                 },
                 new Feature
                 {
-                    Name = "Holds while slowing",
-                    On = () => s.HoldThrottleWhileSlowing || s.HoldBrakeWhileSlowing || s.AvoidPowerIntoReductions || s.BrakeStartOverMph > 0f || s.BrakeReleaseLeadSeconds > 0f,
-                    TurnOff = () => { s.HoldThrottleWhileSlowing = false; s.HoldBrakeWhileSlowing = false; s.AvoidPowerIntoReductions = false; s.BrakeStartOverMph = 0f; s.BrakeReleaseLeadSeconds = 0f; },
-                    Needs = pidLoop.Concat(new[] { "AutoEngineer._control", "AutoEngineer._config", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "AutoEngineer.trainBrakeController", "AutoEngineer.throttleController", "Targets.AllTargets", "Targets.Mode" }).ToArray(),
-                    Patches = pidPatches,
-                },
-                new Feature
-                {
-                    Name = "Residual braking",
-                    On = () => s.BrakeResidual,
-                    TurnOff = () => s.BrakeResidual = false,
-                    Needs = pidLoop.Concat(new[] { "AutoEngineer.AverageTrainBrakeCylinder()", "AutoEngineer.ContextualTargetVelocity()", "AutoEngineer._debugContextualTargetVelocity", "AutoEngineer._targets", "AutoEngineer._config", "AutoEngineer.trainBrakeController" }).ToArray(),
-                    Patches = pidPatches,
+                    Name = "No power into reductions",
+                    AlwaysPatch = true,
+                    On = () => s.AvoidPowerIntoReductions,
+                    TurnOff = () => s.AvoidPowerIntoReductions = false,
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae", "AutoEngineer._targets", "AutoEngineer._debugContextualTargetVelocity", "Targets.AllTargets", "Targets.AverageGradeUnder" },
+                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
                 },
                 new Feature
                 {
@@ -195,10 +178,11 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Stall guard",
+                    AlwaysPatch = true,
                     On = () => s.StallGuard,
                     TurnOff = () => s.StallGuard = false,
-                    Needs = pidLoop.Concat(new[] { "AutoEngineer.StartMovement()", "AutoEngineer.SetTargets(Targets)", "AutoEngineer._targets", "AutoEngineer._control", "AutoEngineer.throttleController", "AutoEngineer.trainBrakeController", "Targets.Mode", "Targets.MaxSpeedMph", "Targets.AverageGradeUnder", "AutoEngineerPlanner.Say(string)" }).ToArray(),
-                    Patches = pidPatches.Concat(new[] { typeof(AutoEngineer_StartMovement_Patch), typeof(AutoEngineer_SetTargets_Patch) }).ToArray(),
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae", "AutoEngineer.StartMovement()", "AutoEngineer.SetTargets(Targets)", "AutoEngineer._targets", "AutoEngineer._control", "Targets.Mode", "Targets.MaxSpeedMph", "Targets.AverageGradeUnder", "AutoEngineerPlanner.Say(string)" },
+                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch), typeof(AutoEngineer_OnEnable_Patch), typeof(AutoEngineer_StartMovement_Patch), typeof(AutoEngineer_SetTargets_Patch) },
                 },
                 new Feature
                 {

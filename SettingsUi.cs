@@ -75,12 +75,22 @@ namespace AutoEngineerBrakeFix
                     Slider(b, "Smoothing time", () => s.ThrottleSmoothingSeconds, v => s.ThrottleSmoothingSeconds = v, 0.2f, 4f, 0.2f,
                         v => v.ToString("0.0") + " s");
                     b.AddFieldToggle("Glide between updates", () => s.GlideThrottle, v => { s.GlideThrottle = v; Save(); });
+                    b.AddFieldToggle("No power into reductions", () => s.AvoidPowerIntoReductions, v => { s.AvoidPowerIntoReductions = v; Save(); });
+                    Note(b, "Closes the throttle when a lower speed limit is in sight and the train is already at or above that speed, so it coasts down before braking. Not applied on steep climbs.");
                     Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
                     Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
                     Note(b, "Shorter cutoff: how much power it may give up for a shorter cutoff.");
                     Slider(b, "Cutoff tolerance", () => s.CutoffTolerancePercent, v => s.CutoffTolerancePercent = v, 0f, 10f, 0.5f,
                         v => v.ToString("0.0") + " %");
+                });
+
+                page.AddSection("Stall guard", b =>
+                {
+                    b.AddFieldToggle("Stall guard", () => s.StallGuard, v => { s.StallGuard = v; Save(); });
+                    Note(b, "A train that cannot climb a grade or get moving is held with the brakes and the engineer says so, instead of looping through full throttle and rolling back. Clears when the engineer is switched off and on, or its direction or mode changes.");
+                    Slider(b, "Stall time", () => s.StallSeconds, v => s.StallSeconds = v, 3f, 30f, 1f,
+                        v => v.ToString("0") + " s");
                 });
 
                 page.AddSection("Fuel use", b =>
@@ -184,6 +194,9 @@ namespace AutoEngineerBrakeFix
             s.BrakeTapSuppressMph = d.BrakeTapSuppressMph;
             s.CoastBandMph = d.CoastBandMph;
             s.CoastBandAssistSeconds = d.CoastBandAssistSeconds;
+            s.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
+            s.StallGuard = d.StallGuard;
+            s.StallSeconds = d.StallSeconds;
             s.SmoothThrottle = d.SmoothThrottle;
             s.ThrottleSmoothingSeconds = d.ThrottleSmoothingSeconds;
             s.GlideThrottle = d.GlideThrottle;

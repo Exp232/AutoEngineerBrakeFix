@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.9.0
+
+- **Stall guard is back** on the 0.6 rollout controller. It was built on the old PID loop and reported unavailable since 0.6.0. It now runs on every `ApplyRolloutCommand` (first, before the other filters): full throttle for `StallSeconds` on a grade at under 4 mph without gaining speed latches it, and a latched command becomes throttle 0, locomotive brake full, train brake 60% then full. The can't-start check, the start-up hold and the clear-on-direction/mode-change are unchanged. Settings window: "Stall guard" toggle and "Stall time" slider.
+- **No power into reductions** (`AvoidPowerIntoReductions`, `ReductionHold.cs`) salvaged from "Holds while slowing" as a rollout filter: with a lower limit (5 mph or more) in sight and the train at or above it, the throttle is closed; power returns more than 1 mph under it. Skipped below 5 mph and on a climb steeper than 1.5%. Settings window toggle added.
+- The rest of "Holds while slowing", the brake-drag fix and residual braking only worked on the PID loop; their self-check entries are removed.
+- `Settings.xml` gets a `SettingsVersion`. Older files had `StallGuard`, `SmoothThrottle` and `AvoidPowerIntoReductions` saved as false by the self-check; they are reset to their defaults once on load.
+
 ## 2.8.4
 
 - Throttle smoothing (2.8.3): fixed the throttle being cut to zero on a steep grade. When the train was a mph or so over a falling target the smoother's overspeed "slam" closed the lever from full to zero on a command that only lowered it one notch (EMR 1900 on a 4.6% grade: 15.5 mph to 10.3 mph over ten seconds, three times in one run, `cmdThr` 0.875 against `outThr` 0.0). That slam was written for the old PID loop, which could only lower the throttle 0.25 a tick. The rollout controller already lowers it one notch a tick and brakes when it must, so smoothing no longer slams on this path: an overspeed passes the controller's own command through. A command that brakes with the throttle already closed still closes it at once.

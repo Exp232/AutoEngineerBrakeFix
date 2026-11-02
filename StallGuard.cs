@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Model;
 using Model.AI;
+using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
 namespace AutoEngineerBrakeFix
@@ -171,6 +172,23 @@ namespace AutoEngineerBrakeFix
             float grade = targets != null ? targets.AverageGradeUnder : 0f;
             Latch(ae, st, $"Stall guard: could not get moving ({speed:0.00} mph with the throttle at {BrakeFix.ReadThrottle(ae):0.00}, grade {-grade:0.00}% up). Holding with the brakes.",
                 "We can't get this train moving. Holding with the brakes - we need help or a lighter train.", "Can't start the train");
+        }
+
+
+        /// <summary>
+        /// Rollout-controller hook (0.6): runs on every command before the other filters. Uses the command's throttle
+        /// notch as the throttle the engineer is asking for; once the stall is declared (or while latched) the command
+        /// becomes throttle 0, locomotive brake full, train brake at BrakeLevel.
+        /// </summary>
+        internal static bool Filter(object loop, ref RolloutCommand command)
+        {
+            if (!Main.Settings.StallGuard) return false;
+            var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
+            if (ae == null || ae.Locomotive == null) return false;
+            float throttle = command.ThrottleNotch;
+            if (!Check(ae, ref throttle)) return false;
+            command = new RolloutCommand(command.Kind, 0f, 1f, BrakeLevel(ae), true, false, command.Cost, command.HoldCost);
+            return true;
         }
 
         /// <summary>

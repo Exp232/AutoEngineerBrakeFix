@@ -143,10 +143,16 @@ namespace AutoEngineerBrakeFix
             try
             {
                 RolloutCommand before = __0;
+                if (StallGuard.Filter(__instance, ref __0))
+                {
+                    CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, false, false, false);
+                    return;
+                }
+                bool hold = ReductionHold.Filter(__instance, ref __0);
                 bool tap = BrakeTaps.Filter(__instance, ref __0);
                 bool band = CoastBand.Filter(__instance, ref __0);
                 bool smooth = RolloutThrottle.Filter(__instance, ref __0);
-                CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, tap, band, smooth);
+                CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, tap || hold, band, smooth);
             }
             catch (Exception e)
             {

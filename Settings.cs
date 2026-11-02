@@ -7,6 +7,11 @@ namespace AutoEngineerBrakeFix
     /// <summary>Kept in Settings.xml in the mod folder, in the same XML layout UMM used, so old files still load.</summary>
     public class Settings
     {
+        /// <summary>Settings.xml layout version. Older files had features switched off by the start-up self-check (their PID targets were missing on 0.6); those are reset once.</summary>
+        public int SettingsVersion = 0;
+
+        internal const int CurrentSettingsVersion = 2;
+
         // ---- Brake fix ----
 
         /// <summary>Master switch for the brake fix.</summary>
@@ -308,7 +313,19 @@ namespace AutoEngineerBrakeFix
             {
                 try
                 {
-                    using (var stream = File.OpenRead(path)) return (Settings)serializer.Deserialize(stream);
+                    Settings loaded;
+                    using (var stream = File.OpenRead(path)) loaded = (Settings)serializer.Deserialize(stream);
+                    if (loaded.SettingsVersion < CurrentSettingsVersion)
+                    {
+                        var d = new Settings();
+                        loaded.StallGuard = d.StallGuard;
+                        loaded.SmoothThrottle = d.SmoothThrottle;
+                        loaded.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
+                        loaded.SettingsVersion = CurrentSettingsVersion;
+                        try { using (var w = File.Create(path)) serializer.Serialize(w, loaded); }
+                        catch (Exception) { /* the next settings change saves it */ }
+                    }
+                    return loaded;
                 }
                 catch (Exception e)
                 {
@@ -317,7 +334,7 @@ namespace AutoEngineerBrakeFix
                     return new Settings();
                 }
             }
-            var settings = new Settings();
+            var settings = new Settings { SettingsVersion = CurrentSettingsVersion };
             try
             {
                 using (var stream = File.Create(path)) serializer.Serialize(stream, settings);
