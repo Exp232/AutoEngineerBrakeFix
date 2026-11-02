@@ -19,6 +19,7 @@ namespace AutoEngineerBrakeFix
 
         // Private members of AutoEngineer, cached once.
         private static readonly FieldInfo FControl = AccessTools.Field(typeof(AutoEngineer), "_control");
+        private static readonly FieldInfo FRouteProfile = AccessTools.Field(typeof(AutoEngineer), "_routeProfile");
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly FieldInfo FContextualTarget = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
         private static readonly MethodInfo MShouldUseLocoBrake = AccessTools.Method(typeof(AutoEngineer), "ShouldUseLocomotiveBrake");
@@ -238,6 +239,7 @@ namespace AutoEngineerBrakeFix
             AddSignal(row, targets);
             AddGuidance(row);
             AddCommand(row);
+            AddRoute(row, targets);
 
             LogWriter.Write(row);
         }
@@ -260,6 +262,83 @@ namespace AutoEngineerBrakeFix
                .Add("outTb", has ? c.OutTb : float.NaN)
                .Add("cmdMod", has ? c.Mod : "")
                .Add("cmdAgeS", has ? Time.fixedTime - c.Time : float.NaN);
+        }
+
+
+        /// <summary>
+        /// routeMph/routeDropM/routeCause: the slowest limit in 1.5 km of route as this mod walks it, where it first drops
+        /// below the starting limit, and why. zones: the first speed zones of the route profile the game hands the
+        /// rollout controller, "mph@startM" joined with ';'. Compare with targets to see whether a limit was known earlier.
+        /// </summary>
+        private void AddRoute(RowBuilder row, AutoEngineer.Targets targets)
+        {
+            float mph = float.NaN, drop = float.NaN;
+            string cause = "";
+            try
+            {
+                if (targets != null && Mathf.Abs(targets.MaxSpeedMph) > 0.1f
+                    && SignalPlanning_Scan(targets.MaxSpeedMph > 0f, out float slowest, out float firstDrop, out string why))
+                {
+                    mph = slowest;
+                    drop = firstDrop;
+                    cause = why;
+                }
+            }
+            catch (Exception) { }
+            row.Add("routeMph", mph).Add("routeDropM", drop).Add("routeCause", cause).Add("zones", ZoneList());
+        }
+
+        private bool SignalPlanning_Scan(bool forward, out float slowest, out float firstDrop, out string cause)
+        {
+            return AutoEngineer_SetTargets_Patch.ScanRoute(_ae, forward, out slowest, out firstDrop, out cause);
+        }
+
+        private string ZoneList()
+        {
+            try
+            {
+                object profile = FRouteProfile?.GetValue(_ae);
+                if (profile == null) return "";
+                object limits = profile.GetType().GetProperty("Limits")?.GetValue(profile, null);
+                var sb = new System.Text.StringBuilder();
+                int n = 0;
+                foreach (object zone in (System.Collections.IEnumerable)limits)
+                {
+                    if (n++ >= 8) break;
+                    Type zt = zone.GetType();
+                    float start = Convert.ToSingle(Member(zt, zone, "StartM"));
+                    float speed = ZoneSpeedMps(zt, zone) * MpsToMph;
+                    if (sb.Length > 0) sb.Append(';');
+                    sb.Append(speed.ToString("0", System.Globalization.CultureInfo.InvariantCulture)).Append('@')
+                      .Append(start.ToString("0", System.Globalization.CultureInfo.InvariantCulture));
+                }
+                return sb.ToString();
+            }
+            catch (Exception) { return ""; }
+        }
+
+        // The zone's speed member is not known by name: take the float member called ...Speed/Mps/Limit, else the last float.
+        private static float ZoneSpeedMps(Type t, object o)
+        {
+            float last = float.NaN;
+            foreach (MemberInfo m in t.GetMembers(BindingFlags.Public | BindingFlags.Instance))
+            {
+                object v = null;
+                if (m is PropertyInfo pi && pi.GetIndexParameters().Length == 0 && pi.PropertyType == typeof(float)) v = pi.GetValue(o, null);
+                else if (m is FieldInfo fi && fi.FieldType == typeof(float)) v = fi.GetValue(o);
+                if (v == null) continue;
+                last = (float)v;
+                string n = m.Name;
+                if (n.IndexOf("Speed", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("Mps", StringComparison.OrdinalIgnoreCase) >= 0 || n.IndexOf("Limit", StringComparison.OrdinalIgnoreCase) >= 0) return last;
+            }
+            return last;
+        }
+
+        private static object Member(Type t, object o, string name)
+        {
+            PropertyInfo p = t.GetProperty(name);
+            if (p != null) return p.GetValue(o, null);
+            return t.GetField(name).GetValue(o);
         }
 
         /// <summary>Brake limit state and the rollout controller's latest decision.</summary>

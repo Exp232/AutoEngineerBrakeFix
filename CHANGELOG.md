@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.10
+
+- **Route columns in the CSV** (to find why limits are met late): `routeMph`, `routeDropM` and `routeCause` give the slowest limit in 1.5 km of route as the mod walks it, where it first drops, and why (class, equipment, curve, legacy, railroad); `zones` lists the first speed zones of the route profile the game gives the rollout controller (`mph@startM`). Compare them with `targets`.
+
 ## 2.9.9
 
 - **See the slowest track limit ahead**: in the 2.9.8 run, limits of 25 and 15 mph were listed only 0-30 m before the train reached them. The mod now walks 1.5 km of route itself and makes the Track Speed target the slowest limit on it (at the first drop), so there is no stepping down. It only lowers the game's target, and writes a line to the game log when it differs from the game's. Setting `FullRouteTrackSpeed`, on by default, toggle in the window.

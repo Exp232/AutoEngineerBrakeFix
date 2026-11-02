@@ -313,6 +313,19 @@ namespace AutoEngineerBrakeFix
             return true;
         }
 
+        /// <summary>One word for why a piece of track is slow, for the CSV: class, equipment, curve, legacy or railroad.</summary>
+        internal static string ShortCause(Graph graph, TrackSegment segment, float equip)
+        {
+            if (segment == null) return "";
+            float withEquipment = graph.CalculateMaxSpeedMph(segment, equip);
+            float trackAlone = graph.CalculateMaxSpeedMph(segment, NoCurveLimit);
+            float classMph = ClassSpeed(segment.PostedTrackClass);
+            if (!float.IsNaN(classMph) && classMph < withEquipment - 0.5f) return "class";
+            if (withEquipment < trackAlone - 0.5f) return "equipment";
+            if (trackAlone < segment.EffectiveSpeedLimitMph - 0.5f) return "curve";
+            return segment.speedLimit != 0 && segment.speedLimit < TrackSegment.RailroadSpeedLimitMph ? "legacy" : "railroad";
+        }
+
         // As AutoEngineerPlanner.CalculateMaxSpeedMph: the track's limit for this equipment, capped by the track class.
         internal static float SegmentSpeed(Graph graph, TrackSegment segment, float equip)
         {

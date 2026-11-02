@@ -160,33 +160,9 @@ namespace AutoEngineerBrakeFix
         /// </summary>
         private static void FullRouteTrackSpeed(AutoEngineer ae, AutoEngineer.Targets targets, IList<AutoEngineer.Targets.Target> list)
         {
-            BaseLocomotive loco = ae.Locomotive;
-            Graph graph = Graph.Shared;
-            if (loco == null || graph == null || Mathf.Abs(targets.MaxSpeedMph) < 0.1f) return;
             bool forward = targets.MaxSpeedMph > 0f;
-            float equip = float.MaxValue;
-            foreach (Car car in loco.EnumerateCoupled())
-            {
-                if (car != null) equip = Mathf.Min(equip, car.MaximumTrackCurvature);
-            }
-            Location head = DetailedStatus.HeadOf(loco, forward);
-            if (!head.IsValid) return;
-
-            bool first = true;
-            float slowest = 0f;
-            float firstDrop = float.MaxValue;
-            RouteWalker walker = graph.WalkRoute(head, FullRouteMeters);
-            while (walker.TryNext(out WalkSegment ws))
-            {
-                float v = DetailedStatus.SegmentSpeed(graph, ws.Segment, equip);
-                if (first) { slowest = v; first = false; continue; }
-                if (v < slowest)
-                {
-                    slowest = v;
-                    firstDrop = Mathf.Min(firstDrop, ws.EntryDistance);
-                }
-            }
-            if (first || firstDrop >= float.MaxValue) return;
+            if (Mathf.Abs(targets.MaxSpeedMph) < 0.1f) return;
+            if (!ScanRoute(ae, forward, out float slowest, out float firstDrop, out string cause)) return;
             float distance = slowest > 0.1f ? Mathf.Max(0f, firstDrop - 13f) : firstDrop;
 
             int i = Find(list, "Track Speed");
@@ -212,6 +188,45 @@ namespace AutoEngineerBrakeFix
                 list.Add(new AutoEngineer.Targets.Target(sign * slowest, distance, "Track Speed"));
             }
             SortByDistance(list);
+        }
+
+        /// <summary>
+        /// Walks FullRouteMeters of route ahead the way the planner does and finds the slowest limit on it, where the
+        /// first drop below the starting limit is, and why that slowest piece is slow. False when there is no drop.
+        /// </summary>
+        internal static bool ScanRoute(AutoEngineer ae, bool forward, out float slowest, out float firstDrop, out string cause)
+        {
+            slowest = 0f;
+            firstDrop = float.MaxValue;
+            cause = "";
+            BaseLocomotive loco = ae.Locomotive;
+            Graph graph = Graph.Shared;
+            if (loco == null || graph == null) return false;
+            float equip = float.MaxValue;
+            foreach (Car car in loco.EnumerateCoupled())
+            {
+                if (car != null) equip = Mathf.Min(equip, car.MaximumTrackCurvature);
+            }
+            Location head = DetailedStatus.HeadOf(loco, forward);
+            if (!head.IsValid) return false;
+
+            bool first = true;
+            TrackSegment slowSegment = null;
+            RouteWalker walker = graph.WalkRoute(head, FullRouteMeters);
+            while (walker.TryNext(out WalkSegment ws))
+            {
+                float v = DetailedStatus.SegmentSpeed(graph, ws.Segment, equip);
+                if (first) { slowest = v; slowSegment = ws.Segment; first = false; continue; }
+                if (v < slowest)
+                {
+                    slowest = v;
+                    slowSegment = ws.Segment;
+                    firstDrop = Mathf.Min(firstDrop, ws.EntryDistance);
+                }
+            }
+            if (first || firstDrop >= float.MaxValue) return false;
+            cause = DetailedStatus.ShortCause(graph, slowSegment, equip);
+            return true;
         }
 
         private static int Find(IList<AutoEngineer.Targets.Target> list, string reason)
