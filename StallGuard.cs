@@ -194,7 +194,8 @@ namespace AutoEngineerBrakeFix
                 st.NextHold = now + 0.25f;
                 try
                 {
-                    new AutoEngineerPersistence(ae.Locomotive.KeyValueObject).Orders = orders.WithMaxSpeedMph(0);
+                    var persistence = new AutoEngineerPersistence(ae.Locomotive.KeyValueObject);
+                    persistence.Orders = orders.WithMaxSpeedMph(0);
                     logLine += " Speed order set to 0 mph.";
                     say += " Speed set to 0 mph - set a speed again to retry.";
                 }
