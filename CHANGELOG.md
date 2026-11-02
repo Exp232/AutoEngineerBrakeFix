@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.9.6
+
+- **Rollback latches the stall guard at once** (Waypoint mode). The 4 s full-throttle count from 2.9.5 is gone: as soon as the train rolls back against its order (over 0.5 mph) the guard latches, sets the speed order to 0 mph, holds the brakes and tells the player. It is armed once the train has moved the ordered way or power has been applied to a standing train; a new direction or waypoint disarms it, so the run-out after a reversal does not count.
 ## 2.9.5
 
 - **Stall guard in Waypoint mode**: a train at full throttle that slows to a crawl and then rolls back against its order (4 s or more of full throttle under 6 mph first) is now caught at once, wherever the planner's targets stand. In Waypoint mode the guard sets the speed order to 0 mph, holds the train with the brakes and says so; set a speed again (or a new waypoint) to retry. Before, the guard only counted full-throttle time, which the game's own change-direction stop cut short, so the train looped through throttle and rollback.

@@ -47,9 +47,7 @@ namespace AutoEngineerBrakeFix
             public float StillSince = -1f;
             public bool Settled;
             // Waypoint mode: rollback detection and the hold after the speed order was set to 0.
-            public float Struggle;
-            public float LastStruggle = -100f;
-            public float Grade;
+            public bool Armed;
             public int SeenForward;
             public OrderWaypoint? SeenWaypoint;
             public bool WpHold;
@@ -58,11 +56,7 @@ namespace AutoEngineerBrakeFix
         }
 
         private const float RollbackMph = 0.5f;
-        private const float StruggleSeconds = 4f;
-        private const float StruggleFullThrottle = 0.9f;
-        private const float StruggleMaxMph = 6f;
-        private const float ProgressMph = 8f;
-        private const float StruggleMemory = 25f;
+        private const float ArmMph = 1f;
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
@@ -126,7 +120,7 @@ namespace AutoEngineerBrakeFix
             {
                 Main.Mod.Logger.Log("Stall guard cleared.");
             }
-            if (States.TryGetValue(ae, out State s2)) { s2.Latched = false; s2.Timer = 0f; s2.Settled = false; s2.StandTimer = 0f; s2.StillSince = -1f; s2.Struggle = 0f; s2.LastStruggle = -100f; s2.WpHold = false; }
+            if (States.TryGetValue(ae, out State s2)) { s2.Latched = false; s2.Timer = 0f; s2.Settled = false; s2.StandTimer = 0f; s2.StillSince = -1f; s2.Armed = false; s2.WpHold = false; }
         }
 
 
@@ -194,8 +188,7 @@ namespace AutoEngineerBrakeFix
                 st.NextHold = now + 0.25f;
                 try
                 {
-                    var persistence = new AutoEngineerPersistence(ae.Locomotive.KeyValueObject);
-                    persistence.Orders = orders.WithMaxSpeedMph(0);
+                    new AutoEngineerPersistence(ae.Locomotive.KeyValueObject).Orders = orders.WithMaxSpeedMph(0);
                     logLine += " Speed order set to 0 mph.";
                     say += " Speed set to 0 mph - set a speed again to retry.";
                 }
@@ -219,35 +212,31 @@ namespace AutoEngineerBrakeFix
         }
 
         /// <summary>
-        /// Waypoint mode: full throttle at a crawl, then the train rolls back against its order. That is a grade the
-        /// train cannot climb, whatever the planner's targets say, so the stall is declared at once (and the speed
-        /// order set to 0). Progress, a new direction or a new waypoint starts the count again.
+        /// Waypoint mode: the train rolls back against its order. That is a grade the train cannot climb, so the
+        /// stall is declared at once (the speed order goes to 0, the brakes hold, the player is told). The detector is
+        /// armed once the train has moved the ordered way or the engineer has applied power to a standing train; a new
+        /// direction or waypoint disarms it, so the run-out of the old direction after a reversal is not a rollback.
         /// </summary>
-        private static bool CheckRollback(AutoEngineer ae, State st, float dt)
+        private static bool CheckRollback(AutoEngineer ae, State st)
         {
-            if (!TryOrders(ae, out Orders o) || o.Mode != AutoEngineerMode.Waypoint || o.MaxSpeedMph <= 0) { st.Struggle = 0f; return false; }
-            float now = Time.time;
+            if (!TryOrders(ae, out Orders o) || o.Mode != AutoEngineerMode.Waypoint || o.MaxSpeedMph <= 0) { st.Armed = false; return false; }
             int fwd = o.Forward ? 1 : -1;
             if (fwd != st.SeenForward || !Nullable.Equals(o.Waypoint, st.SeenWaypoint))
             {
                 st.SeenForward = fwd;
                 st.SeenWaypoint = o.Waypoint;
-                st.Struggle = 0f;
-                st.LastStruggle = -100f;
+                st.Armed = false;
             }
             float along = ae.Locomotive.velocity * fwd * MpsToMph; // positive = moving the way the engineer is ordered
-            if (along >= ProgressMph) { st.Struggle = 0f; return false; }
-            if (BrakeFix.ReadThrottle(ae) >= StruggleFullThrottle && along < StruggleMaxMph)
+            if (!st.Armed)
             {
-                st.Struggle += dt;
-                st.LastStruggle = now;
-                var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
-                if (targets != null && Mathf.Abs(targets.AverageGradeUnder) > 0.01f) st.Grade = targets.AverageGradeUnder;
+                if (along >= ArmMph || (Mathf.Abs(along) < StandMaxMph && BrakeFix.ReadThrottle(ae) >= StandMinThrottle)) st.Armed = true;
+                else return false;
             }
-            else if (now - st.LastStruggle > StruggleMemory) st.Struggle = 0f;
-
-            if (along > -RollbackMph || st.Struggle < StruggleSeconds || now - st.LastStruggle > StruggleMemory) return false;
-            Latch(ae, st, $"Stall guard: rolling back at {-along:0.0} mph after {st.Struggle:0} s at full throttle on a {-st.Grade:0.0}% grade.",
+            if (along > -RollbackMph) return false;
+            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            float grade = targets != null ? targets.AverageGradeUnder : 0f;
+            Latch(ae, st, $"Stall guard: rolling back at {-along:0.0} mph against the order{(Mathf.Abs(grade) > 0.01f ? $" on a {-grade:0.0}% grade" : "")}.",
                 "We can't climb this grade - the train is rolling back. Holding with the brakes; we need help or a lighter train.", "Can't climb grade");
             return true;
         }
@@ -275,7 +264,7 @@ namespace AutoEngineerBrakeFix
 
             float speed = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
             float frameDt = Mathf.Clamp(Time.deltaTime, 0f, 0.25f);
-            if (CheckRollback(ae, st, frameDt)) return;
+            if (CheckRollback(ae, st)) return;
             st.StandSmooth = st.StandTimer <= 0f ? speed : Mathf.Lerp(st.StandSmooth, speed, 1f - Mathf.Exp(-frameDt / 0.5f));
             bool standing = speed < StandMaxMph
                 && BrakeFix.ReadThrottle(ae) >= StandMinThrottle
