@@ -85,6 +85,8 @@ namespace AutoEngineerBrakeFix
                     Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
                     Note(b, "Slowing lead: how many seconds before a lower limit the engineer plans to be at that speed.");
+                    b.AddFieldToggle("Stop with the train brake", () => s.DirectionStopTrainBrakeOnly, v => { s.DirectionStopTrainBrakeOnly = v; Save(); });
+                    Note(b, "Stopping a moving train with no speed order (changing direction, or a speed order of 0) uses the train brake only; the independent brake is bailed off above 2 mph and only holds the train once it is nearly stopped.");
                 });
 
                 page.AddSection("Steam cutoff", b =>
@@ -97,7 +99,7 @@ namespace AutoEngineerBrakeFix
                 page.AddSection("Stall guard", b =>
                 {
                     b.AddFieldToggle("Stall guard", () => s.StallGuard, v => { s.StallGuard = v; Save(); });
-                    Note(b, "A train that cannot climb a grade or get moving is held with the brakes and the engineer says so, instead of looping through full throttle and rolling back. Clears when the engineer is switched off and on, or its direction or mode changes.");
+                    Note(b, "A train that cannot climb a grade or get moving is held with the brakes and the engineer says so, instead of looping through full throttle and rolling back. Clears when the engineer is switched off and on, or its direction or mode changes. In Waypoint mode it also sets the speed order to 0 mph; set a speed again to retry.");
                     Slider(b, "Stall time", () => s.StallSeconds, v => s.StallSeconds = v, 3f, 30f, 1f,
                         v => v.ToString("0") + " s");
                 });
@@ -216,6 +218,7 @@ namespace AutoEngineerBrakeFix
             s.CoastBandAssistSeconds = d.CoastBandAssistSeconds;
             s.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
             s.StallGuard = d.StallGuard;
+            s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
             s.StallSeconds = d.StallSeconds;
             s.SmoothThrottle = d.SmoothThrottle;
             s.ThrottleSmoothingSeconds = d.ThrottleSmoothingSeconds;

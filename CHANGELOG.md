@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.5
+
+- **Stall guard in Waypoint mode**: a train at full throttle that slows to a crawl and then rolls back against its order (4 s or more of full throttle under 6 mph first) is now caught at once, wherever the planner's targets stand. In Waypoint mode the guard sets the speed order to 0 mph, holds the train with the brakes and says so; set a speed again (or a new waypoint) to retry. Before, the guard only counted full-throttle time, which the game's own change-direction stop cut short, so the train looped through throttle and rollback.
+- **The guard no longer clears itself** when the planner swaps in empty targets while it stops the train: it now reads the engineer's orders (mode, direction, speed, waypoint) instead of its targets.
+- **Stops use the train brake**: stopping a moving train with no speed order and nothing ahead (changing direction, or a speed order of 0) now bails off the independent brake above 2 mph and drives the train brake (still capped by `DirectionStopBrakeLimit`). The independent brake only holds the train once it is under 2 mph. The stall guard's hold does the same. New setting `DirectionStopTrainBrakeOnly` (on), also in the settings window.
+
 ## 2.9.4
 
 - **Fix: the mod failed to load in 2.9.0-2.9.3** ("The given key 'AutoEngineer.SpeedControlLoop._ae' was not present"). The stall guard and no-power-into-reductions self-check entries named a target the check does not list. They now use the listed one, and an unknown target counts as missing instead of stopping the load.

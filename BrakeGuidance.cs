@@ -76,6 +76,24 @@ namespace AutoEngineerBrakeFix
     }
 
     /// <summary>
+    /// Rollout-controller hook: while a moving train has no speed order and nothing ahead to stop for, the
+    /// stop is made with the train brake alone. The independent brake is bailed off above 2 mph (it only holds
+    /// the train once it is nearly stopped, and trims small errors); the train brake is driven toward a full
+    /// application, which TrainBrake.DriveToward limits to the effective maximum (the direction-stop limit).
+    /// </summary>
+    internal static class DirectionStop
+    {
+        internal static bool Filter(object loop, ref RolloutCommand command)
+        {
+            if (!Main.Settings.DirectionStopTrainBrakeOnly) return false;
+            var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
+            if (ae == null || ae.Locomotive == null || !BrakeGuidance.StopWithoutTarget(ae)) return false;
+            command = new RolloutCommand(command.Kind, 0f, 0f, 1f, true, true, command.Cost, command.HoldCost);
+            return true;
+        }
+    }
+
+    /// <summary>
     /// The planner reads this value as the deepest brake application it may use, and TrainBrake.DriveToward obeys
     /// it, so lowering it while a direction-change stop is under way makes the engineer plan a gentler stop
     /// instead of braking at the game's maximum.

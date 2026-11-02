@@ -184,6 +184,13 @@ namespace AutoEngineerBrakeFix
         public float DirectionStopBrakeLimit = 0.15f;
 
         /// <summary>
+        /// Stopping a moving train that has no speed order and no target (a direction change, or a speed order of 0)
+        /// uses the train brake alone: the independent brake is bailed off above 2 mph, and only holds the train
+        /// once it is nearly stopped.
+        /// </summary>
+        public bool DirectionStopTrainBrakeOnly = true;
+
+        /// <summary>
         /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
         /// nothing ahead needs it to slow, the controller's first train-brake application is turned into a coast. Road mode
         /// and Waypoint modes. About 1-2% less coal on downhill running, nothing measurable uphill.

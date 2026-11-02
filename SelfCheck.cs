@@ -222,6 +222,15 @@ namespace AutoEngineerBrakeFix
                 },
                 new Feature
                 {
+                    Name = "Direction stop with the train brake",
+                    AlwaysPatch = true,
+                    On = () => s.DirectionStopTrainBrakeOnly,
+                    TurnOff = () => s.DirectionStopTrainBrakeOnly = false,
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "Targets.MaxSpeedMph", "Targets.AllTargets" },
+                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
+                },
+                new Feature
+                {
                     Name = "Planner weights",
                     AlwaysPatch = true,
                     On = () => s.PlanOverspeedScale != 1f || s.PlanUndershootScale != 1f || s.PlanUndershootDeadbandScale != 1f || s.PlanCeilingScale != 1f || s.PlanIndependentUseScale != 1f,

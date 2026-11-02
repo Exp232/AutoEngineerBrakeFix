@@ -148,6 +148,11 @@ namespace AutoEngineerBrakeFix
                     CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, false, false, false);
                     return;
                 }
+                if (DirectionStop.Filter(__instance, ref __0))
+                {
+                    CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, false, false, false);
+                    return;
+                }
                 bool hold = ReductionHold.Filter(__instance, ref __0);
                 bool tap = BrakeTaps.Filter(__instance, ref __0);
                 bool band = CoastBand.Filter(__instance, ref __0);

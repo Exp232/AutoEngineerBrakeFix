@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using Game.Messages;
 using HarmonyLib;
 using Model;
 using Model.AI;
@@ -45,7 +46,23 @@ namespace AutoEngineerBrakeFix
             public int LatchSign;
             public float StillSince = -1f;
             public bool Settled;
+            // Waypoint mode: rollback detection and the hold after the speed order was set to 0.
+            public float Struggle;
+            public float LastStruggle = -100f;
+            public float Grade;
+            public int SeenForward;
+            public OrderWaypoint? SeenWaypoint;
+            public bool WpHold;
+            public float NextHold;
+            public OrderWaypoint? LatchWaypoint;
         }
+
+        private const float RollbackMph = 0.5f;
+        private const float StruggleSeconds = 4f;
+        private const float StruggleFullThrottle = 0.9f;
+        private const float StruggleMaxMph = 6f;
+        private const float ProgressMph = 8f;
+        private const float StruggleMemory = 25f;
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
@@ -73,13 +90,43 @@ namespace AutoEngineerBrakeFix
             return st.Settled ? 1f : 0.6f;
         }
 
+        /// <summary>
+        /// The independent brake only holds the train once it is nearly stopped (or the hold has settled); while the
+        /// train is still moving the train brake does the stopping and the independent is bailed off.
+        /// </summary>
+        internal static bool IndependentOn(AutoEngineer ae)
+        {
+            if (!States.TryGetValue(ae, out State st) || !st.Latched || st.Settled) return true;
+            return ae.Locomotive == null || Mathf.Abs(ae.Locomotive.velocity) * MpsToMph < BrakeGuidance.FullBrakeBelowMph;
+        }
+
+        /// <summary>Writes the brake lever for the hold: train brake level, independent only when IndependentOn.</summary>
+        internal static void ApplyHoldBrakes(AutoEngineer ae)
+        {
+            float train = BrakeLevel(ae);
+            BrakeFix.WriteControl(ae, "TrainBrake", train);
+            BrakeFix.WriteControl(ae, "LocomotiveBrake", IndependentOn(ae) ? 1f : 0f);
+        }
+
+        private static bool TryOrders(AutoEngineer ae, out Orders orders)
+        {
+            orders = default;
+            try
+            {
+                if (ae == null || ae.Locomotive == null) return false;
+                orders = new AutoEngineerPersistence(ae.Locomotive.KeyValueObject).Orders;
+                return true;
+            }
+            catch (Exception) { return false; }
+        }
+
         internal static void Reset(AutoEngineer ae)
         {
             if (States.TryGetValue(ae, out State st) && st.Latched)
             {
                 Main.Mod.Logger.Log("Stall guard cleared.");
             }
-            if (States.TryGetValue(ae, out State s2)) { s2.Latched = false; s2.Timer = 0f; s2.Settled = false; s2.StandTimer = 0f; s2.StillSince = -1f; }
+            if (States.TryGetValue(ae, out State s2)) { s2.Latched = false; s2.Timer = 0f; s2.Settled = false; s2.StandTimer = 0f; s2.StillSince = -1f; s2.Struggle = 0f; s2.LastStruggle = -100f; s2.WpHold = false; }
         }
 
 
@@ -87,6 +134,14 @@ namespace AutoEngineerBrakeFix
         /// <summary>The engineer's mode and direction of travel (the sign of the speed limit, which the planner signs by direction).</summary>
         private static void ReadOrders(AutoEngineer ae, out string mode, out int sign)
         {
+            // The orders themselves, not the planner's targets: the planner swaps in empty targets (and a different
+            // mode) while it stops a train, which would look like the player changing the orders.
+            if (TryOrders(ae, out Orders o))
+            {
+                mode = o.Mode.ToString();
+                sign = o.Forward ? 1 : -1;
+                return;
+            }
             var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
             mode = targets != null ? targets.Mode.ToString() : "";
             float m = targets != null ? targets.MaxSpeedMph : 0f;
@@ -96,6 +151,21 @@ namespace AutoEngineerBrakeFix
         /// <summary>While latched: switching the engineer's direction or mode clears the stall.</summary>
         private static void CheckOrdersChanged(AutoEngineer ae, State st)
         {
+            if (st.WpHold && TryOrders(ae, out Orders o))
+            {
+                if (o.MaxSpeedMph > 0)
+                {
+                    Main.Mod.Logger.Log("Stall guard cleared: a speed order was set again.");
+                    Reset(ae);
+                    return;
+                }
+                if (!Nullable.Equals(o.Waypoint, st.LatchWaypoint))
+                {
+                    Main.Mod.Logger.Log("Stall guard cleared: the waypoint changed.");
+                    Reset(ae);
+                    return;
+                }
+            }
             ReadOrders(ae, out string mode, out int sign);
             if (st.LatchSign == 0 && sign != 0) st.LatchSign = sign; // direction was not known yet
             bool modeChanged = !string.IsNullOrEmpty(st.LatchMode) && mode != st.LatchMode;
@@ -114,12 +184,30 @@ namespace AutoEngineerBrakeFix
             st.StillSince = -1f;
             st.StandTimer = 0f;
             ReadOrders(ae, out st.LatchMode, out st.LatchSign);
+            st.WpHold = false;
+            if (TryOrders(ae, out Orders orders) && orders.Mode == AutoEngineerMode.Waypoint)
+            {
+                // Waypoint mode: the planner would keep re-planning and driving at the grade, so set the speed order
+                // to 0 (as the game does for an empty tender) and tell the player how to try again.
+                st.WpHold = true;
+                st.LatchWaypoint = orders.Waypoint;
+                st.NextHold = now + 0.25f;
+                try
+                {
+                    new AutoEngineerPersistence(ae.Locomotive.KeyValueObject).Orders = orders.WithMaxSpeedMph(0);
+                    logLine += " Speed order set to 0 mph.";
+                    say += " Speed set to 0 mph - set a speed again to retry.";
+                }
+                catch (Exception e)
+                {
+                    Main.Mod.Logger.Warning("Stall guard: could not set the speed order to 0: " + e.Message);
+                }
+            }
             Main.Mod.Logger.Warning(logLine);
             try
             {
-                BrakeFix.WriteControl(ae, "LocomotiveBrake", 1f);
-                BrakeFix.WriteControl(ae, "TrainBrake", BrakeLevel(ae));
                 BrakeFix.WriteControl(ae, "Throttle", 0f);
+                ApplyHoldBrakes(ae);
                 MSay?.Invoke(ae.GetComponent(SignalPlanning.PlannerType), new object[] { say });
                 MNotice?.Invoke(ae.Locomotive, new object[] { "ai-stop", notice });
             }
@@ -127,6 +215,40 @@ namespace AutoEngineerBrakeFix
             {
                 Main.Mod.Logger.Warning("Stall guard: could not announce: " + e.Message);
             }
+        }
+
+        /// <summary>
+        /// Waypoint mode: full throttle at a crawl, then the train rolls back against its order. That is a grade the
+        /// train cannot climb, whatever the planner's targets say, so the stall is declared at once (and the speed
+        /// order set to 0). Progress, a new direction or a new waypoint starts the count again.
+        /// </summary>
+        private static bool CheckRollback(AutoEngineer ae, State st, float dt)
+        {
+            if (!TryOrders(ae, out Orders o) || o.Mode != AutoEngineerMode.Waypoint || o.MaxSpeedMph <= 0) { st.Struggle = 0f; return false; }
+            float now = Time.time;
+            int fwd = o.Forward ? 1 : -1;
+            if (fwd != st.SeenForward || !Nullable.Equals(o.Waypoint, st.SeenWaypoint))
+            {
+                st.SeenForward = fwd;
+                st.SeenWaypoint = o.Waypoint;
+                st.Struggle = 0f;
+                st.LastStruggle = -100f;
+            }
+            float along = ae.Locomotive.velocity * fwd * MpsToMph; // positive = moving the way the engineer is ordered
+            if (along >= ProgressMph) { st.Struggle = 0f; return false; }
+            if (BrakeFix.ReadThrottle(ae) >= StruggleFullThrottle && along < StruggleMaxMph)
+            {
+                st.Struggle += dt;
+                st.LastStruggle = now;
+                var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+                if (targets != null && Mathf.Abs(targets.AverageGradeUnder) > 0.01f) st.Grade = targets.AverageGradeUnder;
+            }
+            else if (now - st.LastStruggle > StruggleMemory) st.Struggle = 0f;
+
+            if (along > -RollbackMph || st.Struggle < StruggleSeconds || now - st.LastStruggle > StruggleMemory) return false;
+            Latch(ae, st, $"Stall guard: rolling back at {-along:0.0} mph after {st.Struggle:0} s at full throttle on a {-st.Grade:0.0}% grade.",
+                "We can't climb this grade - the train is rolling back. Holding with the brakes; we need help or a lighter train.", "Can't climb grade");
+            return true;
         }
 
         /// <summary>
@@ -138,10 +260,21 @@ namespace AutoEngineerBrakeFix
         {
             if (!Main.Settings.StallGuard || ae == null || ae.Locomotive == null) return;
             State st = States.GetOrCreateValue(ae);
-            if (st.Latched) { CheckOrdersChanged(ae, st); return; }
+            if (st.Latched)
+            {
+                CheckOrdersChanged(ae, st);
+                if (st.Latched && st.WpHold && Time.time >= st.NextHold)
+                {
+                    st.NextHold = Time.time + 0.25f;
+                    BrakeFix.WriteControl(ae, "Throttle", 0f);
+                    ApplyHoldBrakes(ae);
+                }
+                return;
+            }
 
             float speed = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
             float frameDt = Mathf.Clamp(Time.deltaTime, 0f, 0.25f);
+            if (CheckRollback(ae, st, frameDt)) return;
             st.StandSmooth = st.StandTimer <= 0f ? speed : Mathf.Lerp(st.StandSmooth, speed, 1f - Mathf.Exp(-frameDt / 0.5f));
             bool standing = speed < StandMaxMph
                 && BrakeFix.ReadThrottle(ae) >= StandMinThrottle
@@ -187,7 +320,9 @@ namespace AutoEngineerBrakeFix
             if (ae == null || ae.Locomotive == null) return false;
             float throttle = command.ThrottleNotch;
             if (!Check(ae, ref throttle)) return false;
-            command = new RolloutCommand(command.Kind, 0f, 1f, BrakeLevel(ae), true, false, command.Cost, command.HoldCost);
+            float train = BrakeLevel(ae);
+            bool independent = IndependentOn(ae);
+            command = new RolloutCommand(command.Kind, 0f, independent ? 1f : 0f, train, true, !independent, command.Cost, command.HoldCost);
             return true;
         }
 
@@ -241,8 +376,7 @@ namespace AutoEngineerBrakeFix
         private static IEnumerator Hold(AutoEngineer ae)
         {
             BrakeFix.WriteControl(ae, "Throttle", 0f);
-            BrakeFix.WriteControl(ae, "LocomotiveBrake", 1f);
-            BrakeFix.WriteControl(ae, "TrainBrake", StallGuard.BrakeLevel(ae));
+            StallGuard.ApplyHoldBrakes(ae);
             yield return new WaitForSeconds(1f);
         }
     }

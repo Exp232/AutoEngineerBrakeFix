@@ -29,6 +29,8 @@ The stock AI can flip the throttle between 0 and 25% every half second (on 0.6 t
 - **Stay stopped**: within 2.5 m of a stop target the AI now holds the stop; the stock AI can treat a train stopped 1-3 m short of a signal as "should be moving" and creep past it.
 
 ## Gentle direction-change stop (0.6.0)
+Stopping a moving train with no speed order (changing direction, or a speed order of 0) now uses the train brake only: the independent brake is bailed off above 2 mph and only holds the train once it is nearly stopped (`DirectionStopTrainBrakeOnly`, also in the settings window).
+
 Changing direction on a moving train clears the engineer's speed order and targets, so it plans a stop with no distance and brakes at the game's maximum (about 0.29 of a full pipe reduction). While the train is moving with no speed order and nothing ahead to stop for, the mod lowers the brake limit the planner works with to 0.15 (about 13 psi), so it plans a longer, gentler stop. The limit lifts as soon as a new order, target or signal appears, or when the train is almost stopped (under 2 mph). `DirectionStopBrakeLimit` in Settings.xml; 0 turns it off.
 
 ## Planner weights (0.6.0)
