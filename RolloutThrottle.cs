@@ -63,7 +63,9 @@ namespace AutoEngineerBrakeFix
             float error = targetMps - speedMps;
 
             float result = command.ThrottleNotch;
-            ThrottleSmoother.Apply(info, error, ref result);
+            // No slam: the rollout controller lowers the lever one notch (0.125) a tick and brakes by itself when it needs to,
+            // so a mild overspeed (a falling target on a steep grade) must not take the throttle to zero.
+            ThrottleSmoother.Apply(info, error, ref result, false);
             if (Mathf.Abs(result - command.ThrottleNotch) < 0.0005f) return false;
 
             command = new RolloutCommand(command.Kind, result, command.IndependentBrake01, command.TrainBrakeSet, command.DrivesTrainBrake, command.BailOff, command.Cost, command.HoldCost);

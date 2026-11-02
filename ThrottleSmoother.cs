@@ -22,7 +22,7 @@ namespace AutoEngineerBrakeFix
         private const float RiseLimitPerSecond = 0.2f;   // 0 -> full in 5 s
         private const float FallLimitPerSecond = 0.4f;   // full -> 0 in 2.5 s
 
-        internal static void Apply(PidInfo owner, float error, ref float result)
+        internal static void Apply(PidInfo owner, float error, ref float result, bool slam = true)
         {
             float tau = Main.Settings.ThrottleSmoothingSeconds;
             float now = Time.time;
@@ -62,7 +62,7 @@ namespace AutoEngineerBrakeFix
                 // seconds while the brake is already applying. Shut it at once when the brake is on or the train is
                 // clearly over the setpoint (mild overspeed with no brake yet keeps the AI's own gradual closing).
                 bool brakeOn = BrakeFix.ReadBrakeRequested(owner.Engineer);
-                if (Main.Settings.SlamThrottleOnOverspeed && (brakeOn || error < -2f * bypass))
+                if (slam && Main.Settings.SlamThrottleOnOverspeed && (brakeOn || error < -2f * bypass))
                 {
                     result = 0f;
                 }
