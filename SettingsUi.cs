@@ -85,6 +85,8 @@ namespace AutoEngineerBrakeFix
                     Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
                     Note(b, "Slowing lead: how many seconds before a lower limit the engineer plans to be at that speed.");
+                    b.AddFieldToggle("See slowest track limit ahead", () => s.FullRouteTrackSpeed, v => { s.FullRouteTrackSpeed = v; Save(); });
+                    Note(b, "Looks 1.5 km down the route and slows for the slowest limit on it, so a slow zone is not met only when the train reaches it.");
                     b.AddFieldToggle("Stop with the train brake", () => s.DirectionStopTrainBrakeOnly, v => { s.DirectionStopTrainBrakeOnly = v; Save(); });
                     Note(b, "Stopping a moving train with no speed order (changing direction, or a speed order of 0) uses the train brake only; the locomotive brake is bailed off above 2 mph and only holds the train once it is nearly stopped.");
                 });
@@ -220,6 +222,7 @@ namespace AutoEngineerBrakeFix
             s.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
             s.StallGuard = d.StallGuard;
             s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
+            s.FullRouteTrackSpeed = d.FullRouteTrackSpeed;
             s.StallSeconds = d.StallSeconds;
             s.SmoothThrottle = d.SmoothThrottle;
             s.ThrottleSmoothingSeconds = d.ThrottleSmoothingSeconds;

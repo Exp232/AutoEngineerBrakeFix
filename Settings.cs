@@ -189,6 +189,8 @@ namespace AutoEngineerBrakeFix
         /// once it is nearly stopped.
         /// </summary>
         public bool DirectionStopTrainBrakeOnly = true;
+        /// <summary>See AutoEngineer_SetTargets_Patch.FullRouteTrackSpeed.</summary>
+        public bool FullRouteTrackSpeed = true;
 
         /// <summary>
         /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and

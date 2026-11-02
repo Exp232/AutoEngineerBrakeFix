@@ -314,7 +314,7 @@ namespace AutoEngineerBrakeFix
         }
 
         // As AutoEngineerPlanner.CalculateMaxSpeedMph: the track's limit for this equipment, capped by the track class.
-        private static float SegmentSpeed(Graph graph, TrackSegment segment, float equip)
+        internal static float SegmentSpeed(Graph graph, TrackSegment segment, float equip)
         {
             float v = graph.CalculateMaxSpeedMph(segment, equip);
             float c = ClassSpeed(segment.PostedTrackClass);
