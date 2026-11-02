@@ -28,7 +28,7 @@ namespace AutoEngineerBrakeFix
 
         internal static Record Get(AutoEngineer ae) => ae != null && Records.TryGetValue(ae, out Record r) ? r : null;
 
-        internal static void Note(AutoEngineer ae, in RolloutCommand before, in RolloutCommand after, bool tap, bool band)
+        internal static void Note(AutoEngineer ae, in RolloutCommand before, in RolloutCommand after, bool tap, bool band, bool smooth = false)
         {
             if (ae == null) return;
             Record r = Records.GetOrCreateValue(ae);
@@ -41,7 +41,8 @@ namespace AutoEngineerBrakeFix
             r.OutInd = after.IndependentBrake01;
             r.OutTb = after.TrainBrakeSet;
             r.OutBail = after.BailOff;
-            r.Mod = tap && band ? "tap+band" : tap ? "tap" : band ? "band" : "";
+            string mod = tap && band ? "tap+band" : tap ? "tap" : band ? "band" : "";
+            r.Mod = smooth ? (mod.Length > 0 ? mod + "+smooth" : "smooth") : mod;
             r.Time = Time.fixedTime;
             r.Count++;
         }

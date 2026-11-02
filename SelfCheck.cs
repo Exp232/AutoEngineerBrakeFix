@@ -162,10 +162,11 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Throttle smoothing",
+                    AlwaysPatch = true,
                     On = () => s.SmoothThrottle,
                     TurnOff = () => s.SmoothThrottle = false,
-                    Needs = pidLoop.Concat(new[] { "AutoEngineer._control", "AutoEngineer.throttleController" }).ToArray(),
-                    Patches = pidPatches,
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._control", "AutoEngineer._debugContextualTargetVelocity", "AutoEngineer.OnEnable()" },
+                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch), typeof(AutoEngineer_OnEnable_Patch) },
                 },
                 new Feature
                 {

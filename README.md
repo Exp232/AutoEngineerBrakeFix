@@ -18,7 +18,7 @@ The stock AI uses the longest cutoff that reaches peak power, but steam and coal
 Same route and train: coal fell from 4,136 lb to 2,334 lb (-44%) and water by 26% for a few seconds more running time. On climbs of 2.0% or more (adjustable 0.5-5%) the mod hands back to the stock cutoff.
 
 ## Throttle smoothing
-The stock AI can flip the throttle between 0 and 25% every half second. The mod low-pass filters it (default 1.6 s), limits how fast it can open (full in 5 s) or close, and with "Glide" on moves the lever about 20 times a second between the AI's updates, so it moves smoothly in the cab. When the train is over its setpoint and needs the brake, the throttle closes at once.
+The stock AI can flip the throttle between 0 and 25% every half second (on 0.6 the rollout controller sets a notch each tick; since 2.8.3 the filter works on that, as it did on the PID before). The mod low-pass filters it (default 1.6 s), limits how fast it can open (full in 5 s) or close, and with "Glide" on moves the lever about 20 times a second between the AI's updates, so it moves smoothly in the cab. When the train is over its setpoint and needs the brake, the throttle closes at once.
 
 ## Signals
 - **Sight distance** (default 500 m, the game uses 200 m): how far ahead the AI reacts to a signal's aspect.

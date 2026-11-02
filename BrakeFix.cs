@@ -230,7 +230,8 @@ namespace AutoEngineerBrakeFix
 
         internal static PidInfo ThrottleInfo(AutoEngineer ae)
         {
-            return Engineers.TryGetValue(ae, out EngineerInfo info) ? info.ThrottlePid : null;
+            if (Engineers.TryGetValue(ae, out EngineerInfo info) && info.ThrottlePid != null) return info.ThrottlePid;
+            return RolloutThrottle.Peek(ae);   // 0.6: no throttle PID; the rollout controller's smoothing state
         }
 
         /// <summary>True if the train brake or the locomotive brake is currently applied.</summary>

@@ -70,6 +70,11 @@ namespace AutoEngineerBrakeFix
                     Note(b, "Coast band pickup: on a downhill, power stays off only if the grade alone reaches the target within this many seconds; otherwise the engineer accelerates. 0 = always off.");
                     Slider(b, "Pickup horizon", () => s.CoastBandAssistSeconds, v => s.CoastBandAssistSeconds = v, 0f, 90f, 5f,
                         v => v <= 0f ? "always" : v.ToString("0") + " s");
+                    b.AddFieldToggle("Throttle smoothing", () => s.SmoothThrottle, v => { s.SmoothThrottle = v; Save(); });
+                    Note(b, "Moves the throttle lever like a hand on the regulator (a low-pass filter and rate limit, eased between the engineer's updates). A brake application or overspeed closes it at once.");
+                    Slider(b, "Smoothing time", () => s.ThrottleSmoothingSeconds, v => s.ThrottleSmoothingSeconds = v, 0.2f, 4f, 0.2f,
+                        v => v.ToString("0.0") + " s");
+                    b.AddFieldToggle("Glide between updates", () => s.GlideThrottle, v => { s.GlideThrottle = v; Save(); });
                     Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
                     Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
@@ -179,6 +184,9 @@ namespace AutoEngineerBrakeFix
             s.BrakeTapSuppressMph = d.BrakeTapSuppressMph;
             s.CoastBandMph = d.CoastBandMph;
             s.CoastBandAssistSeconds = d.CoastBandAssistSeconds;
+            s.SmoothThrottle = d.SmoothThrottle;
+            s.ThrottleSmoothingSeconds = d.ThrottleSmoothingSeconds;
+            s.GlideThrottle = d.GlideThrottle;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.CutoffTolerancePercent = d.CutoffTolerancePercent;
             s.PlanOverspeedScale = d.PlanOverspeedScale;

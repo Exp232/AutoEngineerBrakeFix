@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.8.3
+
+- **Throttle smoothing is back** on the 0.6 rollout controller. It was built on the old PID speed loop, which 0.6.0 replaced, so since 2.0.0 the self-check reported it as unavailable. The same filter as before (`ThrottleSmoothingSeconds`, default 1.6 s: low-pass, 0.2/s rise limit, 0.4/s fall limit, hand-over from the lever's real position) now runs on the notch the controller sets each tick (`RolloutThrottle.cs`, in the `ApplyRolloutCommand` prefix after the brake-tap and coast-band filters), and the glider eases the lever between ticks about 20 times a second (`GlideThrottle`). A command that brakes, any overspeed beyond `OverspeedMarginMph`, and a latched stall guard close or release the throttle at once. In the settings window (Ctrl+F8, "Fuel saving"): "Throttle smoothing" toggle, "Smoothing time" slider, "Glide between updates" toggle. `SmoothThrottle` is true in the code defaults, so a `Settings.xml` that has it false (as saved while it did nothing) must be switched on there. The `cmdMod` column shows `smooth` (also `tap+smooth`, `band+smooth`) when the lever differs from the controller's command. Untested in game: the controller reads the lever back each tick, so watch for it asking for more power than it gets (`cmdThr` against `outThr` in `ae_*.csv`).
+
 ## 2.8.2
 
 - Water stop: a train stopped well short of the column (more than 10 m from the spout, waypoint still set) is no longer measured and "corrected" as if it had arrived. A maintenance-of-way train that stops for a task just before the water tower used to end in "I can't line the tender up with the spout" (issue #1); it now waits until it moves on and arrives. A train that never gets there still gives up after the approach timeout ("couldn't get to the column"). Untested in game; the cause is read from the code, not from a log.
