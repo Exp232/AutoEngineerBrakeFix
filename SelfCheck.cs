@@ -232,6 +232,7 @@ namespace AutoEngineerBrakeFix
                 new Feature
                 {
                     Name = "Starting resistance",
+                    AlwaysPatch = true,
                     On = () => s.StartingResistance,
                     TurnOff = () => s.StartingResistance = false,
                     Needs = new[] { "IntegrationSet.CalculateRetardingForce(Element, float absVelocity)", "IntegrationSet.Element", "IntegrationSet.Element.car" },

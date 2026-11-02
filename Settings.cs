@@ -60,8 +60,8 @@ namespace AutoEngineerBrakeFix
 
         // ---- Fuel use (experimental) ----
 
-        /// <summary>Adds a standing-start resistance the game lacks (its Davis equation only covers a moving train). Off by default.</summary>
-        public bool StartingResistance = false;
+        /// <summary>Adds a standing-start resistance the game lacks (its Davis equation only covers a moving train). </summary>
+        public bool StartingResistance = true;
 
         /// <summary>Extra resistance at 0 mph, in pounds per ton (real plain-bearing cars: roughly 5-10).</summary>
         public float StartingResistanceLbPerTon = 5f;
@@ -79,10 +79,10 @@ namespace AutoEngineerBrakeFix
         public float StartingResistanceSettleMinutes = 10f;
 
         /// <summary>
-        /// Replace the game's coal and water use with a power-based model (see FuelModel). Off by default. Can be switched in
+        /// Replace the game's coal and water use with a power-based model (see FuelModel). On by default. Can be switched in
         /// the settings window while the game runs (the patch is always installed and does nothing while this is off).
         /// </summary>
-        public bool RealisticFuel = false;
+        public bool RealisticFuel = true;
 
         /// <summary>Pounds of steam per indicated horsepower-hour (modern locomotives about 16-20 at a good cutoff; 21.5 with the default cutoff term gives about 23 lb of water per indicated hp-hour on the Bryson to Sylva round trip with the EMR 5000; Goss measured 21.6 for a superheated engine at 200 psi in steady running).</summary>
         public float SteamLbPerIhpHour = 21.5f;
@@ -102,19 +102,19 @@ namespace AutoEngineerBrakeFix
         /// Road-mode engineers stop at the next water column or tower ahead on the lined route when the tender runs low:
         /// they slow to the approach speed near it, switch to Waypoint mode only once the lead car is in the column's
         /// signal block (or within the approach distance where there is no CTC block), take water with the column's own
-        /// loader, and go back to Road mode with the speed and direction they had. Off by default; switchable in the
+        /// loader, and go back to Road mode with the speed and direction they had. On by default; switchable in the
         /// settings window while the game runs.
         /// </summary>
-        public bool WaterStop = false;
+        public bool WaterStop = true;
 
         /// <summary>Tender water (percent of capacity) below which the engineer plans a water stop.</summary>
-        public float WaterStopPercent = 30f;
+        public float WaterStopPercent = 60f;
 
         /// <summary>How far ahead along the lined route to look for a water column (km).</summary>
         public float WaterStopSearchKm = 30f;
 
         /// <summary>Road-mode speed limit (mph) once within half a mile of the column, and the Waypoint-mode limit for the stop itself.</summary>
-        public float WaterStopApproachMph = 20f;
+        public float WaterStopApproachMph = 25f;
 
         /// <summary>Where the column is not in a CTC block: distance (m) from the column at which the engineer switches to Waypoint mode.</summary>
         public float WaterStopApproachMeters = 600f;
@@ -126,7 +126,7 @@ namespace AutoEngineerBrakeFix
         /// still enforces them. On: cleared on the mainline (track inside CTC signal blocks), kept with a speed board at each
         /// end of every limited stretch on branches, yards and spurs. In memory only; off puts everything back.
         /// </summary>
-        public bool LegacySpeedLimits = false;
+        public bool LegacySpeedLimits = true;
 
         // ---- Status ----
 
@@ -134,9 +134,9 @@ namespace AutoEngineerBrakeFix
         /// Detailed auto-engineer status line (see DetailedStatus): names what sets a track speed (posted or railroad
         /// limit, track class, curve, or a curve held down by the equipment's rating), adds the distance to a limit or
         /// stop ahead, shows the engine's top speed when that is lower, and names this mod's own events. The tooltip
-        /// lists the reasoning and the targets ahead. Off by default; switchable in the settings window.
+        /// lists the reasoning and the targets ahead. On by default; switchable in the settings window.
         /// </summary>
-        public bool DetailedStatus = false;
+        public bool DetailedStatus = true;
 
         /// <summary>Distances in the detailed status in metres and kilometres instead of feet and miles.</summary>
         public bool StatusMetric = false;
@@ -196,7 +196,7 @@ namespace AutoEngineerBrakeFix
         /// and a brake application waits until the train is more than this band over its target unless a limit or a stop
         /// ahead needs it.
         /// </summary>
-        public float CoastBandMph = 0f;
+        public float CoastBandMph = 1f;
 
         /// <summary>
         /// With the coast band on: the throttle stays closed for a downhill pickup only when gravity alone will bring the

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.9.2
+
+- **New defaults** (your settings): realistic fuel, starting resistance, water stop (stop below 60% water, approach at 25 mph), legacy speed limit fix and detailed status are on; coast band is 1 mph. Diagnostic logging stays off by default. An existing `Settings.xml` keeps its own values; "Reset these to defaults" in the settings window now resets all of them.
+- **Settings window reorganised**: sections are now Throttle, Braking and speed limits, Steam cutoff, Stall guard, Starting resistance (new: toggle, drag at 0 mph, fade-out speed, standing time), Fuel use, Water stop, Legacy speed limits, Engineer status, Planner weights, Logging and Fixes. Starting resistance can now be switched on from the window without a restart.
+
 ## 2.9.1
 
 - **Old speed-loop code removed.** The brake-drag fix, the throttle and brake holds, the early brake release, residual braking, the PID registration and the PID columns in the diagnostic CSV (`thr_*`, `ind_*`, `tb_*`, `resMph`, `resNeedMph`, `fixBlocked`, `fixReleased`) are gone, along with their settings (`FixEnabled`, `FixLocomotiveBrake`, `SlamThrottleOnOverspeed`, `HoldThrottleWhileSlowing`, `HoldBrakeWhileSlowing`, `BrakeStartOverMph`, `BrakeReleaseLeadSeconds`, `BrakeResidual*`); an existing `Settings.xml` with them loads fine and they are dropped on the next save. `BrakeFix.cs` now only holds the control-state helpers, `DecelHold.cs` the shared target-list reads and the stay-stopped patch.

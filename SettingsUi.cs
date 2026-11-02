@@ -59,7 +59,17 @@ namespace AutoEngineerBrakeFix
                 var s = Main.Settings;
                 page.AddTitle("Auto Engineer", "AutoEngineerBrakeFix " + Main.Mod.Info.Version);
 
-                page.AddSection("Fuel saving", b =>
+                page.AddSection("Throttle", b =>
+                {
+                    b.AddFieldToggle("Throttle smoothing", () => s.SmoothThrottle, v => { s.SmoothThrottle = v; Save(); });
+                    Note(b, "Moves the throttle lever like a hand on the regulator (a low-pass filter and rate limit, eased between the engineer's updates). A brake application or overspeed closes it at once.");
+                    Slider(b, "Smoothing time", () => s.ThrottleSmoothingSeconds, v => s.ThrottleSmoothingSeconds = v, 0.2f, 4f, 0.2f,
+                        v => v.ToString("0.0") + " s");
+                    b.AddFieldToggle("Glide between updates", () => s.GlideThrottle, v => { s.GlideThrottle = v; Save(); });
+                    Note(b, "Eases the lever between the engineer's updates instead of stepping it.");
+                });
+
+                page.AddSection("Braking and speed limits", b =>
                 {
                     Note(b, "Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
                     Slider(b, "Brake tap limit", () => s.BrakeTapSuppressMph, v => s.BrakeTapSuppressMph = v, 0f, 5f, 0.5f,
@@ -67,22 +77,21 @@ namespace AutoEngineerBrakeFix
                     Note(b, "Coast band: closes the throttle when coasting holds the speed within this band below the target (or the grade is still picking the train up), and waits to brake until the train is this far over. 0 = off.");
                     Slider(b, "Coast band", () => s.CoastBandMph, v => s.CoastBandMph = v, 0f, 3f, 0.5f,
                         v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
-                    Note(b, "Coast band pickup: on a downhill, power stays off only if the grade alone reaches the target within this many seconds; otherwise the engineer accelerates. 0 = always off.");
                     Slider(b, "Pickup horizon", () => s.CoastBandAssistSeconds, v => s.CoastBandAssistSeconds = v, 0f, 90f, 5f,
                         v => v <= 0f ? "always" : v.ToString("0") + " s");
-                    b.AddFieldToggle("Throttle smoothing", () => s.SmoothThrottle, v => { s.SmoothThrottle = v; Save(); });
-                    Note(b, "Moves the throttle lever like a hand on the regulator (a low-pass filter and rate limit, eased between the engineer's updates). A brake application or overspeed closes it at once.");
-                    Slider(b, "Smoothing time", () => s.ThrottleSmoothingSeconds, v => s.ThrottleSmoothingSeconds = v, 0.2f, 4f, 0.2f,
-                        v => v.ToString("0.0") + " s");
-                    b.AddFieldToggle("Glide between updates", () => s.GlideThrottle, v => { s.GlideThrottle = v; Save(); });
+                    Note(b, "Pickup horizon: on a downhill, power stays off only if the grade alone reaches the target within this many seconds; otherwise the engineer accelerates. 0 = always off.");
                     b.AddFieldToggle("No power into reductions", () => s.AvoidPowerIntoReductions, v => { s.AvoidPowerIntoReductions = v; Save(); });
                     Note(b, "Closes the throttle when a lower speed limit is in sight and the train is already at or above that speed, so it coasts down before braking. Not applied on steep climbs.");
-                    Note(b, "Early slowing: how many seconds before a lower limit the engineer plans to be at that speed.");
                     Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
-                    Note(b, "Shorter cutoff: how much power it may give up for a shorter cutoff.");
+                    Note(b, "Slowing lead: how many seconds before a lower limit the engineer plans to be at that speed.");
+                });
+
+                page.AddSection("Steam cutoff", b =>
+                {
                     Slider(b, "Cutoff tolerance", () => s.CutoffTolerancePercent, v => s.CutoffTolerancePercent = v, 0f, 10f, 0.5f,
                         v => v.ToString("0.0") + " %");
+                    Note(b, "Shorter cutoff: how much of the peak power it may give up for a shorter cutoff. The cutoff on/off switch and the steep-grade limit are in Settings.xml.");
                 });
 
                 page.AddSection("Stall guard", b =>
@@ -91,6 +100,17 @@ namespace AutoEngineerBrakeFix
                     Note(b, "A train that cannot climb a grade or get moving is held with the brakes and the engineer says so, instead of looping through full throttle and rolling back. Clears when the engineer is switched off and on, or its direction or mode changes.");
                     Slider(b, "Stall time", () => s.StallSeconds, v => s.StallSeconds = v, 3f, 30f, 1f,
                         v => v.ToString("0") + " s");
+                });
+
+                page.AddSection("Starting resistance", b =>
+                {
+                    b.AddFieldToggle("Starting resistance", () => s.StartingResistance, v => { s.StartingResistance = v; Save(); });
+                    Note(b, "The game's resistance only covers a moving train. This adds a standing-start drag that fades out with speed, and is lower for cars that have only just stopped (the oil film in the journals).");
+                    Slider(b, "Drag at 0 mph", () => s.StartingResistanceLbPerTon, v => s.StartingResistanceLbPerTon = v, 0f, 15f, 0.5f,
+                        v => v.ToString("0.0") + " lb/ton");
+                    Slider(b, "Fades out by", () => s.StartingResistanceFadeMph, v => s.StartingResistanceFadeMph = v, 0.5f, 6f, 0.5f,
+                        v => v.ToString("0.0") + " mph");
+                    b.AddFieldToggle("Standing time", () => s.StartingResistanceStandingTime, v => { s.StartingResistanceStandingTime = v; Save(); });
                 });
 
                 page.AddSection("Fuel use", b =>
@@ -202,6 +222,17 @@ namespace AutoEngineerBrakeFix
             s.GlideThrottle = d.GlideThrottle;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.CutoffTolerancePercent = d.CutoffTolerancePercent;
+            s.StartingResistance = d.StartingResistance;
+            s.StartingResistanceLbPerTon = d.StartingResistanceLbPerTon;
+            s.StartingResistanceFadeMph = d.StartingResistanceFadeMph;
+            s.StartingResistanceStandingTime = d.StartingResistanceStandingTime;
+            s.RealisticFuel = d.RealisticFuel;
+            s.WaterStop = d.WaterStop;
+            s.WaterStopPercent = d.WaterStopPercent;
+            s.WaterStopApproachMph = d.WaterStopApproachMph;
+            s.LegacySpeedLimits = d.LegacySpeedLimits;
+            s.DetailedStatus = d.DetailedStatus;
+            s.StatusMetric = d.StatusMetric;
             s.PlanOverspeedScale = d.PlanOverspeedScale;
             s.PlanUndershootScale = d.PlanUndershootScale;
             s.PlanUndershootDeadbandScale = d.PlanUndershootDeadbandScale;
