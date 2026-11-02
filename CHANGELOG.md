@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.3
+
+- No code change. `CLAUDE.md` rewritten for the 0.6 rollout controller and the BuildWatcher build workflow.
+
 ## 2.9.2
 
 - **New defaults** (your settings): realistic fuel, starting resistance, water stop (stop below 60% water, approach at 25 mph), legacy speed limit fix and detailed status are on; coast band is 1 mph. Diagnostic logging stays off by default. An existing `Settings.xml` keeps its own values; "Reset these to defaults" in the settings window now resets all of them.
