@@ -81,6 +81,8 @@ namespace AutoEngineerBrakeFix
 
         private AutoEngineer _ae;
         private bool _loggedStationWait;
+        private bool _loggedHeldShort;
+        private const float HeldShortMeters = 10f;   // stopped this far short of the spout with the waypoint set: held by something else
         private BaseLocomotive _loco;
         private Phase _phase = Phase.Idle;
         private float _nextTick;
@@ -437,6 +439,19 @@ namespace AutoEngineerBrakeFix
                     if (!_loco.IsStopped(3f)) return;
                     // Stopped: either at the waypoint (the game may clear it on arrival) or held by something else.
                     if (_expectMode == AutoEngineerMode.Waypoint && orders.Waypoint.HasValue && !NearWaypoint(orders.Forward)) return;
+                    // Stopped well short of the column with the waypoint still set: something else is holding the train (a
+                    // maintenance-of-way task stop, issue #1). Wait for it to move on instead of measuring and "correcting".
+                    if (_corrections == 0 && _expectMode == AutoEngineerMode.Waypoint && orders.Waypoint.HasValue
+                        && TrySpotError(out float heldMiss, out _) && heldMiss > HeldShortMeters)
+                    {
+                        if (!_loggedHeldShort)
+                        {
+                            _loggedHeldShort = true;
+                            Main.Mod.Logger.Log($"Water stop ({Name}): stopped {heldMiss:0} m short of the spout with the waypoint still set; something else is holding the train, waiting.");
+                        }
+                        return;
+                    }
+                    _loggedHeldShort = false;
                     if (!CheckSpot(now, out string why))
                     {
                         if (why != null) Hold(now, why);

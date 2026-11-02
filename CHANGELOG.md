@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.8.2
+
+- Water stop: a train stopped well short of the column (more than 10 m from the spout, waypoint still set) is no longer measured and "corrected" as if it had arrived. A maintenance-of-way train that stops for a task just before the water tower used to end in "I can't line the tender up with the spout" (issue #1); it now waits until it moves on and arrives. A train that never gets there still gives up after the approach timeout ("couldn't get to the column"). Untested in game; the cause is read from the code, not from a log.
+
 ## 2.8.1
 
 - Mod Settings Hub: Ctrl+F8 opens this mod's own settings window again, as before 2.8.0, whether or not the hub is installed (2.8.0 sent it to the hub). The page still appears in the hub's window. No change to driving or fuel use.
