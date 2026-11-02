@@ -86,7 +86,7 @@ namespace AutoEngineerBrakeFix
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
                     Note(b, "Slowing lead: how many seconds before a lower limit the engineer plans to be at that speed.");
                     b.AddFieldToggle("Stop with the train brake", () => s.DirectionStopTrainBrakeOnly, v => { s.DirectionStopTrainBrakeOnly = v; Save(); });
-                    Note(b, "Stopping a moving train with no speed order (changing direction, or a speed order of 0) uses the train brake only; the independent brake is bailed off above 2 mph and only holds the train once it is nearly stopped.");
+                    Note(b, "Stopping a moving train with no speed order (changing direction, or a speed order of 0) uses the train brake only; the locomotive brake is bailed off above 2 mph and only holds the train once it is nearly stopped.");
                 });
 
                 page.AddSection("Steam cutoff", b =>
@@ -151,7 +151,8 @@ namespace AutoEngineerBrakeFix
                     Slider(b, "Undershoot", () => s.PlanUndershootScale, v => s.PlanUndershootScale = v, 0f, 3f, 0.05f, Weight);
                     Slider(b, "Undershoot margin", () => s.PlanUndershootDeadbandScale, v => s.PlanUndershootDeadbandScale = v, 0f, 3f, 0.05f, Weight);
                     Slider(b, "Ceiling", () => s.PlanCeilingScale, v => s.PlanCeilingScale = v, 0f, 3f, 0.05f, Weight);
-                    Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 3f, 0.05f, Weight);
+                    Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 5f, 0.05f, Weight);
+                    Note(b, "Locomotive brake use: how much the planner dislikes using the locomotive (independent) brake. Higher = it trims speed and slows with the train brake instead; 1 = the game's value.");
                 });
 
                 page.AddSection("Logging", b =>

@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.9.8
+
+- **Locomotive brake use slider**: the planner-weight slider for the locomotive (independent) brake now goes up to 5 (was 3) and has a note. Higher makes the planner trim speed and slow with the train brake instead. The wording in the settings window and README uses the game's name, locomotive brake.
 ## 2.9.7
 
 - **Road mode too**: a rollback (and any other stall) in Road mode now has the same effect as in Waypoint mode. The guard latches, sets the speed order to 0 mph, holds the brakes and tells the player; setting a speed again clears it.
