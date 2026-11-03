@@ -1,4 +1,6 @@
-# Auto Engineer Brake Fix (Railroader)
+# College Educated Auto Engineer (Railroader)
+
+Formerly Auto Engineer Brake Fix (versions up to 2.9.16). The mod folder, the Settings.xml and the mod identifier are unchanged, so an existing install and its settings carry over.
 
 Makes the AI engineer drive like a person: fewer wasted coal and water, a smooth throttle,
 gentle brake sets for signals, and no creeping past a stop.
@@ -59,7 +61,7 @@ The game uses the Davis equation for rolling resistance, which is only valid for
 ## Install
 Needs Railroader 0.6.0 or later; uses the game's built-in mod loader (Unity Mod Manager is no longer needed).
 1. Unzip into `Documents\Railroader\Mods`, so you have `Mods\AutoEngineerBrakeFix\AutoEngineerBrakeFix.dll`, `0Harmony.dll` and `Info.json`.
-2. Start the game and enable "Auto Engineer Brake Fix" in the game's mod list.
+2. Start the game and enable "College Educated Auto Engineer" in the game's mod list.
 3. Settings: edit `Mods\AutoEngineerBrakeFix\Settings.xml` (written with the defaults on first start; an old UMM `Settings.xml` can be copied in) and restart the game.
 
 At start-up the mod checks that everything it patches is still in the game. Features whose targets are missing are switched off and the rest keep working; the result is one summary block in the game log (`Player.log`).

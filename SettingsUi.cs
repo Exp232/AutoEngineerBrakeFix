@@ -32,7 +32,7 @@ namespace AutoEngineerBrakeFix
             windows.RegisterCustomWindow(new CustomWindowDefinition
             {
                 Identifier = WindowId,
-                Title = "Auto Engineer " + Main.Mod.Info.Version,
+                Title = "College Educated Auto Engineer " + Main.Mod.Info.Version,
                 Config = WindowConfig.Resizable(new Vector2Int(480, 640), new Vector2Int(380, 260)),
                 BuilderAction = Build,
             });
@@ -57,7 +57,7 @@ namespace AutoEngineerBrakeFix
             try
             {
                 var s = Main.Settings;
-                page.AddTitle("Auto Engineer", "AutoEngineerBrakeFix " + Main.Mod.Info.Version);
+                page.AddTitle("College Educated Auto Engineer", "Version " + Main.Mod.Info.Version);
 
                 page.AddSection("Throttle", b =>
                 {

@@ -104,7 +104,7 @@ namespace AutoEngineerBrakeFix
 
             // Puts this mod's settings page into the Mod Settings Hub when that is installed (found by reflection,
             // in either load order); without it the mod opens its own window as before.
-            HubLink.Register(context.ModIdentifier, "Auto Engineer Brake Fix", Mod.Info.Version, SettingsUi.BuildPage);
+            HubLink.Register(context.ModIdentifier, "College Educated Auto Engineer", Mod.Info.Version, SettingsUi.BuildPage);
 
             try
             {

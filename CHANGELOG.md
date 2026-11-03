@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.0
+
+- **First release under the new name, College Educated Auto Engineer** (formerly Auto Engineer Brake Fix, which reached 2.9.16). Version numbers restart at 1.0.0. The mod identifier, folder, assembly and `Settings.xml` are unchanged, so an installed copy and its settings carry over; only the name shown in the game's mod list, the settings window and the Mod Settings Hub changes. The project moved to https://github.com/Exp232/CollegeEducatedAutoEngineer.
+- Everything from the 2.x line is included: smooth throttle, brake-tap and coast-band filters, no power into speed reductions, gentle signal braking, stall guard with rollback detection, train-brake-only direction stops, water stop, shorter steam cutoff, optional realistic fuel use and starting resistance, and a simpler settings window with a separate diagnostics section (all logging off by default).
+
 ## 2.9.16
 
 - **Water stop level defaults to 25%** (the code default was 60% while the README said 30%). A value already saved in Settings.xml is kept.

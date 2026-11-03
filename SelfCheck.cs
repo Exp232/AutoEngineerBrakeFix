@@ -360,7 +360,7 @@ namespace AutoEngineerBrakeFix
         internal static bool Run(IModContext context, Harmony harmony)
         {
             var log = new StringBuilder();
-            log.AppendLine($"AutoEngineerBrakeFix {Main.Mod.Info.Version} self-check, game {UnityEngine.Application.version}");
+            log.AppendLine($"College Educated Auto Engineer {Main.Mod.Info.Version} self-check, game {UnityEngine.Application.version}");
 
             bool gameOk;
             try { gameOk = context.CheckDependency(GameRequirement); }
