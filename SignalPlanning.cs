@@ -139,7 +139,6 @@ namespace AutoEngineerBrakeFix
                 if (fresh && SignalPlanning.Gap <= 0f) LimitApproachWithoutNext(list);
                 if (fresh && Main.Settings.ApproachTargetAtSignal) MoveApproachTarget(list);
                 if (Main.Settings.HoldApproachSpeed) HoldApproach(__instance, list);
-                if (Main.Settings.FullRouteTrackSpeed) FullRouteTrackSpeed(__instance, __0, list);
                 if (Main.Settings.SpeedReductionLeadSeconds > 0f) ShiftReductions(__instance, __0, list);
                 if (__0.Mode.ToString() == "Off") StallGuard.Reset(__instance);
             }
@@ -151,47 +150,9 @@ namespace AutoEngineerBrakeFix
 
 
         private const float FullRouteMeters = 1500f;
-        private static float _nextFullRouteLog;
 
         /// <summary>
-        /// Walks the route ahead itself and makes the "Track Speed" target the slowest limit on it, placed at the
-        /// first drop (the game's rule: slowest limit, 13 m before the first restriction), so a slower zone further
-        /// on is seen at once instead of when the train reaches it. Only ever lowers the game's target.
-        /// </summary>
-        private static void FullRouteTrackSpeed(AutoEngineer ae, AutoEngineer.Targets targets, IList<AutoEngineer.Targets.Target> list)
-        {
-            bool forward = targets.MaxSpeedMph > 0f;
-            if (Mathf.Abs(targets.MaxSpeedMph) < 0.1f) return;
-            if (!ScanRoute(ae, forward, out float slowest, out float firstDrop, out string cause)) return;
-            float distance = slowest > 0.1f ? Mathf.Max(0f, firstDrop - 13f) : firstDrop;
-
-            int i = Find(list, "Track Speed");
-            float sign = forward ? 1f : -1f;
-            if (i >= 0)
-            {
-                var t = list[i];
-                if (Mathf.Abs(t.SpeedMph) <= slowest + 0.5f) return;
-                if (Time.unscaledTime > _nextFullRouteLog)
-                {
-                    _nextFullRouteLog = Time.unscaledTime + 5f;
-                    Main.Mod?.Logger.Log($"Full route track speed: the game listed {Mathf.Abs(t.SpeedMph):F0} mph at {t.Distance:F0} m; the route has {slowest:F0} mph from {firstDrop:F0} m.");
-                }
-                list[i] = new AutoEngineer.Targets.Target(sign * slowest, Mathf.Min(t.Distance, distance), t.Reason);
-            }
-            else
-            {
-                if (Time.unscaledTime > _nextFullRouteLog)
-                {
-                    _nextFullRouteLog = Time.unscaledTime + 5f;
-                    Main.Mod?.Logger.Log($"Full route track speed: the game listed no track limit; the route has {slowest:F0} mph from {firstDrop:F0} m.");
-                }
-                list.Add(new AutoEngineer.Targets.Target(sign * slowest, distance, "Track Speed"));
-            }
-            SortByDistance(list);
-        }
-
-        /// <summary>
-        /// Walks FullRouteMeters of route ahead the way the planner does and finds the slowest limit on it, where the
+        /// Walks 1.5 km of route ahead the way the planner does (for the diagnostic log only) and finds the slowest limit on it, where the
         /// first drop below the starting limit is, and why that slowest piece is slow. False when there is no drop.
         /// </summary>
         internal static bool ScanRoute(AutoEngineer ae, bool forward, out float slowest, out float firstDrop, out string cause)

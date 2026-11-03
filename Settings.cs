@@ -189,8 +189,6 @@ namespace AutoEngineerBrakeFix
         /// once it is nearly stopped.
         /// </summary>
         public bool DirectionStopTrainBrakeOnly = true;
-        /// <summary>Off by default. See AutoEngineer_SetTargets_Patch.FullRouteTrackSpeed: it applies the slowest limit in 1.5 km from the first drop, which slows the train far too early.</summary>
-        public bool FullRouteTrackSpeed = false;
 
         /// <summary>
         /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
@@ -300,7 +298,6 @@ namespace AutoEngineerBrakeFix
                         loaded.StallGuard = d.StallGuard;
                         loaded.SmoothThrottle = d.SmoothThrottle;
                         loaded.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
-                        loaded.FullRouteTrackSpeed = d.FullRouteTrackSpeed;   // 2.9.9 had it on; it slows the train far too early
                         loaded.SettingsVersion = CurrentSettingsVersion;
                         try { using (var w = File.Create(path)) serializer.Serialize(w, loaded); }
                         catch (Exception) { /* the next settings change saves it */ }

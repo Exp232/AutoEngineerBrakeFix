@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.13
+
+- Removed the experimental "Slowest limit in 1.5 km" setting and its code (it slowed the train far too early and was off by default). The route columns in the diagnostic log stay. An old `FullRouteTrackSpeed` entry in Settings.xml is ignored.
+
 ## 2.9.12
 
 - Release pass: README brought up to date (stall guard and rollback behaviour, diagnostic route columns, compatibility and known limits); "Reset these to defaults" now also resets the fuel summary, fuel fast-forward and fusee toggles. No behaviour change.
