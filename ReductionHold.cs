@@ -4,7 +4,7 @@ using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// No power into a speed reduction (0.6 rollout controller). The controller sometimes keeps the throttle open

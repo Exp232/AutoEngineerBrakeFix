@@ -7,7 +7,7 @@ using Model.AI;
 using Model.Physics;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// The stock cutoff table picks, for each speed, the longest cutoff that reaches the peak of

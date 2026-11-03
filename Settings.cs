@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Xml.Serialization;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>Kept in Settings.xml in the mod folder, in the same XML layout UMM used, so old files still load.</summary>
     public class Settings

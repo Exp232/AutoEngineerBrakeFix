@@ -7,7 +7,7 @@ using Model.AI.SpeedControl;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Coast band (CoastBandMph, off at 0). Stops the rollout controller from powering into a brake application:

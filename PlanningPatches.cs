@@ -3,7 +3,7 @@ using HarmonyLib;
 using Model.AI;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Experimental planning tweaks, both off (1.0) by default.

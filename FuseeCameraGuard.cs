@@ -2,7 +2,7 @@ using System;
 using HarmonyLib;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Stops a placed fusee from throwing while the main camera is switched off.

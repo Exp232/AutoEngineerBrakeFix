@@ -4,7 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>Builds one CSV row; the header is taken from the column names of the first row written.</summary>
     internal sealed class RowBuilder

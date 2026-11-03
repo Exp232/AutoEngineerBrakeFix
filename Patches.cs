@@ -2,7 +2,7 @@ using System;
 using HarmonyLib;
 using Model.AI;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Runs as each AutoEngineer is enabled: attaches the logger's sampler, registers the engineer's brake PIDs

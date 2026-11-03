@@ -4,7 +4,7 @@ using HarmonyLib;
 using Model.Physics;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Realistic fuel and water use for steam locomotives (optional, off by default).

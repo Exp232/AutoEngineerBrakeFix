@@ -13,7 +13,7 @@ using Track;
 using UI.EngineControls;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Detailed auto-engineer status (setting DetailedStatus, off by default). The game's status line is

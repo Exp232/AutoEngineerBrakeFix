@@ -9,7 +9,7 @@ using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// A train that cannot climb a grade ends up in a loop: full throttle, speed falls to nothing, the train

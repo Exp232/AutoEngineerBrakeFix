@@ -8,7 +8,7 @@ using Model.AI;
 using Model.Physics;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Writes the live AutoEngineerConfig (including its PID settings and curves) to a text file once per
@@ -30,7 +30,7 @@ namespace AutoEngineerBrakeFix
             _done = true;
 
             var sb = new StringBuilder();
-            sb.AppendLine("AutoEngineerBrakeFix config dump");
+            sb.AppendLine("CollegeEducatedAutoEngineer config dump");
             sb.AppendLine("Time: " + DateTime.Now.ToString("s"));
             sb.AppendLine("Game version: " + Application.version);
             sb.AppendLine("Mod version: " + Main.Mod.Info.Version);
@@ -51,7 +51,7 @@ namespace AutoEngineerBrakeFix
             if (!EngineDumped.Add(name)) return;
 
             var sb = new StringBuilder();
-            sb.AppendLine("AutoEngineerBrakeFix steam engine dump");
+            sb.AppendLine("CollegeEducatedAutoEngineer steam engine dump");
             sb.AppendLine("Time: " + DateTime.Now.ToString("s"));
             sb.AppendLine("Mod version: " + Main.Mod.Info.Version);
             DumpSteamEngine(sb, steam);

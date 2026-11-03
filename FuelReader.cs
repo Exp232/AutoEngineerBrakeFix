@@ -5,7 +5,7 @@ using Model.Definition.Data;
 using Model.Ops;
 using Model.Physics;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Reads the coal and water aboard a steam locomotive's tender the same way SteamLocomotive.PeriodicUpdate does:

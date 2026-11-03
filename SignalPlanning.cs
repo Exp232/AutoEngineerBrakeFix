@@ -8,7 +8,7 @@ using Model.AI;
 using Track;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Signal handling in AutoEngineerPlanner.UpdateTargets has two quirks that make the AI brake hard for an

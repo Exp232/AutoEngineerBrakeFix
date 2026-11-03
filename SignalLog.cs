@@ -8,7 +8,7 @@ using Model.AI;
 using Track.Signals;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Writes one line to logs\signals_*.csv whenever the signal an auto-engineer is tracking (Targets.NextSignal)

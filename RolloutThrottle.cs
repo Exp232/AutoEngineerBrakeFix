@@ -4,7 +4,7 @@ using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Throttle smoothing on the 0.6 rollout controller (it was on the old PID speed loop until 2.0, which 0.6.0

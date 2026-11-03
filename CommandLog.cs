@@ -4,7 +4,7 @@ using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Remembers the rollout controller's latest command as the game issued it and as it left this mod's filters, so the

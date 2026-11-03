@@ -6,7 +6,7 @@ using System.Text;
 using Model.AI;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Running fuel and handling totals per engineer, written to logs\fuel_summary_*.csv about once a minute of game

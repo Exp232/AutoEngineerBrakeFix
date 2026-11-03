@@ -7,7 +7,7 @@ using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Guidance for 0.6.0's rollout controller, which chooses throttle and brake actions by simulating the next

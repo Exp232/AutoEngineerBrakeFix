@@ -14,7 +14,7 @@ using Track.Signals;
 using UI.EngineControls;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Water stop for a Road-mode engineer (off by default, setting WaterStop).

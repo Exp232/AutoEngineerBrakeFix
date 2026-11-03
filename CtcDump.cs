@@ -5,7 +5,7 @@ using Track;
 using Track.Signals;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Writes logs\ctc_dump_*.txt once per game session: every CTC block with its track spans (end points, length),
@@ -30,7 +30,7 @@ namespace AutoEngineerBrakeFix
                 _done = true;
 
                 var sb = new StringBuilder();
-                sb.AppendLine("AutoEngineerBrakeFix CTC dump");
+                sb.AppendLine("CollegeEducatedAutoEngineer CTC dump");
                 sb.AppendLine("Time: " + DateTime.Now.ToString("s"));
                 sb.AppendLine("Game version: " + Application.version);
                 sb.AppendLine("Mod version: " + Main.Mod.Info.Version);

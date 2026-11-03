@@ -4,7 +4,7 @@ using HarmonyLib;
 using Track.Signals;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Temporary workaround for map data where a signal protects a block that lies behind it. A signal shows Stop

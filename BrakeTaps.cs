@@ -5,7 +5,7 @@ using Model.AI;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Optional fuel saving (BrakeTapSuppressMph, off by default). The rollout controller sometimes applies the train

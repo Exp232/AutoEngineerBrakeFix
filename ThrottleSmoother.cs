@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Smooths the throttle PID's output before the auto-engineer applies it. Logs show the throttle flipping

@@ -5,7 +5,7 @@ using HarmonyLib;
 using Model.AI;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Reads of the planner's target list that other features share: distance to a stop, station stop ahead,

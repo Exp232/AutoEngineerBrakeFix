@@ -13,7 +13,7 @@ using Model.Physics;
 using Railroader.Modding;
 using Track.Signals;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Start-up self-check. The game can move things under us in any update, so before patching, every method,

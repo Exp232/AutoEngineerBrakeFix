@@ -5,7 +5,7 @@ using System;
 using System.Reflection;
 using UI.Builder;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     internal static class HubLink
     {

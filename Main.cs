@@ -4,7 +4,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using Railroader.Modding;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Entry point for the game's own mod loader: Info.json lists this assembly under "assemblies", and the game
@@ -93,7 +93,7 @@ namespace AutoEngineerBrakeFix
 
             try
             {
-                _hotkey = new UnityEngine.GameObject("AutoEngineerBrakeFix.Hotkey");
+                _hotkey = new UnityEngine.GameObject("CollegeEducatedAutoEngineer.Hotkey");
                 UnityEngine.Object.DontDestroyOnLoad(_hotkey);
                 _hotkey.AddComponent<SettingsHotkey>();
             }
@@ -109,7 +109,7 @@ namespace AutoEngineerBrakeFix
             try
             {
                 // Does nothing until the setting is on (the self-check switches the setting off if the game changed).
-                _legacyLimits = new UnityEngine.GameObject("AutoEngineerBrakeFix.LegacySpeedLimits");
+                _legacyLimits = new UnityEngine.GameObject("CollegeEducatedAutoEngineer.LegacySpeedLimits");
                 UnityEngine.Object.DontDestroyOnLoad(_legacyLimits);
                 _legacyLimits.AddComponent<LegacySpeedLimits>();
             }

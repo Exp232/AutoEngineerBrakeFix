@@ -7,7 +7,7 @@ using Model.AI;
 using Model.Physics;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Samples one AutoEngineer's controls and PID state into the CSV log.

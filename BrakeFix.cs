@@ -4,7 +4,7 @@ using System.Reflection;
 using HarmonyLib;
 using Model.AI;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     internal enum PidKind
     {

@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// The link to College-Educated Spouts, an optional companion mod (exp232/collegeeducatedspouts): its spouts turn to the

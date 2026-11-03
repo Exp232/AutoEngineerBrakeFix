@@ -6,7 +6,7 @@ using Model;
 using Model.Physics;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Optional starting resistance (off by default).

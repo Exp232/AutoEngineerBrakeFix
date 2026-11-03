@@ -5,7 +5,7 @@ using HarmonyLib;
 using Model;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Makes the game's fuel and water deduction follow game time when time is sped up (the fast-forward of 0.6.1).

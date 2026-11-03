@@ -5,7 +5,7 @@ using UI.Windows;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// The mod's in-game settings window, built with the game's own panel builder (the same one its windows use) and
@@ -228,7 +228,7 @@ namespace AutoEngineerBrakeFix
                 string key = Main.Settings.SettingsHotkey;
                 if (string.IsNullOrWhiteSpace(key)) return;
 
-                _action = new InputAction("AutoEngineerBrakeFix.Settings", InputActionType.Button);
+                _action = new InputAction("CollegeEducatedAutoEngineer.Settings", InputActionType.Button);
                 if (Main.Settings.SettingsHotkeyCtrl)
                 {
                     _action.AddCompositeBinding("ButtonWithOneModifier")

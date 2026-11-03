@@ -7,7 +7,7 @@ using Track;
 using Track.Signals;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Legacy track speed limits (setting LegacySpeedLimits, off by default). In 0.6 the game removes the old speed

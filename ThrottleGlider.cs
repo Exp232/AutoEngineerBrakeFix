@@ -2,7 +2,7 @@ using System;
 using Model.AI;
 using UnityEngine;
 
-namespace AutoEngineerBrakeFix
+namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// The auto-engineer only touches the throttle once every 0.5 s, so the lever visibly steps. This component
