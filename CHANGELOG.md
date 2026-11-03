@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- README brought in line with the settings window: the opening line, install step 3, the coast band, water stop, starting resistance, stall guard and planner-weight sections, and a rewritten settings summary that says which options are only in `Settings.xml`. No code change.
+
 ## 1.0.0
 
 - **First release under the new name, College Educated Auto Engineer** (formerly Auto Engineer Brake Fix, which reached 2.9.16). Version numbers restart at 1.0.0. The mod identifier, folder, assembly and `Settings.xml` are unchanged, so an installed copy and its settings carry over; only the name shown in the game's mod list, the settings window and the Mod Settings Hub changes. The project moved to https://github.com/Exp232/CollegeEducatedAutoEngineer.
