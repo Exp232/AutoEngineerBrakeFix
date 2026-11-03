@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.15
+
+- **Starting resistance is 7 lb per ton** (was 5; real plain-bearing cars need roughly 5-10 or more to break away). The "Drag at 0 mph" slider is gone; its place is taken by a "Fades out by" slider for the speed where the drag falls to 37% (2.5 mph by default). The drag is still `StartingResistanceLbPerTon` in Settings.xml; a saved value is reset to 7 once (settings version 4).
+
 ## 2.9.14
 
 - **Simpler settings window**: sixteen sliders became six (brake tap limit, coast band, slowing lead, locomotive brake use, starting-resistance drag, water stop level); the rest (smoothing time, pickup horizon, cutoff tolerance, stall time, resistance fade and standing time, water approach speed, the four other planner weights) stay in Settings.xml and keep working. Sections regrouped, notes shortened.

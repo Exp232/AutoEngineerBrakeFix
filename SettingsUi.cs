@@ -94,9 +94,9 @@ namespace AutoEngineerBrakeFix
                 page.AddSection("Starting resistance", b =>
                 {
                     b.AddFieldToggle("Starting resistance", () => s.StartingResistance, v => { s.StartingResistance = v; Save(); });
-                    Slider(b, "Drag at 0 mph", () => s.StartingResistanceLbPerTon, v => s.StartingResistanceLbPerTon = v, 0f, 15f, 0.5f,
-                        v => v.ToString("0.0") + " lb/ton");
-                    Note(b, "The game's resistance only covers a moving train. This adds a standing-start drag that fades out with speed.");
+                    Slider(b, "Fades out by", () => s.StartingResistanceFadeMph, v => s.StartingResistanceFadeMph = v, 0.5f, 6f, 0.5f,
+                        v => v.ToString("0.0") + " mph");
+                    Note(b, "The game's resistance only covers a moving train. This adds a standing-start drag (7 lb/ton) that falls to 37% at this speed.");
                 });
 
                 page.AddSection("Fuel and water", b =>
@@ -189,7 +189,7 @@ namespace AutoEngineerBrakeFix
             s.GlideThrottle = d.GlideThrottle;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.StartingResistance = d.StartingResistance;
-            s.StartingResistanceLbPerTon = d.StartingResistanceLbPerTon;
+            s.StartingResistanceFadeMph = d.StartingResistanceFadeMph;
             s.RealisticFuel = d.RealisticFuel;
             s.WaterStop = d.WaterStop;
             s.WaterStopPercent = d.WaterStopPercent;

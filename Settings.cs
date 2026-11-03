@@ -10,7 +10,7 @@ namespace AutoEngineerBrakeFix
         /// <summary>Settings.xml layout version. Older files had features switched off by the start-up self-check (their PID targets were missing on 0.6); those are reset once.</summary>
         public int SettingsVersion = 0;
 
-        internal const int CurrentSettingsVersion = 3;
+        internal const int CurrentSettingsVersion = 4;
 
         // ---- Overspeed ----
 
@@ -63,8 +63,8 @@ namespace AutoEngineerBrakeFix
         /// <summary>Adds a standing-start resistance the game lacks (its Davis equation only covers a moving train). </summary>
         public bool StartingResistance = true;
 
-        /// <summary>Extra resistance at 0 mph, in pounds per ton (real plain-bearing cars: roughly 5-10).</summary>
-        public float StartingResistanceLbPerTon = 5f;
+        /// <summary>Extra resistance at 0 mph, in pounds per ton (real plain-bearing cars: roughly 5-10 or more; 7 is a middle value). No slider; edit Settings.xml.</summary>
+        public float StartingResistanceLbPerTon = 7f;
 
         /// <summary>The extra resistance falls to 37% at this speed.</summary>
         public float StartingResistanceFadeMph = 2.5f;
@@ -295,9 +295,13 @@ namespace AutoEngineerBrakeFix
                     if (loaded.SettingsVersion < CurrentSettingsVersion)
                     {
                         var d = new Settings();
-                        loaded.StallGuard = d.StallGuard;
-                        loaded.SmoothThrottle = d.SmoothThrottle;
-                        loaded.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
+                        if (loaded.SettingsVersion < 2)
+                        {
+                            loaded.StallGuard = d.StallGuard;
+                            loaded.SmoothThrottle = d.SmoothThrottle;
+                            loaded.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
+                        }
+                        if (loaded.SettingsVersion < 4) loaded.StartingResistanceLbPerTon = d.StartingResistanceLbPerTon;   // 2.9.15: 7, no slider
                         loaded.SettingsVersion = CurrentSettingsVersion;
                         try { using (var w = File.Create(path)) serializer.Serialize(w, loaded); }
                         catch (Exception) { /* the next settings change saves it */ }
