@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.12
+
+- Release pass: README brought up to date (stall guard and rollback behaviour, diagnostic route columns, compatibility and known limits); "Reset these to defaults" now also resets the fuel summary, fuel fast-forward and fusee toggles. No behaviour change.
+
 ## 2.9.11
 
 - **"Slowest limit in 1.5 km" (2.9.9) is off by default and reset once** (settings version 3). The 17:14 run showed it applies the slowest limit in the next 1.5 km from the first speed drop, so the train crawled at 11-17 mph for about 140 s while the real 15 mph zone was still about 900 m away. The game's own route profile (the `zones` column) already listed every reduction 900-1450 m ahead, so it does not need this. The CSV route columns stay.

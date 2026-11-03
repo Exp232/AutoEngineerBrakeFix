@@ -245,6 +245,9 @@ namespace AutoEngineerBrakeFix
             s.PlanUndershootDeadbandScale = d.PlanUndershootDeadbandScale;
             s.PlanCeilingScale = d.PlanCeilingScale;
             s.PlanIndependentUseScale = d.PlanIndependentUseScale;
+            s.LogFuelSummary = d.LogFuelSummary;
+            s.FuelFollowsTimeWarp = d.FuelFollowsTimeWarp;
+            s.GuardFuseeCamera = d.GuardFuseeCamera;
             Save();
         }
 
