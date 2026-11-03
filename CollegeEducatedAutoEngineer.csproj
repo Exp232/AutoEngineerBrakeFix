@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <AssemblyName>AutoEngineerBrakeFix</AssemblyName>
-    <RootNamespace>AutoEngineerBrakeFix</RootNamespace>
+    <AssemblyName>CollegeEducatedAutoEngineer</AssemblyName>
+    <RootNamespace>CollegeEducatedAutoEngineer</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
@@ -43,26 +43,26 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackFiles Include="$(OutDir)AutoEngineerBrakeFix.dll;$(OutDir)0Harmony.dll;$(MSBuildProjectDirectory)\Info.json" />
+    <PackFiles Include="$(OutDir)CollegeEducatedAutoEngineer.dll;$(OutDir)0Harmony.dll;$(MSBuildProjectDirectory)\Info.json" />
   </ItemGroup>
 
   <!-- Copies the built mod straight into the game's Mods folder. Disable with /p:DeployToGame=false -->
   <Target Name="DeployToGame" AfterTargets="Build" Condition="'$(DeployToGame)' != 'false'">
-    <Copy SourceFiles="@(PackFiles)" DestinationFolder="$(ModsDir)\AutoEngineerBrakeFix" />
-    <Message Importance="high" Text="Deployed AutoEngineerBrakeFix to $(ModsDir)\AutoEngineerBrakeFix" />
+    <Copy SourceFiles="@(PackFiles)" DestinationFolder="$(ModsDir)\CollegeEducatedAutoEngineer" />
+    <Message Importance="high" Text="Deployed CollegeEducatedAutoEngineer to $(ModsDir)\CollegeEducatedAutoEngineer" />
   </Target>
 
-  <!-- dotnet build -c Release /p:Package=true  ->  dist\AutoEngineerBrakeFix-<version>.zip containing AutoEngineerBrakeFix\{dll,0Harmony.dll,Info.json} -->
+  <!-- dotnet build -c Release /p:Package=true  ->  dist\CollegeEducatedAutoEngineer-<version>.zip containing CollegeEducatedAutoEngineer\{dll,0Harmony.dll,Info.json} -->
   <Target Name="PackageRelease" AfterTargets="Build" Condition="'$(Package)' == 'true'">
     <PropertyGroup>
-      <StageDir>$(MSBuildProjectDirectory)\dist\stage\AutoEngineerBrakeFix</StageDir>
+      <StageDir>$(MSBuildProjectDirectory)\dist\stage\CollegeEducatedAutoEngineer</StageDir>
       <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">1.0.1</ReleaseVersion>
     </PropertyGroup>
     <RemoveDir Directories="$(MSBuildProjectDirectory)\dist" />
     <MakeDir Directories="$(StageDir)" />
     <Copy SourceFiles="@(PackFiles)" DestinationFolder="$(StageDir)" />
-    <ZipDirectory SourceDirectory="$(MSBuildProjectDirectory)\dist\stage" DestinationFile="$(MSBuildProjectDirectory)\dist\AutoEngineerBrakeFix-$(ReleaseVersion).zip" />
-    <Message Importance="high" Text="Packaged dist\AutoEngineerBrakeFix-$(ReleaseVersion).zip" />
+    <ZipDirectory SourceDirectory="$(MSBuildProjectDirectory)\dist\stage" DestinationFile="$(MSBuildProjectDirectory)\dist\CollegeEducatedAutoEngineer-$(ReleaseVersion).zip" />
+    <Message Importance="high" Text="Packaged dist\CollegeEducatedAutoEngineer-$(ReleaseVersion).zip" />
   </Target>
 
 </Project>

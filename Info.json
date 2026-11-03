@@ -1,5 +1,5 @@
 {
-  "identifier": "exp232/autoengineerbrakefix",
+  "identifier": "exp232/collegeeducatedautoengineer",
   "name": "College Educated Auto Engineer",
   "author": "Exp232",
   "version": "1.0.1",
@@ -14,6 +14,6 @@
     ]
   },
   "assemblies": [
-    "AutoEngineerBrakeFix.dll"
+    "CollegeEducatedAutoEngineer.dll"
   ]
 }
