@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.9.16
+
+- **Water stop level defaults to 25%** (the code default was 60% while the README said 30%). A value already saved in Settings.xml is kept.
+
 ## 2.9.15
 
 - **Starting resistance is 7 lb per ton** (was 5; real plain-bearing cars need roughly 5-10 or more to break away). The "Drag at 0 mph" slider is gone; its place is taken by a "Fades out by" slider for the speed where the drag falls to 37% (2.5 mph by default). The drag is still `StartingResistanceLbPerTon` in Settings.xml; a saved value is reset to 7 once (settings version 4).

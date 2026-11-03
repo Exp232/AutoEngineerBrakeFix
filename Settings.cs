@@ -108,7 +108,7 @@ namespace AutoEngineerBrakeFix
         public bool WaterStop = true;
 
         /// <summary>Tender water (percent of capacity) below which the engineer plans a water stop.</summary>
-        public float WaterStopPercent = 60f;
+        public float WaterStopPercent = 25f;
 
         /// <summary>How far ahead along the lined route to look for a water column (km).</summary>
         public float WaterStopSearchKm = 30f;
