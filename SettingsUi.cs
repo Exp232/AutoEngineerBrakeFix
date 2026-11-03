@@ -62,110 +62,76 @@ namespace AutoEngineerBrakeFix
                 page.AddSection("Throttle", b =>
                 {
                     b.AddFieldToggle("Throttle smoothing", () => s.SmoothThrottle, v => { s.SmoothThrottle = v; Save(); });
-                    Note(b, "Moves the throttle lever like a hand on the regulator (a low-pass filter and rate limit, eased between the engineer's updates). A brake application or overspeed closes it at once.");
-                    Slider(b, "Smoothing time", () => s.ThrottleSmoothingSeconds, v => s.ThrottleSmoothingSeconds = v, 0.2f, 4f, 0.2f,
-                        v => v.ToString("0.0") + " s");
+                    Note(b, "Moves the throttle lever like a hand on the regulator. A brake application or overspeed closes it at once.");
                     b.AddFieldToggle("Glide between updates", () => s.GlideThrottle, v => { s.GlideThrottle = v; Save(); });
-                    Note(b, "Eases the lever between the engineer's updates instead of stepping it.");
                 });
 
                 page.AddSection("Braking and speed limits", b =>
                 {
-                    Note(b, "Brake taps: when the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
                     Slider(b, "Brake tap limit", () => s.BrakeTapSuppressMph, v => s.BrakeTapSuppressMph = v, 0f, 5f, 0.5f,
                         v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
-                    Note(b, "Coast band: closes the throttle when coasting holds the speed within this band below the target (or the grade is still picking the train up), and waits to brake until the train is this far over. 0 = off.");
+                    Note(b, "When the train is no more than this far over its target and not speeding up, a first brake application becomes a coast.");
                     Slider(b, "Coast band", () => s.CoastBandMph, v => s.CoastBandMph = v, 0f, 3f, 0.5f,
                         v => v <= 0f ? "off" : v.ToString("0.0") + " mph");
-                    Slider(b, "Pickup horizon", () => s.CoastBandAssistSeconds, v => s.CoastBandAssistSeconds = v, 0f, 90f, 5f,
-                        v => v <= 0f ? "always" : v.ToString("0") + " s");
-                    Note(b, "Pickup horizon: on a downhill, power stays off only if the grade alone reaches the target within this many seconds; otherwise the engineer accelerates. 0 = always off.");
-                    b.AddFieldToggle("No power into reductions", () => s.AvoidPowerIntoReductions, v => { s.AvoidPowerIntoReductions = v; Save(); });
-                    Note(b, "Closes the throttle when a lower speed limit is in sight and the train is already at or above that speed, so it coasts down before braking. Not applied on steep climbs.");
+                    Note(b, "Closes the throttle when coasting holds the speed this close under the target, and waits to brake until the train is this far over.");
                     Slider(b, "Slowing lead", () => s.SpeedReductionLeadSeconds, v => s.SpeedReductionLeadSeconds = v, 0f, 15f, 1f,
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
-                    Note(b, "Slowing lead: how many seconds before a lower limit the engineer plans to be at that speed.");
+                    Note(b, "How many seconds before a lower limit the engineer plans to be at that speed.");
+                    b.AddFieldToggle("No power into reductions", () => s.AvoidPowerIntoReductions, v => { s.AvoidPowerIntoReductions = v; Save(); });
+                    Note(b, "Closes the throttle when a lower limit is in sight and the train is already at that speed. Not applied on steep climbs.");
                     b.AddFieldToggle("Stop with the train brake", () => s.DirectionStopTrainBrakeOnly, v => { s.DirectionStopTrainBrakeOnly = v; Save(); });
-                    Note(b, "Stopping a moving train with no speed order (changing direction, or a speed order of 0) uses the train brake only; the locomotive brake is bailed off above 2 mph and only holds the train once it is nearly stopped.");
-                });
-
-                page.AddSection("Steam cutoff", b =>
-                {
-                    Slider(b, "Cutoff tolerance", () => s.CutoffTolerancePercent, v => s.CutoffTolerancePercent = v, 0f, 10f, 0.5f,
-                        v => v.ToString("0.0") + " %");
-                    Note(b, "Shorter cutoff: how much of the peak power it may give up for a shorter cutoff. The cutoff on/off switch and the steep-grade limit are in Settings.xml.");
+                    Note(b, "Stopping a moving train with no speed order (changing direction, or a speed of 0) uses the train brake only; the locomotive brake holds the train once it is nearly stopped.");
+                    Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 5f, 0.25f, Weight);
+                    Note(b, "How much the planner dislikes using the locomotive brake. Higher = it slows with the train brake instead; 1 = the game's value.");
                 });
 
                 page.AddSection("Stall guard", b =>
                 {
                     b.AddFieldToggle("Stall guard", () => s.StallGuard, v => { s.StallGuard = v; Save(); });
-                    Note(b, "A train that cannot climb a grade or get moving is held with the brakes and the engineer says so, instead of looping through full throttle and rolling back. Clears when the engineer is switched off and on, or its direction or mode changes. In Waypoint and Road modes it also sets the speed order to 0 mph; set a speed again to retry.");
-                    Slider(b, "Stall time", () => s.StallSeconds, v => s.StallSeconds = v, 3f, 30f, 1f,
-                        v => v.ToString("0") + " s");
+                    Note(b, "A train that cannot climb a grade, get moving or keeps rolling back is held with the brakes and the engineer says so. In Waypoint and Road modes it also sets the speed to 0 mph; set a speed again to retry.");
                 });
 
                 page.AddSection("Starting resistance", b =>
                 {
                     b.AddFieldToggle("Starting resistance", () => s.StartingResistance, v => { s.StartingResistance = v; Save(); });
-                    Note(b, "The game's resistance only covers a moving train. This adds a standing-start drag that fades out with speed, and is lower for cars that have only just stopped (the oil film in the journals).");
                     Slider(b, "Drag at 0 mph", () => s.StartingResistanceLbPerTon, v => s.StartingResistanceLbPerTon = v, 0f, 15f, 0.5f,
                         v => v.ToString("0.0") + " lb/ton");
-                    Slider(b, "Fades out by", () => s.StartingResistanceFadeMph, v => s.StartingResistanceFadeMph = v, 0.5f, 6f, 0.5f,
-                        v => v.ToString("0.0") + " mph");
-                    b.AddFieldToggle("Standing time", () => s.StartingResistanceStandingTime, v => { s.StartingResistanceStandingTime = v; Save(); });
+                    Note(b, "The game's resistance only covers a moving train. This adds a standing-start drag that fades out with speed.");
                 });
 
-                page.AddSection("Fuel use", b =>
+                page.AddSection("Fuel and water", b =>
                 {
                     b.AddFieldToggle("Realistic fuel", () => s.RealisticFuel, v => { s.RealisticFuel = v; Save(); });
-                    Note(b, "Steam and coal follow the engine's own power instead of the game's speed-based curve, so fast running no longer costs too much. Off = the game's own use. Takes effect at once; steam rate, efficiency and coal scale are in Settings.xml.");
-                });
-
-                page.AddSection("Water stop (Road mode)", b =>
-                {
-                    b.AddFieldToggle("Water stop", () => s.WaterStop, v => { s.WaterStop = v; Save(); });
-                    Note(b, "When the tender runs low, a Road-mode engineer takes water at the next column ahead on the lined route. It switches to Waypoint mode only in the column's signal block, then goes back to Road mode.");
+                    Note(b, "Steam and coal follow the engine's own power instead of the game's speed-based curve. Off = the game's own use.");
+                    b.AddFieldToggle("Water stop (Road mode)", () => s.WaterStop, v => { s.WaterStop = v; Save(); });
                     Slider(b, "Stop below", () => s.WaterStopPercent, v => s.WaterStopPercent = v, 10f, 60f, 5f,
                         v => v.ToString("0") + " % water");
-                    Slider(b, "Approach speed", () => s.WaterStopApproachMph, v => s.WaterStopApproachMph = v, 10f, 35f, 5f,
-                        v => v.ToString("0") + " mph");
+                    Note(b, "When the tender runs low, a Road-mode engineer takes water at the next column ahead on the lined route.");
+                    b.AddFieldToggle("Fuel in fast-forward", () => s.FuelFollowsTimeWarp, v => { s.FuelFollowsTimeWarp = v; Save(); });
+                    Note(b, "Charges the real game time in fast-forward; the game charges one second per update.");
                 });
 
-                page.AddSection("Legacy speed limits", b =>
+                page.AddSection("Speed limits and status", b =>
                 {
                     b.AddFieldToggle("Fix legacy limits", () => s.LegacySpeedLimits, v => { s.LegacySpeedLimits = v; Save(); });
-                    Note(b, "The game still enforces the map's old per-track speed limits but no longer shows them. On: they are cleared on the mainline (track in CTC signal blocks) and kept on branches, yards and spurs. Takes a few seconds; off puts them back.");
-                });
-
-                page.AddSection("Engineer status", b =>
-                {
+                    Note(b, "The game still enforces the map's old per-track limits but no longer shows them. On: they are cleared on the mainline and kept on branches, yards and spurs. Takes a few seconds.");
                     b.AddFieldToggle("Detailed status", () => s.DetailedStatus, v => { s.DetailedStatus = v; Save(); });
-                    Note(b, "The status line under the auto engineer controls names what sets the speed (posted or railroad limit, track class, curve, curve held down by the equipment, engine top speed, this mod's water stop and approach hold) and how far ahead it is. Hover it for the details and the targets ahead.");
+                    Note(b, "The status line names what sets the speed (limit, track class, curve, equipment, water stop).");
                     b.AddFieldToggle("Metric distances", () => s.StatusMetric, v => { s.StatusMetric = v; Save(); });
-                    Note(b, "Off: feet and miles. On: metres and kilometres.");
-                });
-
-                page.AddSection("Planner weights (1 = the game's own)", b =>
-                {
-                    Slider(b, "Overspeed", () => s.PlanOverspeedScale, v => s.PlanOverspeedScale = v, 0f, 3f, 0.05f, Weight);
-                    Slider(b, "Undershoot", () => s.PlanUndershootScale, v => s.PlanUndershootScale = v, 0f, 3f, 0.05f, Weight);
-                    Slider(b, "Undershoot margin", () => s.PlanUndershootDeadbandScale, v => s.PlanUndershootDeadbandScale = v, 0f, 3f, 0.05f, Weight);
-                    Slider(b, "Ceiling", () => s.PlanCeilingScale, v => s.PlanCeilingScale = v, 0f, 3f, 0.05f, Weight);
-                    Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 5f, 0.05f, Weight);
-                    Note(b, "Locomotive brake use: how much the planner dislikes using the locomotive (independent) brake. Higher = it trims speed and slows with the train brake instead; 1 = the game's value.");
-                });
-
-                page.AddSection("Logging", b =>
-                {
-                    b.AddFieldToggle("Fuel summary", () => s.LogFuelSummary, v => { s.LogFuelSummary = v; Save(); });
-                });
-
-                page.AddSection("Fixes", b =>
-                {
-                    b.AddFieldToggle("Fuel in fast-forward", () => s.FuelFollowsTimeWarp, v => { s.FuelFollowsTimeWarp = v; Save(); });
-                    Note(b, "The game charges one second of fuel per update however much time passed, so fast-forward used about a third of the coal. This charges the real game time.");
                     b.AddFieldToggle("Fusee in fast-forward", () => s.GuardFuseeCamera, v => { s.GuardFuseeCamera = v; Save(); });
-                    Note(b, "Fast-forward switches the main camera off and the game's fusee code then throws an error on every frame. This skips the fusee update while there is no camera.");
+                    Note(b, "Skips the game's fusee update while the camera is off in fast-forward, which would otherwise throw an error every frame.");
+                });
+
+                page.AddSection("Diagnostics and testing (off by default)", b =>
+                {
+                    b.AddFieldToggle("Diagnostic log", () => s.LogEnabled, v => { s.LogEnabled = v; Save(); });
+                    Note(b, "Writes logs for tuning and bug reports to the mod's logs folder. A change applies the next time the engineer is switched on. Off = nothing is written.");
+                    b.AddFieldToggle("Decisions", () => s.LogDecisions, v => { s.LogDecisions = v; Save(); });
+                    b.AddFieldToggle("Signals", () => s.LogSignals, v => { s.LogSignals = v; Save(); });
+                    b.AddFieldToggle("CTC dump", () => s.LogCtc, v => { s.LogCtc = v; Save(); });
+                    b.AddFieldToggle("Fuel summary", () => s.LogFuelSummary, v => { s.LogFuelSummary = v; Save(); });
+                    b.AddFieldToggle("Tender coal and water", () => s.LogFuel, v => { s.LogFuel = v; Save(); });
+                    Note(b, "The sub-options only matter while the diagnostic log is on.");
                 });
 
                 page.AddSection("", b =>
@@ -216,33 +182,21 @@ namespace AutoEngineerBrakeFix
             var s = Main.Settings;
             s.BrakeTapSuppressMph = d.BrakeTapSuppressMph;
             s.CoastBandMph = d.CoastBandMph;
-            s.CoastBandAssistSeconds = d.CoastBandAssistSeconds;
             s.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
             s.StallGuard = d.StallGuard;
             s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
-            s.StallSeconds = d.StallSeconds;
             s.SmoothThrottle = d.SmoothThrottle;
-            s.ThrottleSmoothingSeconds = d.ThrottleSmoothingSeconds;
             s.GlideThrottle = d.GlideThrottle;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
-            s.CutoffTolerancePercent = d.CutoffTolerancePercent;
             s.StartingResistance = d.StartingResistance;
             s.StartingResistanceLbPerTon = d.StartingResistanceLbPerTon;
-            s.StartingResistanceFadeMph = d.StartingResistanceFadeMph;
-            s.StartingResistanceStandingTime = d.StartingResistanceStandingTime;
             s.RealisticFuel = d.RealisticFuel;
             s.WaterStop = d.WaterStop;
             s.WaterStopPercent = d.WaterStopPercent;
-            s.WaterStopApproachMph = d.WaterStopApproachMph;
             s.LegacySpeedLimits = d.LegacySpeedLimits;
             s.DetailedStatus = d.DetailedStatus;
             s.StatusMetric = d.StatusMetric;
-            s.PlanOverspeedScale = d.PlanOverspeedScale;
-            s.PlanUndershootScale = d.PlanUndershootScale;
-            s.PlanUndershootDeadbandScale = d.PlanUndershootDeadbandScale;
-            s.PlanCeilingScale = d.PlanCeilingScale;
             s.PlanIndependentUseScale = d.PlanIndependentUseScale;
-            s.LogFuelSummary = d.LogFuelSummary;
             s.FuelFollowsTimeWarp = d.FuelFollowsTimeWarp;
             s.GuardFuseeCamera = d.GuardFuseeCamera;
             Save();

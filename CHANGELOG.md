@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.9.14
+
+- **Simpler settings window**: sixteen sliders became six (brake tap limit, coast band, slowing lead, locomotive brake use, starting-resistance drag, water stop level); the rest (smoothing time, pickup horizon, cutoff tolerance, stall time, resistance fade and standing time, water approach speed, the four other planner weights) stay in Settings.xml and keep working. Sections regrouped, notes shortened.
+- **Diagnostics and testing section** with all the logging switches (diagnostic log, decisions, signals, CTC dump, fuel summary, tender coal and water). Decisions, signals, CTC dump and fuel summary now default to off, as the diagnostic log already did. An existing Settings.xml keeps the values it has. A change applies the next time the engineer is switched on.
+- "Reset these to defaults" only resets what the window shows (not the diagnostics).
+
 ## 2.9.13
 
 - Removed the experimental "Slowest limit in 1.5 km" setting and its code (it slowed the train far too early and was off by default). The route columns in the diagnostic log stay. An old `FullRouteTrackSpeed` entry in Settings.xml is ignored.

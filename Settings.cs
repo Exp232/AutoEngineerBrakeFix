@@ -227,16 +227,16 @@ namespace AutoEngineerBrakeFix
         public bool LogFuel = false;
 
         /// <summary>Also log what the rollout controller decided each tick (action, its cost, the cost of holding, and the cost of each first action).</summary>
-        public bool LogDecisions = true;
+        public bool LogDecisions = false;
 
         /// <summary>Also write logs\signals_*.csv: one line each time the signal an engineer is tracking, or the aspect it shows, changes (with the train's speed and distance at that moment), and add sigId, sigAspect and sigDistM to the main CSV.</summary>
-        public bool LogSignals = true;
+        public bool LogSignals = false;
 
         /// <summary>Also write logs\ctc_dump_*.txt once per session: every CTC block's track spans and every signal's position and protected blocks (read-only; for tracking down signals that drop to Stop early).</summary>
-        public bool LogCtc = true;
+        public bool LogCtc = false;
 
         /// <summary>Also write logs\fuel_summary_*.csv: coal, water and distance per engineer about once a minute, split by powered, coasting, braking and "both" (throttle open while braked), with brake applications counted.</summary>
-        public bool LogFuelSummary = true;
+        public bool LogFuelSummary = false;
 
         /// <summary>Opens the in-game settings window: an Input System binding path (for example &lt;Keyboard&gt;/f8), empty for none.</summary>
         public string SettingsHotkey = "<Keyboard>/f8";
