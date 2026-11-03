@@ -1,6 +1,6 @@
 # College Educated Auto Engineer (Railroader)
 
-Formerly Auto Engineer Brake Fix (versions up to 2.9.16). The mod folder, the Settings.xml and the mod identifier are unchanged, so an existing install and its settings carry over.
+Formerly Auto Engineer Brake Fix (versions up to 2.9.16). The mod folder and identifier are now `CollegeEducatedAutoEngineer` and `exp232/collegeeducatedautoengineer`; copy `Settings.xml` from the old `Mods\AutoEngineerBrakeFix` folder to keep your settings, and delete that old folder.
 
 Makes the AI engineer drive like a person: fewer wasted coal and water, a smooth throttle,
 gentle brake sets for signals, and no creeping past a stop.
@@ -60,9 +60,9 @@ The game uses the Davis equation for rolling resistance, which is only valid for
 
 ## Install
 Needs Railroader 0.6.0 or later; uses the game's built-in mod loader (Unity Mod Manager is no longer needed).
-1. Unzip into `Documents\Railroader\Mods`, so you have `Mods\AutoEngineerBrakeFix\AutoEngineerBrakeFix.dll`, `0Harmony.dll` and `Info.json`.
+1. Unzip into `Documents\Railroader\Mods`, so you have `Mods\CollegeEducatedAutoEngineer\CollegeEducatedAutoEngineer.dll`, `0Harmony.dll` and `Info.json`.
 2. Start the game and enable "College Educated Auto Engineer" in the game's mod list.
-3. Settings: press Ctrl+F8 in game; changes apply at once and are saved to `Mods\AutoEngineerBrakeFix\Settings.xml` (written with the defaults on first start). Options without a control are edited in that file and need a game restart.
+3. Settings: press Ctrl+F8 in game; changes apply at once and are saved to `Mods\CollegeEducatedAutoEngineer\Settings.xml` (written with the defaults on first start). Options without a control are edited in that file and need a game restart.
 
 At start-up the mod checks that everything it patches is still in the game. Features whose targets are missing are switched off and the rest keep working; the result is one summary block in the game log (`Player.log`).
 
