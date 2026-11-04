@@ -5,7 +5,7 @@ A mod for Railroader's built-in mod loader (Unity/Mono; built against game 0.6.x
 ## Build (cloud sessions: BuildWatcher)
 There is no `dotnet`, `mono` or `csc` in the cloud workspace, so the code is never compiled here. The build is done on the user's PC by BuildWatcher (repo `Exp232/BuildWatcher`, `Watch-Builds.ps1`, running as the scheduled task "Mod Build Watcher"):
 1. Make the change in the clone, bump the version (below), commit locally.
-2. Zip it: `git archive --format=zip --prefix=CollegeEducatedAutoEngineer/ -o /mnt/user-data/outputs/CollegeEducatedAutoEngineer-<ver>-source.zip HEAD`.
+2. Zip it: `git archive --format=zip --prefix=CollegeEducatedAutoEngineer/ -o /mnt/user-data/outputs/CollegeEducatedAutoEngineer-<ver>-source.zip HEAD ":(exclude).github" ":(exclude)dist"`. BuildWatcher rejects any path that is not a .cs, .md, Info.json, the .csproj or .gitignore, so keep .github/ and dist/ out.
 3. Save the zip to the user's `C:\Users\exp23\Desktop\Projects\` with `device_commit_files` (`stagedPath` = the zip). The user's standing instruction: always save new builds there. If the bridge is down, say so and give the zip through `SendUserFile`.
 4. BuildWatcher (checks every 5 s) sees a zip newer than the repo `Desktop\Projects\CollegeEducatedAutoEngineer`, and:
    - accepts only `.cs`, `.md`, `Info.json`, the `.csproj` and `.gitignore`, in `CollegeEducatedAutoEngineer/` or flat (not both), at most 5 MB unpacked; `Info.json` version must equal the file name's; otherwise it rejects it;

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- Added the Nexus Mods upload workflow (`.github/workflows/nexus-upload.yaml`). No code change.
+
 ## 1.0.1
 
 - README brought in line with the settings window: the opening line, install step 3, the coast band, water stop, starting resistance, stall guard and planner-weight sections, and a rewritten settings summary that says which options are only in `Settings.xml`. No code change.
