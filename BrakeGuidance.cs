@@ -35,19 +35,104 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>What the last brake-limit query for each engineer returned (read by the logger).</summary>
         internal static readonly ConditionalWeakTable<AutoEngineer, Record> Records = new ConditionalWeakTable<AutoEngineer, Record>();
 
+        // How the direction-change stop is doing, per engineer: it is given up on when the train is not slowing.
+        private sealed class StopState
+        {
+            public bool Active;
+            public bool Abandoned;
+            public float RefSpeedMps;
+            public float RefTime;
+        }
+        private static readonly ConditionalWeakTable<AutoEngineer, StopState> Stops = new ConditionalWeakTable<AutoEngineer, StopState>();
+        private const float WatchSeconds = 15f;     // the stop must shed at least WatchMinMph within this long
+        private const float WatchMinMph = 0.5f;
+        private static bool _loggedLight;
+        private static bool _loggedAbandon;
+
+        /// <summary>
+        /// The train brake alone can only stop a train whose weight is mostly in cars it acts on. A locomotive on its
+        /// own (or with a tender and a couple of light cars) has almost nothing for it to hold, and the stop bails
+        /// off the locomotive's own brake, so the train would roll on with no brake at all until it is under 2 mph.
+        /// True when the cars behind the locomotives and tenders are at least DirectionStopMinTrailingPercent of the
+        /// weight (an unreadable consist counts as fine, as before).
+        /// </summary>
+        internal static bool TrainBrakeHasCars(AutoEngineer ae)
+        {
+            try
+            {
+                float minShare = Mathf.Clamp(Main.Settings.DirectionStopMinTrailingPercent, 0f, 100f) / 100f;
+                if (minShare <= 0f) return true;
+                float total = 0f, trailing = 0f;
+                foreach (var car in ae.Locomotive.EnumerateAirOpen())
+                {
+                    float w = car.Weight;
+                    total += w;
+                    if (!car.IsLocomotive && !car.CarType.IsTender) trailing += w;
+                }
+                if (total <= 0f) return true;
+                bool ok = trailing >= total * minShare;
+                if (!ok && !_loggedLight)
+                {
+                    _loggedLight = true;
+                    Main.Mod.Logger.Log("Direction stop: " + ae.Locomotive.DisplayName + " has too little behind it for the train brake alone (" + (100f * trailing / total).ToString("0") + "% of its weight); the controller's own braking is used (logged once).");
+                }
+                return ok;
+            }
+            catch (Exception)
+            {
+                return true;
+            }
+        }
+
         /// <summary>
         /// True while the train is moving with no speed limit order and nothing ahead to stop for - what the
         /// engineer is left with when the direction is changed on a moving train. It ends by itself the moment a
         /// target or a speed limit appears again (a new order, a signal, a waypoint), or the train nearly stops.
+        /// It is also false for a train with too little behind the locomotives to brake with the train brake alone,
+        /// and it is given up for the rest of the stop when the train has not slowed by WatchMinMph in WatchSeconds.
         /// </summary>
         internal static bool StopWithoutTarget(AutoEngineer ae)
         {
             var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
             if (targets == null || ae.Locomotive == null) return false;
-            if (Mathf.Abs(ae.Locomotive.velocity) * MpsToMph < FullBrakeBelowMph) return false;
-            if (Mathf.Abs(targets.MaxSpeedMph) > 0.5f) return false;
+            float speedMps = Mathf.Abs(ae.Locomotive.velocity);
             var list = targets.AllTargets as IList<AutoEngineer.Targets.Target>;
-            return list != null && list.Count == 0;
+            bool stopping = speedMps * MpsToMph >= FullBrakeBelowMph
+                && Mathf.Abs(targets.MaxSpeedMph) <= 0.5f
+                && list != null && list.Count == 0;
+            StopState st = Stops.GetOrCreateValue(ae);
+            if (!stopping)
+            {
+                st.Active = false;
+                st.Abandoned = false;
+                return false;
+            }
+            if (!TrainBrakeHasCars(ae)) return false;
+            float now = Time.time;
+            if (!st.Active)
+            {
+                st.Active = true;
+                st.Abandoned = false;
+                st.RefSpeedMps = speedMps;
+                st.RefTime = now;
+            }
+            if (st.Abandoned) return false;
+            if (now - st.RefTime >= WatchSeconds)
+            {
+                if (speedMps > st.RefSpeedMps - WatchMinMph / MpsToMph)
+                {
+                    st.Abandoned = true;
+                    if (!_loggedAbandon)
+                    {
+                        _loggedAbandon = true;
+                        Main.Mod.Logger.Log("Direction stop: " + ae.Locomotive.DisplayName + " is not slowing with the train brake alone (" + (speedMps * MpsToMph).ToString("0.0") + " mph after " + WatchSeconds.ToString("0") + " s); handing the stop back to the controller (logged once).");
+                    }
+                    return false;
+                }
+                st.RefSpeedMps = speedMps;
+                st.RefTime = now;
+            }
+            return true;
         }
 
         /// <summary>Postfix body for TrainBrake.CalculateMaxEffectiveApplication.</summary>

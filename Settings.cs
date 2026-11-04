@@ -191,6 +191,13 @@ namespace CollegeEducatedAutoEngineer
         public bool DirectionStopTrainBrakeOnly = true;
 
         /// <summary>
+        /// The direction-change stop (above) is only used when the cars behind the locomotives and tenders are at least this
+        /// share of the train's weight (percent); a locomotive running light, or with a few empty cars, is stopped by the
+        /// controller as in the stock game, because the train brake alone has almost nothing to hold. 0 = always.
+        /// </summary>
+        public float DirectionStopMinTrailingPercent = 50f;
+
+        /// <summary>
         /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
         /// nothing ahead needs it to slow, the controller's first train-brake application is turned into a coast. Road mode
         /// and Waypoint modes. About 1-2% less coal on downhill running, nothing measurable uphill.

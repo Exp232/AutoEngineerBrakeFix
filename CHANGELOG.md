@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+- **Fix: a locomotive running light could roll on without braking after a stop with no target** (reported on Nexus: it skips waypoints and coasts away until "Stop with the train brake" is switched off). That stop bails off the locomotive's own brake and uses the train brake alone, which has nothing to hold on a lone locomotive, so it rolled on unbraked until it was under 2 mph (the stop applies when the speed order is 0, the direction is changed on a moving train, or the game clears the targets, for example at a pitfall stop). Now it is only used when the cars behind the locomotives and tenders are at least half the train's weight (`DirectionStopMinTrailingPercent`, 50 by default, in `Settings.xml`; 0 = always); otherwise the game's own controller stops the train with the locomotive brake, as without the option.
+- **Safety net:** if the train has not slowed by 0.5 mph in 15 s under that stop (a long descent, weak brakes), the mod hands the stop back to the controller for the rest of that stop, and the 13 psi limit lifts with it. Both are logged once in the game log.
+
 ## 1.0.2
 
 - Added the Nexus Mods upload workflow (`.github/workflows/nexus-upload.yaml`). No code change.
