@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.5
+
+- **Water stop looks again every second when it finds no column** (it waited 5 s between looks), so a column that comes into range is picked up at once.
+- **A train standing still now accepts a column of any distance ahead of the tender hatch** (the minimum was 30 m, so a column just ahead of a standing train was never found). The stop then goes on at the next tick instead of waiting, and does not cancel for a close column. A moving train keeps the 30 m minimum (5 m once the stop is armed).
+
 ## 1.0.4
 
 - **Fix: a locomotive running light could roll on without braking after a stop with no target** (reported on Nexus: it skips waypoints and coasts away until "Stop with the train brake" is switched off). That stop bails off the locomotive's own brake and uses the train brake alone, which has nothing to hold on a lone locomotive, so it rolled on unbraked until it was under 2 mph (the stop applies when the speed order is 0, the direction is changed on a moving train, or the game clears the targets, for example at a pitfall stop). Now it is only used when the cars behind the locomotives and tenders are at least half the train's weight (`DirectionStopMinTrailingPercent`, 50 by default, in `Settings.xml`; 0 = always); otherwise the game's own controller stops the train with the locomotive brake, as without the option.

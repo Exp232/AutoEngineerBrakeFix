@@ -43,6 +43,8 @@ namespace CollegeEducatedAutoEngineer
 
         private const float TickSeconds = 1f;
         private const float SearchEverySeconds = 5f;
+        private const float SearchNoColumnSeconds = 1f;   // while no column was found, look again every tick (a column can come into range at any moment)
+        private const float MinAheadStandstillMeters = 0f; // standing still, a column any distance ahead of the hatch counts (the hatch may be just short of it)
         private const float SlowDownWithinMeters = 805f;   // half a mile
         private const float MinAheadMeters = 30f;         // a column closer than this to the hatch is not picked
         private const float MinAheadArmedMeters = 5f;     // once picked, the stop goes on until the hatch is about at the spout
@@ -87,6 +89,7 @@ namespace CollegeEducatedAutoEngineer
         private Phase _phase = Phase.Idle;
         private float _nextTick;
         private float _nextSearch;
+        private bool _pickedStanding;   // the column was picked while standing, closer than MinAheadMeters: no minimum on the Armed check
         private float _phaseStart;
         private float _graceUntil;      // our own order changes take a moment to show in the orders
         private bool _syncSpeed;
@@ -282,8 +285,10 @@ namespace CollegeEducatedAutoEngineer
                     if (now < _nextSearch) return;
                     _nextSearch = now + SearchEverySeconds;
 
-                    if (!TryFindColumnAhead(orders.Forward, out Column column, out float distance))
+                    bool standing = _loco.IsStopped(1f);
+                    if (!TryFindColumnAhead(orders.Forward, standing ? MinAheadStandstillMeters : MinAheadMeters, out Column column, out float distance))
                     {
+                        _nextSearch = now + SearchNoColumnSeconds;
                         if (!_saidNoColumn)
                         {
                             _saidNoColumn = true;
@@ -322,6 +327,10 @@ namespace CollegeEducatedAutoEngineer
                     _refills = 0;
                     _lastDistance = distance;
                     _lastDistanceTime = now;
+                    // Picked while standing and closer than the usual minimum: go on at the next tick (a Road-mode train
+                    // would otherwise move off during the wait) and do not cancel for a column that is close ahead.
+                    _pickedStanding = standing && distance < MinAheadMeters;
+                    if (_pickedStanding) _nextSearch = now;
                     _phase = Phase.Armed;
                     _phaseStart = now;
                     Say($"Water's at {water * 100f:0}%. We'll take water at {column.Place}.");
@@ -346,7 +355,7 @@ namespace CollegeEducatedAutoEngineer
                     if (now < _nextSearch) return;
                     _nextSearch = now + SearchEverySeconds / 2f;
 
-                    if (!TryDistanceTo(_column, orders.Forward, MinAheadArmedMeters, out float distance, out Location hatchAt, out float headToHatch))
+                    if (!TryDistanceTo(_column, orders.Forward, _pickedStanding ? MinAheadStandstillMeters : MinAheadArmedMeters, out float distance, out Location hatchAt, out float headToHatch))
                     {
                         // Passed it, or the route was lined away from it: give back the speed we took off.
                         if (_setMaxSpeed != _origMaxSpeed) Helper.SetOrdersValue(null, null, _origMaxSpeed, null, null);
@@ -870,7 +879,7 @@ namespace CollegeEducatedAutoEngineer
             return logical == Car.LogicalEnd.A ? loc : loc.Flipped();
         }
 
-        private bool TryFindColumnAhead(bool forward, out Column best, out float bestDistance)
+        private bool TryFindColumnAhead(bool forward, float minAhead, out Column best, out float bestDistance)
         {
             best = null;
             bestDistance = float.MaxValue;
@@ -881,7 +890,7 @@ namespace CollegeEducatedAutoEngineer
             foreach (Column c in columns)
             {
                 if (_cooldown.TryGetValue(c.Id, out float until) && now < until) continue;
-                if (!TryDistanceTo(c, forward, MinAheadMeters, out float d, out _, out _)) continue;
+                if (!TryDistanceTo(c, forward, minAhead, out float d, out _, out _)) continue;
                 if (d < bestDistance)
                 {
                     best = c;
