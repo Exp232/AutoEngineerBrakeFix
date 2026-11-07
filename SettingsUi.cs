@@ -91,7 +91,7 @@ namespace CollegeEducatedAutoEngineer
                     b.AddFieldToggle("Doors at station stops", () => s.DoorsAtStations, v => { s.DoorsAtStations = v; Save(); });
                     b.AddFieldToggle("Observation car headlight", () => s.ObservationHeadlight, v => { s.ObservationHeadlight = v; Save(); });
                     b.AddFieldToggle("Marker lamps (red at the rear)", () => s.AutoMarkers, v => { s.AutoMarkers = v; Save(); });
-                    Note(b, "When a standing train gets a new order to move (Road, Yard or Waypoint): releases the handbrakes, connects the air between coupled cars with the anglecocks open, and closes the anglecocks at the two ends of the train. Doors and gates open at station stops, an observation car that leads the train lights its headlight, and the marker lamp at the rear of the train shows red. Class lights are left to you.");
+                    Note(b, "When a standing train gets a new order to move (Road, Yard or Waypoint): releases the handbrakes, connects the air between coupled cars with the anglecocks open, and closes the anglecocks at the two ends of the train. Doors and gates open at station stops, an observation car that leads the train lights its headlight in place of the locomotive's, and the marker lamp at the rear of the train shows red. Class lights are left to you.");
                 });
 
                 page.AddSection("Stall guard", b =>

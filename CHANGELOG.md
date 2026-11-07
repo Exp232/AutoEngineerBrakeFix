@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0
+
+- **The observation car's headlight takes over from the locomotive's when it leads the train** (backing or pushing). The locomotive's own headlight, the tender lamp facing the train, is switched off through the game's headlight logic while the observation car is lit (bright moving, dim stopped). The game log lists the headlight states it found ("Headlight states: ...") the first time.
+
 ## 1.1.9
 
 - **Fix: no marker lamp was ever lit.** The game log from 1.1.8 showed one marker lamp counted per car (a coach has two) and "no marker lamp on the rear car" even on the observation car. The definition's end for each marker lamp was read as a "front" or "rear" letter in a way that gave "front" for every lamp, so the rear lamp was never found. The lamp ends are now read as either car ends (F, R, 0, 1) or logical ends (A, B), converted for the way the car sits, and a lamp is red when its end is the free end of the last car. The first time each car type is seen the game log lists the marker lamp's definition fields ("Marker lamp in rr/...: ...") so a wrong reading can be spotted.

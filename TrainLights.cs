@@ -121,7 +121,51 @@ namespace CollegeEducatedAutoEngineer
                     int level = speed > 0.3f ? 2 : 1;
                     leading.KeyValueObject["headlight"] = KeyValue.Runtime.Value.Int(level);
                     s.ObsLit = leading;
+                    // The observation car's headlight takes over the locomotive's lamp that faces the train.
+                    SetLocoHeadlightOff(loco);
                 }
+            }
+        }
+
+        private static bool _hlResolved, _hlLogged;
+        private static MethodInfo _hlSet;
+        private static object _hlOff;
+
+        /// <summary>Switches the locomotive's headlight off through the game's own headlight logic (found by reflection).</summary>
+        private static void SetLocoHeadlightOff(Car loco)
+        {
+            try
+            {
+                if (!_hlResolved)
+                {
+                    _hlResolved = true;
+                    foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                    {
+                        Type[] types;
+                        try { types = asm.GetTypes(); } catch (ReflectionTypeLoadException e) { types = e.Types; } catch { continue; }
+                        foreach (var ty in types)
+                        {
+                            if (ty == null || ty.Name != "HeadlightToggleLogic") continue;
+                            Type st = ty.GetNestedType("State", BindingFlags.Public | BindingFlags.NonPublic);
+                            _hlSet = ty.GetMethod("SetHeadlightState", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                            if (st != null && st.IsEnum)
+                            {
+                                Main.Mod.Logger.Log("Headlight states: " + string.Join(", ", Enum.GetNames(st)));
+                                try { _hlOff = Enum.Parse(st, "Off", true); } catch { }
+                            }
+                        }
+                    }
+                }
+                if (_hlSet == null || _hlOff == null)
+                {
+                    if (!_hlLogged) { _hlLogged = true; Main.Mod.Logger.Log("Locomotive headlight control not found; the tender headlight is left to the game."); }
+                    return;
+                }
+                _hlSet.Invoke(null, new object[] { loco.KeyValueObject, _hlOff });
+            }
+            catch (Exception ex)
+            {
+                if (!_hlLogged) { _hlLogged = true; Main.Mod.Logger.Log("Locomotive headlight off failed: " + ex.Message); }
             }
         }
 
