@@ -55,7 +55,7 @@ namespace CollegeEducatedAutoEngineer
         private sealed class Info
         {
             public readonly List<Door> Doors = new List<Door>();
-            public readonly List<string> MarkerLetters = new List<string>();
+            public readonly List<string> MarkerTokens = new List<string>();   // each MarkerLight's end as the definition gives it
             public bool Headlight;
         }
 
@@ -267,6 +267,30 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>The last element of the toggle's collider object path (for example "Rear Door"), lower case, or "".</summary>
+        /// <summary>Public members of a definition component as name=value, for the log (to see how a definition gives a lamp's end).</summary>
+        private static string Members(object o)
+        {
+            var parts = new List<string>();
+            try
+            {
+                foreach (PropertyInfo p in o.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                {
+                    if (p.GetIndexParameters().Length > 0) continue;
+                    string name = p.Name;
+                    if (name == "Transform" || name == "Parent") continue;
+                    object v;
+                    try { v = p.GetValue(o, null); } catch (Exception) { continue; }
+                    parts.Add(name + "=" + (v ?? "null"));
+                }
+                foreach (FieldInfo f in o.GetType().GetFields(BindingFlags.Public | BindingFlags.Instance)) parts.Add(f.Name + "=" + (f.GetValue(o) ?? "null"));
+            }
+            catch (Exception e)
+            {
+                parts.Add("(" + e.Message + ")");
+            }
+            return string.Join(", ", parts);
+        }
+
         private static string ColliderName(object component)
         {
             try
@@ -327,9 +351,8 @@ namespace CollegeEducatedAutoEngineer
                         }
                         else if (kind == "MarkerLight")
                         {
-                            string endText = Str(c, "End") ?? "";
-                            string letter = endText == "1" || endText.Equals("R", StringComparison.OrdinalIgnoreCase) ? "r" : "f";
-                            if (!info.MarkerLetters.Contains(letter)) info.MarkerLetters.Add(letter);
+                            info.MarkerTokens.Add((Str(c, "End") ?? "").Trim());
+                            Main.Mod.Logger.Log($"Marker lamp in {id}: " + Members(c));
                         }
                     }
                 }
@@ -438,29 +461,49 @@ namespace CollegeEducatedAutoEngineer
             return n;
         }
 
+        /// <summary>Each marker lamp of the car: the key letter (f or r) and the logical end it is at.</summary>
+        private static List<KeyValuePair<string, Car.LogicalEnd>> Lamps(Car car)
+        {
+            Info info = InfoFor(car);
+            var lamps = new List<KeyValuePair<string, Car.LogicalEnd>>();
+            for (int i = 0; i < info.MarkerTokens.Count; i++)
+            {
+                string t = info.MarkerTokens[i].ToLowerInvariant();
+                if (t == "a" || t == "b")
+                {
+                    Car.LogicalEnd logical = t == "a" ? Car.LogicalEnd.A : Car.LogicalEnd.B;
+                    lamps.Add(new KeyValuePair<string, Car.LogicalEnd>(car.EndToLogical(Car.End.F) == logical ? "f" : "r", logical));
+                    continue;
+                }
+                bool rear = t == "1" || t == "r" || t == "rear" || t == "back" || (t == "" && info.MarkerTokens.Count > 1 && i == 1);
+                lamps.Add(new KeyValuePair<string, Car.LogicalEnd>(rear ? "r" : "f", car.EndToLogical(rear ? Car.End.R : Car.End.F)));
+            }
+            return lamps;
+        }
+
         private static void SetMarkers(Car loco, List<Car> cars, Car trailing, Car.LogicalEnd trailEnd)
         {
             int lamps = 0, off = 0, withLamps = 0;
             string rear = null;
             foreach (Car car in cars)
             {
-                Info info = InfoFor(car);
-                if (info.MarkerLetters.Count > 0) withLamps++;
-                foreach (string letter in info.MarkerLetters)
+                List<KeyValuePair<string, Car.LogicalEnd>> list = Lamps(car);
+                if (list.Count > 0) withLamps++;
+                foreach (KeyValuePair<string, Car.LogicalEnd> lamp in list)
                 {
                     lamps++;
-                    bool isRear = car == trailing && (car.EndToLogical(letter == "f" ? Car.End.F : Car.End.R) == trailEnd);
-                    car.KeyValueObject["marker-" + letter + ".lit"] = KeyValue.Runtime.Value.Bool(isRear);
+                    bool isRear = car == trailing && lamp.Value == trailEnd;
+                    car.KeyValueObject["marker-" + lamp.Key + ".lit"] = KeyValue.Runtime.Value.Bool(isRear);
                     if (isRear)
                     {
-                        car.KeyValueObject["marker-" + letter + ".position"] = KeyValue.Runtime.Value.Int(Main.Settings.MarkerRedPosition);
-                        rear = car.DisplayName + " " + letter.ToUpperInvariant() + " end";
+                        car.KeyValueObject["marker-" + lamp.Key + ".position"] = KeyValue.Runtime.Value.Int(Main.Settings.MarkerRedPosition);
+                        rear = car.DisplayName + " " + lamp.Key.ToUpperInvariant() + " end";
                     }
                     else off++;
                 }
             }
             Main.Mod.Logger.Log($"Marker lamps for {loco.DisplayName}'s train ({cars.Count} cars, {withLamps} with marker lamps): "
-                + (rear != null ? $"red (position {Main.Settings.MarkerRedPosition}) on {rear}" : $"no marker lamp on the rear car {(trailing != null ? trailing.DisplayName : "?")}, none lit")
+                + (rear != null ? $"red (position {Main.Settings.MarkerRedPosition}) on {rear}" : $"no marker lamp at the rear end of {(trailing != null ? trailing.DisplayName : "?")}, none lit")
                 + $", {off} of {lamps} lamp(s) off.");
         }
     }

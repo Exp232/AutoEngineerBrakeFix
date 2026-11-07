@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.9
+
+- **Fix: no marker lamp was ever lit.** The game log from 1.1.8 showed one marker lamp counted per car (a coach has two) and "no marker lamp on the rear car" even on the observation car. The definition's end for each marker lamp was read as a "front" or "rear" letter in a way that gave "front" for every lamp, so the rear lamp was never found. The lamp ends are now read as either car ends (F, R, 0, 1) or logical ends (A, B), converted for the way the car sits, and a lamp is red when its end is the free end of the last car. The first time each car type is seen the game log lists the marker lamp's definition fields ("Marker lamp in rr/...: ...") so a wrong reading can be spotted.
+
 ## 1.1.8
 
 - **The game log now says what the marker lamps were set to**, each time they are redone: the train, how many cars have marker lamps, which end of which car was set red (and the position used), and how many other lamps were switched off, or that the rear car has no marker lamp. This is to tell from a log whether the lamps are being written, since a dump cannot tell the mod's changes from the player's.
