@@ -24,9 +24,19 @@ namespace CollegeEducatedAutoEngineer
         private sealed class State
         {
             public float Next;
-            public bool DoorsOpen;
+            public bool Stopped;
+            public float Arrived;
+            public readonly List<Plan> Plans = new List<Plan>();
             public Car ObsLit;
             public string MarkerHead;
+        }
+
+        /// <summary>One car's doors at a stop: when they open, and when they close as the car finishes loading.</summary>
+        private sealed class Plan
+        {
+            public Car Car;
+            public float OpenAt, CloseAt;
+            public bool Opened, Closed;
         }
 
         private sealed class Info
@@ -60,17 +70,7 @@ namespace CollegeEducatedAutoEngineer
             Car trailing = Walk(loco, Opposite(head), out Car.LogicalEnd trailEnd);
             float speed = Mathf.Abs(loco.velocity);
 
-            if (settings.DoorsAtStations)
-            {
-                var stopper = ae.GetComponent<AutoEngineerPassengerStopper>();
-                bool atStation = stopper != null && stopper.IsStoppedAtStation && speed < 0.3f;
-                if (atStation != s.DoorsOpen)
-                {
-                    s.DoorsOpen = atStation;
-                    int n = SetDoors(cars, atStation);
-                    if (n > 0) Main.Mod.Logger.Log($"{loco.DisplayName}: {n} door/gate(s) {(atStation ? "opened" : "closed")} at the station stop.");
-                }
-            }
+            if (settings.DoorsAtStations) DoorsTick(ae, loco, cars, speed, s);
 
             if (settings.ObservationHeadlight)
             {
@@ -97,6 +97,85 @@ namespace CollegeEducatedAutoEngineer
                     SetMarkers(cars, trailing, trailEnd);
                 }
             }
+        }
+
+        private const float OpenSpacingSeconds = 0.8f;   // car after car along the train
+        private const float CloseEarliest = 0.55f;        // share of the minimum stop time at which the first car finishes
+        private const float CloseLatest = 0.95f;          // and the last
+
+        /// <summary>
+        /// Doors open car by car when the train stops at a station, and each car closes its doors at its own time late in
+        /// the stop (as if its loading were done). When the engineer decides to depart, any car still open closes in turn.
+        /// </summary>
+        private static void DoorsTick(AutoEngineer ae, Car loco, List<Car> cars, float speed, State s)
+        {
+            var stopper = ae.GetComponent<AutoEngineerPassengerStopper>();
+            bool atStation = stopper != null && stopper.IsStoppedAtStation && speed < 0.3f;
+            float now = Time.time;
+
+            if (atStation && !s.Stopped)
+            {
+                s.Stopped = true;
+                s.Arrived = now;
+                s.Plans.Clear();
+                float dwell = MinimumStopSeconds();
+                var random = new System.Random(unchecked((int)(now * 1000f)));
+                int order = 0;
+                foreach (Car car in cars)
+                {
+                    if (!IsPassenger(car) || InfoFor(car).DoorKeys.Count == 0) continue;
+                    float open = now + order * OpenSpacingSeconds + (float)random.NextDouble() * 0.6f;
+                    float close = now + dwell * Mathf.Lerp(CloseEarliest, CloseLatest, (float)random.NextDouble());
+                    s.Plans.Add(new Plan { Car = car, OpenAt = open, CloseAt = Mathf.Max(close, open + 3f) });
+                    order++;
+                }
+            }
+            else if (!atStation && s.Stopped)
+            {
+                // Departing: close what is still open, one car every half second.
+                s.Stopped = false;
+                float at = now;
+                foreach (Plan plan in s.Plans)
+                {
+                    if (plan.Opened && !plan.Closed) { plan.CloseAt = at; at += 0.5f; }
+                    else if (!plan.Opened) plan.Closed = true;
+                }
+            }
+
+            int changed = 0;
+            for (int i = 0; i < s.Plans.Count; i++)
+            {
+                Plan plan = s.Plans[i];
+                if (!plan.Opened && !plan.Closed && s.Stopped && now >= plan.OpenAt)
+                {
+                    plan.Opened = true;
+                    changed += SetCarDoors(plan.Car, true);
+                }
+                if (plan.Opened && !plan.Closed && now >= plan.CloseAt)
+                {
+                    plan.Closed = true;
+                    changed += SetCarDoors(plan.Car, false);
+                }
+            }
+            if (!s.Stopped && s.Plans.Count > 0 && s.Plans.TrueForAll(p => p.Closed)) s.Plans.Clear();
+            if (changed > 0 && !_loggedDoors)
+            {
+                _loggedDoors = true;
+                Main.Mod.Logger.Log($"{loco.DisplayName}: doors and gates are opened car by car at a station stop and closed as each car finishes (further ones are not logged).");
+            }
+        }
+
+        private static bool _loggedDoors;
+
+        private static float MinimumStopSeconds()
+        {
+            try
+            {
+                float v = Game.State.StateManager.Shared.Storage.AIPassengerStopMinimumStopDuration;
+                if (v >= 5f) return v;
+            }
+            catch (Exception) { /* use the default below */ }
+            return 30f;
         }
 
         private static Car.LogicalEnd Opposite(Car.LogicalEnd end)
@@ -191,17 +270,13 @@ namespace CollegeEducatedAutoEngineer
             return info;
         }
 
-        private static int SetDoors(List<Car> cars, bool open)
+        private static int SetCarDoors(Car car, bool open)
         {
             int n = 0;
-            foreach (Car car in cars)
+            foreach (string key in InfoFor(car).DoorKeys)
             {
-                if (!IsPassenger(car)) continue;
-                foreach (string key in InfoFor(car).DoorKeys)
-                {
-                    car.KeyValueObject[key] = KeyValue.Runtime.Value.Bool(open);
-                    n++;
-                }
+                car.KeyValueObject[key] = KeyValue.Runtime.Value.Bool(open);
+                n++;
             }
             return n;
         }

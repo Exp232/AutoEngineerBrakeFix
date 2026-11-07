@@ -51,7 +51,7 @@ The auto-engineer's speed controller scores simulated plans. Five multipliers sc
 When a standing train gets a new order to move (any mode: Road, Yard or Waypoint; the engineer switched on, set from 0 mph to a speed, or given a new mode or waypoint), the mod releases the handbrake on every car, connects the air between each pair of coupled cars with both anglecocks open, and closes the anglecocks at the two ends of the train. It waits until the train is under about 2 mph and does it once per order. Switch it off in the settings window ("Prepare train on waypoint order"). `LogCarKeys` in `Settings.xml` writes a dump of each car's key-value entries to `logs\carkeys_*.txt` (used to find the names the game uses for doors, gates and lamps).
 
 ## Doors, gates and lamps
-- **Doors at station stops (on):** the doors and gates of passenger cars open while the engineer is stopped at a station stop and close when the train moves off.
+- **Doors at station stops (on):** the doors and gates of passenger cars open car by car when the engineer stops at a station, each car closes its own late in the stop, and any still open close in turn when the engineer departs.
 - **Observation car headlight (on):** when the observation car leads the train (the engineer backing it), its headlight is bright while moving and dim while stopped, like the locomotive's, and goes off when it stops leading.
 - **Marker lamps (off, `AutoMarkers` in `Settings.xml`):** red at the rear end of the train and off everywhere else. `MarkerRedPosition` is the lamp position that shows red outward (0 to 3).
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- **Doors and gates open and close gradually at a station stop.** They open car by car (about 0.8 s apart along the train) when the engineer stops at the station, and each car closes its own doors at its own time late in the stop (between 55% and 95% of the game's minimum passenger stop time), as if its loading were done. When the engineer decides to depart, any car still open closes in turn, half a second apart. The game does not track loading per car, so the closing times are spread over the stop rather than read from it.
+
 ## 1.0.9
 
 - **Doors and gates open at station stops** (`DoorsAtStations`, on, a toggle in the settings window). While the engineer is stopped at a station stop (the game's own passenger-stop check), the doors and gates of the passenger cars open; they close when the train moves off. The key names come from each car's definition (title "Door", "Gate" or "Gates"; bathroom and toilet doors and windows are left alone), so every car model works.
