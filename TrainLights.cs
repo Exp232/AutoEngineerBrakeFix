@@ -39,9 +39,17 @@ namespace CollegeEducatedAutoEngineer
             public bool Opened, Closed;
         }
 
+        /// <summary>One door or gate of a car: its key, the car end it is at (f or r, or a space for the sides) and whether it closes off an end of the car.</summary>
+        private sealed class Door
+        {
+            public string Key;
+            public char End = ' ';
+            public bool EndClosure;
+        }
+
         private sealed class Info
         {
-            public readonly List<string> DoorKeys = new List<string>();
+            public readonly List<Door> Doors = new List<Door>();
             public readonly List<string> MarkerLetters = new List<string>();
             public bool Headlight;
         }
@@ -70,7 +78,7 @@ namespace CollegeEducatedAutoEngineer
             Car trailing = Walk(loco, Opposite(head), out Car.LogicalEnd trailEnd);
             float speed = Mathf.Abs(loco.velocity);
 
-            if (settings.DoorsAtStations) DoorsTick(ae, loco, cars, speed, s);
+            if (settings.DoorsAtStations) DoorsTick(ae, loco, cars, speed, orders.MaxSpeedMph > 0, s);
 
             if (settings.ObservationHeadlight)
             {
@@ -107,7 +115,7 @@ namespace CollegeEducatedAutoEngineer
         /// Doors open car by car when the train stops at a station, and each car closes its doors at its own time late in
         /// the stop (as if its loading were done). When the engineer decides to depart, any car still open closes in turn.
         /// </summary>
-        private static void DoorsTick(AutoEngineer ae, Car loco, List<Car> cars, float speed, State s)
+        private static void DoorsTick(AutoEngineer ae, Car loco, List<Car> cars, float speed, bool going, State s)
         {
             var stopper = ae.GetComponent<AutoEngineerPassengerStopper>();
             // The stopper registers the station stop while the train is within 10 m of it (its own arrival radius); the train
@@ -126,7 +134,7 @@ namespace CollegeEducatedAutoEngineer
                 int order = 0;
                 foreach (Car car in cars)
                 {
-                    if (!IsPassenger(car) || InfoFor(car).DoorKeys.Count == 0) continue;
+                    if (!IsPassenger(car) || InfoFor(car).Doors.Count == 0) continue;
                     float open = now + order * OpenSpacingSeconds + (float)random.NextDouble() * 0.6f;
                     float close = now + dwell * Mathf.Lerp(CloseEarliest, CloseLatest, (float)random.NextDouble());
                     s.Plans.Add(new Plan { Car = car, OpenAt = open, CloseAt = Mathf.Max(close, open + 3f) });
@@ -136,12 +144,12 @@ namespace CollegeEducatedAutoEngineer
             }
             else if (!atStation && s.Stopped)
             {
-                // Departing: close what is still open, one car every half second.
+                // Departing: close what is still open, one car every 0.15 s.
                 s.Stopped = false;
                 float at = now;
                 foreach (Plan plan in s.Plans)
                 {
-                    if (plan.Opened && !plan.Closed) { plan.CloseAt = at; at += 0.5f; }
+                    if (plan.Opened && !plan.Closed) { plan.CloseAt = at; at += 0.15f; }
                     else if (!plan.Opened) plan.Closed = true;
                 }
             }
@@ -162,6 +170,10 @@ namespace CollegeEducatedAutoEngineer
                 }
             }
             if (!s.Stopped && s.Plans.Count > 0 && s.Plans.TrueForAll(p => p.Closed)) s.Plans.Clear();
+            // Nothing stays open when the train is to move, in any mode and at any place; a station stop in progress is left to its plan.
+            bool pending = s.Plans.Exists(p => p.Opened && !p.Closed);
+            bool closeAll = speed > 0.3f || (going && !s.Stopped && !pending);
+            changed += ForceClose(cars, closeAll);
             if (changed > 0 && !_loggedDoors)
             {
                 _loggedDoors = true;
@@ -249,9 +261,17 @@ namespace CollegeEducatedAutoEngineer
                         {
                             string key = Str(c, "Key");
                             string title = (Str(c, "Title") ?? "").ToLowerInvariant();
+                            string name = (Str(c, "Name") ?? "").Trim().ToLowerInvariant();
                             bool entry = title.Contains("door") || title.Contains("gate");
                             bool skip = title.Contains("bathroom") || title.Contains("toilet") || title.Contains("lavatory") || title.Contains("window");
-                            if (entry && !skip && !string.IsNullOrEmpty(key) && !info.DoorKeys.Contains(key)) info.DoorKeys.Add(key);
+                            if (!entry || skip || string.IsNullOrEmpty(key) || info.Doors.Exists(d => d.Key == key)) continue;
+                            var door = new Door { Key = key };
+                            string lowKey = key.ToLowerInvariant();
+                            if (name.StartsWith("front", StringComparison.Ordinal) || lowKey.EndsWith(".f", StringComparison.Ordinal)) door.End = 'f';
+                            else if (name.StartsWith("rear", StringComparison.Ordinal) || lowKey.EndsWith(".r", StringComparison.Ordinal)) door.End = 'r';
+                            // Gates, and the vestibule door at an end ("Front Door", "Rear Door"), close off the car end.
+                            door.EndClosure = door.End != ' ' && (title.Contains("gate") || name == "front door" || name == "rear door");
+                            info.Doors.Add(door);
                         }
                         else if (kind == "Headlight")
                         {
@@ -274,13 +294,57 @@ namespace CollegeEducatedAutoEngineer
             return info;
         }
 
+        /// <summary>True when the neighbour on that end of the car (f or r) is a locomotive or tender, or there is none.</summary>
+        private static bool EndBlocked(Car car, char end)
+        {
+            Car neighbour = car.CoupledTo(car.EndToLogical(end == 'f' ? Car.End.F : Car.End.R));
+            return neighbour == null || neighbour.IsLocomotive || TypeOf(neighbour).StartsWith("LT", StringComparison.Ordinal);
+        }
+
+        private static bool IsBaggage(Car car)
+        {
+            return TypeOf(car).StartsWith("CB", StringComparison.Ordinal);
+        }
+
+        private static bool IsOpen(Car car, string key)
+        {
+            try { return car.KeyValueObject[key].BoolValue; }
+            catch (Exception) { return false; }
+        }
+
+        /// <summary>Opens (never at a blocked car end) or closes every door and gate of the car; returns how many were changed.</summary>
         private static int SetCarDoors(Car car, bool open)
         {
             int n = 0;
-            foreach (string key in InfoFor(car).DoorKeys)
+            foreach (Door door in InfoFor(car).Doors)
             {
-                car.KeyValueObject[key] = KeyValue.Runtime.Value.Bool(open);
+                if (open && door.EndClosure && EndBlocked(car, door.End)) continue;
+                if (IsOpen(car, door.Key) == open) continue;
+                car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(open);
                 n++;
+            }
+            return n;
+        }
+
+        /// <summary>
+        /// Closes what must not be open: the gate or vestibule door on a car end beside a locomotive or tender, or with no car
+        /// on it, at any time; and every door and gate of the passenger cars as soon as the engineer is to move (or is moving)
+        /// unless a station stop is being served (those close as each car finishes).
+        /// </summary>
+        private static int ForceClose(List<Car> cars, bool closeAll)
+        {
+            int n = 0;
+            foreach (Car car in cars)
+            {
+                bool passenger = IsPassenger(car);
+                if (!passenger && !IsBaggage(car)) continue;
+                foreach (Door door in InfoFor(car).Doors)
+                {
+                    bool must = (door.EndClosure && EndBlocked(car, door.End)) || (passenger && closeAll);
+                    if (!must || !IsOpen(car, door.Key)) continue;
+                    car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(false);
+                    n++;
+                }
             }
             return n;
         }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- **Doors and gates are closed before the train moves, in any AE mode and at any place.** When the engineer is on with a speed above 0 and no station stop is being served, every open door and gate of the passenger cars is closed at once (also ones you opened by hand), and anything still open when the train moves faster than about 0.7 mph is closed. At a station stop the cars still close one by one as they finish; the cars still open at departure now close 0.15 s apart (was 0.5 s).
+- **End gates and vestibule doors stay shut beside a locomotive or tender, or at the end of the train.** On a passenger or baggage car, a gate (for example the 1915 Osgood-Bradley's front and rear gates) or the "Front Door" or "Rear Door" vestibule door (for example on the baggage car) on a car end that is coupled to a locomotive or tender, or has no car on it, is never opened by the station stop, and is closed if it is open.
+
 ## 1.1.1
 
 - **Fix: the doors never opened at a station stop** (1.0.9 and 1.1.0). The check used the game's `IsStoppedAtStation`, which needs the train within 0.1 m of the stop point, and the engineer halts about a metre short. It now treats the train as stopped at a station when the passenger stopper has a station stop registered within 10 m (its own arrival radius) and the train is standing. The game log says when it stops at a station and how many cars it will work, and a failure in the doors and lamps code is now logged once instead of being swallowed.
