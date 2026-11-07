@@ -263,15 +263,17 @@ namespace CollegeEducatedAutoEngineer
                             string key = Str(c, "Key");
                             string title = (Str(c, "Title") ?? "").ToLowerInvariant();
                             string name = (Str(c, "Name") ?? "").Trim().ToLowerInvariant();
-                            bool entry = title.Contains("door") || title.Contains("gate");
-                            bool skip = title.Contains("bathroom") || title.Contains("toilet") || title.Contains("lavatory") || title.Contains("window");
+                            // Many definitions leave the title empty, so the name and the key are read too (door.b, main.door, gate).
+                            string label = title + " " + name + " " + (key ?? "").ToLowerInvariant();
+                            bool entry = label.Contains("door") || label.Contains("gate");
+                            bool skip = label.Contains("bathroom") || label.Contains("toilet") || label.Contains("lavatory") || label.Contains("window");
                             if (!entry || skip || string.IsNullOrEmpty(key) || info.Doors.Exists(d => d.Key == key)) continue;
                             var door = new Door { Key = key };
                             string lowKey = key.ToLowerInvariant();
                             if (name.StartsWith("front", StringComparison.Ordinal) || lowKey.EndsWith(".f", StringComparison.Ordinal)) door.End = 'f';
                             else if (name.StartsWith("rear", StringComparison.Ordinal) || lowKey.EndsWith(".r", StringComparison.Ordinal)) door.End = 'r';
                             // Gates, and the vestibule door at an end ("Front Door", "Rear Door"), close off the car end.
-                            door.EndClosure = door.End != ' ' && (title.Contains("gate") || name == "front door" || name == "rear door");
+                            door.EndClosure = door.End != ' ' && (label.Contains("gate") || name == "front door" || name == "rear door");
                             info.Doors.Add(door);
                         }
                         else if (kind == "Headlight")
@@ -367,7 +369,7 @@ namespace CollegeEducatedAutoEngineer
 
         /// <summary>
         /// Closes what must not be open: the gate or vestibule door on a car end beside a locomotive or tender, or with no car
-        /// on it, at any time; and every door and gate of the passenger cars as soon as the engineer is to move (or is moving)
+        /// on it, at any time; and every door and gate of the passenger and baggage cars as soon as the engineer is to move (or is moving)
         /// unless a station stop is being served (those close as each car finishes).
         /// </summary>
         private static int ForceClose(List<Car> cars, bool closeAll)
@@ -379,7 +381,7 @@ namespace CollegeEducatedAutoEngineer
                 if (!passenger && !IsBaggage(car)) continue;
                 foreach (Door door in InfoFor(car).Doors)
                 {
-                    bool must = (door.EndClosure && Blocked(car, door)) || (passenger && closeAll);
+                    bool must = (door.EndClosure && Blocked(car, door)) || (closeAll && (passenger || IsBaggage(car)));
                     if (!must || !IsOpen(car, door.Key)) continue;
                     car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(false);
                     n++;

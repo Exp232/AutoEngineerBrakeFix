@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.4
+
+- **Fix: the observation car's side and vestibule doors were never worked.** Doors and gates were found by the title in the car definition, and the observation car's (`door.b`, `door.e`, `main.door`, `gate`) have no title. The name and the key are now read as well; bathroom, toilet and window controls are still left alone.
+- **Fix: baggage car doors were not closed before the train moved.** Only a baggage car's end doors beside a locomotive were closed. Now every door of the baggage cars is closed, like the passenger cars', as soon as the engineer is to move. (Baggage cars' doors are not opened at stations.)
+
 ## 1.1.3
 
 - **Fix: the gate on the wrong end was kept shut when a car sits the other way round.** Which end of a car a gate or vestibule door is on was taken from its "front" or "rear" name. It now comes from where the door or gate actually is in the world, found through the game's click toggle for it, compared with the car's coupled neighbours: a door on the side facing a locomotive or tender, or the side with no car, stays shut. The name is only the fallback if the toggle cannot be found.
