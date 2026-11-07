@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3
+
+- **Fix: the gate on the wrong end was kept shut when a car sits the other way round.** Which end of a car a gate or vestibule door is on was taken from its "front" or "rear" name. It now comes from where the door or gate actually is in the world, found through the game's click toggle for it, compared with the car's coupled neighbours: a door on the side facing a locomotive or tender, or the side with no car, stays shut. The name is only the fallback if the toggle cannot be found.
+
 ## 1.1.2
 
 - **Doors and gates are closed before the train moves, in any AE mode and at any place.** When the engineer is on with a speed above 0 and no station stop is being served, every open door and gate of the passenger cars is closed at once (also ones you opened by hand), and anything still open when the train moves faster than about 0.7 mph is closed. At a station stop the cars still close one by one as they finish; the cars still open at departure now close 0.15 s apart (was 0.5 s).

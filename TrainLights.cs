@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using Model;
 using Model.AI;
+using RollingStock.Controls;
 using UnityEngine;
 
 namespace CollegeEducatedAutoEngineer
@@ -301,6 +302,44 @@ namespace CollegeEducatedAutoEngineer
             return neighbour == null || neighbour.IsLocomotive || TypeOf(neighbour).StartsWith("LT", StringComparison.Ordinal);
         }
 
+        private static readonly ConditionalWeakTable<Car, Dictionary<string, Transform>> Toggles = new ConditionalWeakTable<Car, Dictionary<string, Transform>>();
+
+        /// <summary>The world object the game's click toggle for this key sits on (the door or gate itself), or null.</summary>
+        private static Transform ToggleTransform(Car car, string key)
+        {
+            Dictionary<string, Transform> map = Toggles.GetOrCreateValue(car);
+            if (map.Count == 0)
+            {
+                foreach (KeyValuePickableToggle toggle in car.GetComponentsInChildren<KeyValuePickableToggle>(true))
+                {
+                    if (toggle != null && !string.IsNullOrEmpty(toggle.key) && !map.ContainsKey(toggle.key)) map[toggle.key] = toggle.transform;
+                }
+            }
+            return map.TryGetValue(key, out Transform t) && t != null ? t : null;
+        }
+
+        /// <summary>
+        /// True when the end of the car this door or gate is on is beside a locomotive or tender, or has no car. The end is found
+        /// from where the door sits in the world relative to the coupled neighbours, not from its "front" or "rear" name, because
+        /// a car can be placed either way round.
+        /// </summary>
+        private static bool Blocked(Car car, Door door)
+        {
+            Transform t = ToggleTransform(car, door.Key);
+            Car a = car.CoupledTo(Car.LogicalEnd.A);
+            Car b = car.CoupledTo(Car.LogicalEnd.B);
+            if (t == null) return door.End != ' ' && EndBlocked(car, door.End);
+            if (a == null && b == null) return true;
+            Vector3 centre = car.transform.position;
+            Vector3 g = t.position;
+            bool atA;
+            if (a != null && b != null) atA = (g - a.transform.position).sqrMagnitude <= (g - b.transform.position).sqrMagnitude;
+            else if (a != null) atA = Vector3.Dot(g - centre, a.transform.position - centre) > 0f;
+            else atA = Vector3.Dot(g - centre, b.transform.position - centre) <= 0f;
+            Car neighbour = atA ? a : b;
+            return neighbour == null || neighbour.IsLocomotive || TypeOf(neighbour).StartsWith("LT", StringComparison.Ordinal);
+        }
+
         private static bool IsBaggage(Car car)
         {
             return TypeOf(car).StartsWith("CB", StringComparison.Ordinal);
@@ -318,7 +357,7 @@ namespace CollegeEducatedAutoEngineer
             int n = 0;
             foreach (Door door in InfoFor(car).Doors)
             {
-                if (open && door.EndClosure && EndBlocked(car, door.End)) continue;
+                if (open && door.EndClosure && Blocked(car, door)) continue;
                 if (IsOpen(car, door.Key) == open) continue;
                 car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(open);
                 n++;
@@ -340,7 +379,7 @@ namespace CollegeEducatedAutoEngineer
                 if (!passenger && !IsBaggage(car)) continue;
                 foreach (Door door in InfoFor(car).Doors)
                 {
-                    bool must = (door.EndClosure && EndBlocked(car, door.End)) || (passenger && closeAll);
+                    bool must = (door.EndClosure && Blocked(car, door)) || (passenger && closeAll);
                     if (!must || !IsOpen(car, door.Key)) continue;
                     car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(false);
                     n++;
