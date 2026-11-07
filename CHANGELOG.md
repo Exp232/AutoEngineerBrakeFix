@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1
+
+- **Fix: the doors never opened at a station stop** (1.0.9 and 1.1.0). The check used the game's `IsStoppedAtStation`, which needs the train within 0.1 m of the stop point, and the engineer halts about a metre short. It now treats the train as stopped at a station when the passenger stopper has a station stop registered within 10 m (its own arrival radius) and the train is standing. The game log says when it stops at a station and how many cars it will work, and a failure in the doors and lamps code is now logged once instead of being swallowed.
+
 ## 1.1.0
 
 - **Doors and gates open and close gradually at a station stop.** They open car by car (about 0.8 s apart along the train) when the engineer stops at the station, and each car closes its own doors at its own time late in the stop (between 55% and 95% of the game's minimum passenger stop time), as if its loading were done. When the engineer decides to depart, any car still open closes in turn, half a second apart. The game does not track loading per car, so the closing times are spread over the stop rather than read from it.

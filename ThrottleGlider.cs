@@ -21,6 +21,7 @@ namespace CollegeEducatedAutoEngineer
         private float _nextWrite;
         private bool _loggedError;
         private bool _loggedPrepError;
+        private bool _loggedLightsError;
 
         private void Awake()
         {
@@ -32,7 +33,7 @@ namespace CollegeEducatedAutoEngineer
             if (_ae != null && Main.Active && _ae.isActiveAndEnabled)
             {
                 try { StallGuard.Tick(_ae); } catch (Exception) { /* never let the guard break the frame */ }
-                try { TrainLights.Tick(_ae); } catch (Exception) { /* lamps and doors are never worth a frame */ }
+                try { TrainLights.Tick(_ae); } catch (Exception e) { if (!_loggedLightsError) { _loggedLightsError = true; Main.Mod.Logger.Log("Doors and lamps error: " + e); } }
                 try { TrainPrep.Tick(_ae); } catch (Exception e) { if (!_loggedPrepError) { _loggedPrepError = true; Main.Mod.Logger.Log("Train prep error: " + e.Message); } }
             }
             if (_ae == null || !Main.Active || StallGuard.IsLatched(_ae) || !Main.Settings.SmoothThrottle || !Main.Settings.GlideThrottle) return;

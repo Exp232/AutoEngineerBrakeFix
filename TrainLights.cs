@@ -110,7 +110,10 @@ namespace CollegeEducatedAutoEngineer
         private static void DoorsTick(AutoEngineer ae, Car loco, List<Car> cars, float speed, State s)
         {
             var stopper = ae.GetComponent<AutoEngineerPassengerStopper>();
-            bool atStation = stopper != null && stopper.IsStoppedAtStation && speed < 0.3f;
+            // The stopper registers the station stop while the train is within 10 m of it (its own arrival radius); the train
+            // usually halts a metre or so short, so IsStoppedAtStation (under 0.1 m) is too strict.
+            var info = stopper != null ? stopper.NextStopInfo : null;
+            bool atStation = info.HasValue && info.Value.distance < 10f && speed < 0.3f;
             float now = Time.time;
 
             if (atStation && !s.Stopped)
@@ -129,6 +132,7 @@ namespace CollegeEducatedAutoEngineer
                     s.Plans.Add(new Plan { Car = car, OpenAt = open, CloseAt = Mathf.Max(close, open + 3f) });
                     order++;
                 }
+                Main.Mod.Logger.Log($"{loco.DisplayName}: stopped at a station stop ({info.Value.text}), doors on {s.Plans.Count} car(s).");
             }
             else if (!atStation && s.Stopped)
             {
