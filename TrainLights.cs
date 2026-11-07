@@ -17,7 +17,7 @@ namespace CollegeEducatedAutoEngineer
     ///  - ObservationHeadlight: when a car with its own headlight (the observation car) leads the train, as when the
     ///    engineer backs the train, its headlight is bright while moving and dim while stopped, like the locomotive's;
     ///    it goes off when the car stops leading.
-    ///  - AutoMarkers (off by default; marker lamps are the player's): the marker lamp at the rear end of the train shows
+    ///  - AutoMarkers: the marker lamp at the rear end of the train shows
     ///    red (MarkerRedPosition) and every other marker lamp on the train is switched off.
     /// </summary>
     internal static class TrainLights
@@ -47,7 +47,6 @@ namespace CollegeEducatedAutoEngineer
             public char End = ' ';
             public bool EndClosure;
             public string Label = "";
-            public bool Locked;   // never opened by the mod, and closed if open
         }
 
         private sealed class Info
@@ -296,7 +295,7 @@ namespace CollegeEducatedAutoEngineer
                             // Many definitions leave the title empty, so the name and the key are read too (door.b, main.door, gate).
                             string label = title + " " + name + " " + collider + " " + (key ?? "").ToLowerInvariant();
                             bool entry = label.Contains("door") || label.Contains("gate");
-                            bool skip = label.Contains("bathroom") || label.Contains("toilet") || label.Contains("lavatory") || label.Contains("window");
+                            bool skip = label.Contains("window");
                             if (!entry || skip || string.IsNullOrEmpty(key) || info.Doors.Exists(d => d.Key == key)) continue;
                             var door = new Door { Key = key, Label = label };
                             string lowKey = key.ToLowerInvariant();
@@ -323,12 +322,6 @@ namespace CollegeEducatedAutoEngineer
             {
                 Main.Mod.Logger.Warning("Reading the car definition for lamps and doors failed: " + e.Message);
             }
-            // Where a car has side doors, the end doors and gates are the inner vestibule doors and platform gates: locked shut.
-            bool sideDoors = info.Doors.Exists(d => d.Label.Contains("left") || d.Label.Contains("right"));
-            foreach (Door d in info.Doors)
-            {
-                if ((d.EndClosure && sideDoors) || d.Label.Contains("vestibule") || d.Label.Contains("inner")) d.Locked = true;
-            }
             Infos[id] = info;
             return info;
         }
@@ -337,7 +330,7 @@ namespace CollegeEducatedAutoEngineer
         private static bool EndBlocked(Car car, char end)
         {
             Car neighbour = car.CoupledTo(car.EndToLogical(end == 'f' ? Car.End.F : Car.End.R));
-            return neighbour == null || neighbour.IsLocomotive || TypeOf(neighbour).StartsWith("LT", StringComparison.Ordinal);
+            return IsPower(neighbour);
         }
 
         private static readonly ConditionalWeakTable<Car, Dictionary<string, Transform>> Toggles = new ConditionalWeakTable<Car, Dictionary<string, Transform>>();
@@ -357,18 +350,17 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>
-        /// True when the end of the car this door or gate is on is beside a locomotive or tender, or has no car. The end is found
+        /// True when the end of the car this door or gate is on is coupled to a locomotive or tender (the vestibule door or gate immediately behind the loco). The end is found
         /// from where the door sits in the world relative to the coupled neighbours, not from its "front" or "rear" name, because
         /// a car can be placed either way round.
         /// </summary>
         private static bool Blocked(Car car, Door door)
         {
-            if (door.Locked) return true;
             Transform t = ToggleTransform(car, door.Key);
             Car a = car.CoupledTo(Car.LogicalEnd.A);
             Car b = car.CoupledTo(Car.LogicalEnd.B);
             if (t == null) return door.End != ' ' && EndBlocked(car, door.End);
-            if (a == null && b == null) return true;
+            if (a == null && b == null) return false;
             Vector3 centre = car.transform.position;
             Vector3 g = t.position;
             bool atA;
@@ -376,7 +368,12 @@ namespace CollegeEducatedAutoEngineer
             else if (a != null) atA = Vector3.Dot(g - centre, a.transform.position - centre) > 0f;
             else atA = Vector3.Dot(g - centre, b.transform.position - centre) <= 0f;
             Car neighbour = atA ? a : b;
-            return neighbour == null || neighbour.IsLocomotive || TypeOf(neighbour).StartsWith("LT", StringComparison.Ordinal);
+            return IsPower(neighbour);
+        }
+
+        private static bool IsPower(Car car)
+        {
+            return car != null && (car.IsLocomotive || TypeOf(car).StartsWith("LT", StringComparison.Ordinal));
         }
 
         private static bool IsBaggage(Car car)
@@ -396,7 +393,7 @@ namespace CollegeEducatedAutoEngineer
             int n = 0;
             foreach (Door door in InfoFor(car).Doors)
             {
-                if (open && (door.Locked || (door.EndClosure && Blocked(car, door)))) continue;
+                if (open && door.EndClosure && Blocked(car, door)) continue;
                 if (IsOpen(car, door.Key) == open) continue;
                 car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(open);
                 n++;
@@ -405,8 +402,7 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>
-        /// Closes what must not be open: the gate or vestibule door on a car end beside a locomotive or tender, or with no car
-        /// on it, at any time; and every door and gate of the passenger and baggage cars as soon as the engineer is to move (or is moving)
+        /// Closes what must not be open: the gate or vestibule door on a car end coupled to a locomotive or tender, at any time; and every door and gate of the passenger, baggage, caboose and work cars as soon as the engineer is to move (or is moving)
         /// unless a station stop is being served (those close as each car finishes).
         /// </summary>
         private static int ForceClose(List<Car> cars, bool closeAll)
@@ -417,7 +413,7 @@ namespace CollegeEducatedAutoEngineer
                 if (!IsServed(car)) continue;
                 foreach (Door door in InfoFor(car).Doors)
                 {
-                    bool must = door.Locked || (door.EndClosure && Blocked(car, door)) || closeAll;
+                    bool must = (door.EndClosure && Blocked(car, door)) || closeAll;
                     if (!must || !IsOpen(car, door.Key)) continue;
                     car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(false);
                     n++;

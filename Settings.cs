@@ -10,7 +10,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Settings.xml layout version. Older files had features switched off by the start-up self-check (their PID targets were missing on 0.6); those are reset once.</summary>
         public int SettingsVersion = 0;
 
-        internal const int CurrentSettingsVersion = 4;
+        internal const int CurrentSettingsVersion = 5;
 
         // ---- Overspeed ----
 
@@ -257,8 +257,8 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>When the observation car (or another car with its own headlight) leads the train, light its headlight like the locomotive's: bright moving, dim stopped, off when it stops leading.</summary>
         public bool ObservationHeadlight = true;
 
-        /// <summary>Marker lamps (off: they are the player's): show red at the rear end of the train and switch every other marker lamp on the train off. Settings.xml only.</summary>
-        public bool AutoMarkers = false;
+        /// <summary>Marker lamps: show red at the rear end of the train and switch every other marker lamp on the train off (class lights are left to the player).</summary>
+        public bool AutoMarkers = true;
 
         /// <summary>The marker lamp position (0 to 3, each a quarter turn of the lens) that shows red outward. Settings.xml only.</summary>
         public int MarkerRedPosition = 2;
@@ -330,6 +330,7 @@ namespace CollegeEducatedAutoEngineer
                             loaded.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
                         }
                         if (loaded.SettingsVersion < 4) loaded.StartingResistanceLbPerTon = d.StartingResistanceLbPerTon;   // 2.9.15: 7, no slider
+                        if (loaded.SettingsVersion < 5) loaded.AutoMarkers = d.AutoMarkers;   // 1.1.6: on (it was a Settings.xml-only test switch)
                         loaded.SettingsVersion = CurrentSettingsVersion;
                         try { using (var w = File.Create(path)) serializer.Serialize(w, loaded); }
                         catch (Exception) { /* the next settings change saves it */ }

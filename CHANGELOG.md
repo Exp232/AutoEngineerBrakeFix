@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.6
+
+- **All doors open at a station stop; only the vestibule door or gate immediately behind the locomotive is kept shut.** The locks from 1.1.5 (side-door cars, "vestibule" and "inner" names) and the free-end rule are gone. Every door and gate of the passenger, baggage, caboose and work cars now opens, bathroom and toilet doors included (windows are still left alone), except the gate or "Front Door"/"Rear Door" on a car end coupled to a locomotive or tender, which stays shut and is closed if open.
+- **Marker lamps are automatic** (`AutoMarkers`, now on and a toggle in the settings window; the saved value is reset once with the settings version, 5). The marker lamp at the rear end of the train shows red (`MarkerRedPosition`, 2 by default) and every other marker lamp on the train, including the locomotive's and tender's, is switched off. It is set when the train is standing and the train or its direction changes. Class lights are left to the player.
+
 ## 1.1.5
 
 - **Baggage cars, cabooses and work cars join the station stop.** Their doors open at a station stop and close as each car finishes, like the passenger cars', and are closed before the train moves. (They were only closed before moving, and baggage cars only for end doors.)
