@@ -46,6 +46,8 @@ namespace CollegeEducatedAutoEngineer
             public string Key;
             public char End = ' ';
             public bool EndClosure;
+            public string Label = "";
+            public bool Locked;   // never opened by the mod, and closed if open
         }
 
         private sealed class Info
@@ -135,7 +137,7 @@ namespace CollegeEducatedAutoEngineer
                 int order = 0;
                 foreach (Car car in cars)
                 {
-                    if (!IsPassenger(car) || InfoFor(car).Doors.Count == 0) continue;
+                    if (!IsServed(car) || InfoFor(car).Doors.Count == 0) continue;
                     float open = now + order * OpenSpacingSeconds + (float)random.NextDouble() * 0.6f;
                     float close = now + dwell * Mathf.Lerp(CloseEarliest, CloseLatest, (float)random.NextDouble());
                     s.Plans.Add(new Plan { Car = car, OpenAt = open, CloseAt = Mathf.Max(close, open + 3f) });
@@ -225,9 +227,13 @@ namespace CollegeEducatedAutoEngineer
             return Convert.ToString(car.CarType) ?? "";
         }
 
-        private static bool IsPassenger(Car car)
+        /// <summary>Cars whose doors the station stop works: passenger cars, baggage cars, cabooses and work cars.</summary>
+        private static bool IsServed(Car car)
         {
-            return !car.IsLocomotive && TypeOf(car).StartsWith("P", StringComparison.Ordinal);
+            if (car.IsLocomotive) return false;
+            string type = TypeOf(car);
+            return type.StartsWith("P", StringComparison.Ordinal) || type.StartsWith("CB", StringComparison.Ordinal)
+                || type.StartsWith("NE", StringComparison.Ordinal) || type.StartsWith("MW", StringComparison.Ordinal);
         }
 
         private static bool IsOwnHeadlightCar(Car car)
@@ -243,6 +249,29 @@ namespace CollegeEducatedAutoEngineer
             if (p != null) return p.GetValue(o, null)?.ToString();
             FieldInfo f = t.GetField(name, Flags);
             return f?.GetValue(o)?.ToString();
+        }
+
+        /// <summary>The last element of the toggle's collider object path (for example "Rear Door"), lower case, or "".</summary>
+        private static string ColliderName(object component)
+        {
+            try
+            {
+                Type t = component.GetType();
+                object target = t.GetProperty("TargetColliderObject", Flags)?.GetValue(component, null) ?? t.GetField("TargetColliderObject", Flags)?.GetValue(component);
+                if (target == null) return "";
+                Type tt = target.GetType();
+                object path = tt.GetProperty("Path", Flags)?.GetValue(target, null) ?? tt.GetField("Path", Flags)?.GetValue(target);
+                string last = "";
+                if (path is System.Collections.IEnumerable items)
+                {
+                    foreach (object item in items) last = item?.ToString() ?? last;
+                }
+                return last.Trim().ToLowerInvariant();
+            }
+            catch (Exception)
+            {
+                return "";
+            }
         }
 
         private static Info InfoFor(Car car)
@@ -263,17 +292,18 @@ namespace CollegeEducatedAutoEngineer
                             string key = Str(c, "Key");
                             string title = (Str(c, "Title") ?? "").ToLowerInvariant();
                             string name = (Str(c, "Name") ?? "").Trim().ToLowerInvariant();
+                            string collider = ColliderName(c);
                             // Many definitions leave the title empty, so the name and the key are read too (door.b, main.door, gate).
-                            string label = title + " " + name + " " + (key ?? "").ToLowerInvariant();
+                            string label = title + " " + name + " " + collider + " " + (key ?? "").ToLowerInvariant();
                             bool entry = label.Contains("door") || label.Contains("gate");
                             bool skip = label.Contains("bathroom") || label.Contains("toilet") || label.Contains("lavatory") || label.Contains("window");
                             if (!entry || skip || string.IsNullOrEmpty(key) || info.Doors.Exists(d => d.Key == key)) continue;
-                            var door = new Door { Key = key };
+                            var door = new Door { Key = key, Label = label };
                             string lowKey = key.ToLowerInvariant();
-                            if (name.StartsWith("front", StringComparison.Ordinal) || lowKey.EndsWith(".f", StringComparison.Ordinal)) door.End = 'f';
-                            else if (name.StartsWith("rear", StringComparison.Ordinal) || lowKey.EndsWith(".r", StringComparison.Ordinal)) door.End = 'r';
+                            if (name.StartsWith("front", StringComparison.Ordinal) || collider.StartsWith("front", StringComparison.Ordinal) || lowKey.EndsWith(".f", StringComparison.Ordinal)) door.End = 'f';
+                            else if (name.StartsWith("rear", StringComparison.Ordinal) || collider.StartsWith("rear", StringComparison.Ordinal) || lowKey.EndsWith(".r", StringComparison.Ordinal)) door.End = 'r';
                             // Gates, and the vestibule door at an end ("Front Door", "Rear Door"), close off the car end.
-                            door.EndClosure = door.End != ' ' && (label.Contains("gate") || name == "front door" || name == "rear door");
+                            door.EndClosure = door.End != ' ' && (label.Contains("gate") || name == "front door" || name == "rear door" || collider == "front door" || collider == "rear door");
                             info.Doors.Add(door);
                         }
                         else if (kind == "Headlight")
@@ -292,6 +322,12 @@ namespace CollegeEducatedAutoEngineer
             catch (Exception e)
             {
                 Main.Mod.Logger.Warning("Reading the car definition for lamps and doors failed: " + e.Message);
+            }
+            // Where a car has side doors, the end doors and gates are the inner vestibule doors and platform gates: locked shut.
+            bool sideDoors = info.Doors.Exists(d => d.Label.Contains("left") || d.Label.Contains("right"));
+            foreach (Door d in info.Doors)
+            {
+                if ((d.EndClosure && sideDoors) || d.Label.Contains("vestibule") || d.Label.Contains("inner")) d.Locked = true;
             }
             Infos[id] = info;
             return info;
@@ -327,6 +363,7 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         private static bool Blocked(Car car, Door door)
         {
+            if (door.Locked) return true;
             Transform t = ToggleTransform(car, door.Key);
             Car a = car.CoupledTo(Car.LogicalEnd.A);
             Car b = car.CoupledTo(Car.LogicalEnd.B);
@@ -359,7 +396,7 @@ namespace CollegeEducatedAutoEngineer
             int n = 0;
             foreach (Door door in InfoFor(car).Doors)
             {
-                if (open && door.EndClosure && Blocked(car, door)) continue;
+                if (open && (door.Locked || (door.EndClosure && Blocked(car, door)))) continue;
                 if (IsOpen(car, door.Key) == open) continue;
                 car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(open);
                 n++;
@@ -377,11 +414,10 @@ namespace CollegeEducatedAutoEngineer
             int n = 0;
             foreach (Car car in cars)
             {
-                bool passenger = IsPassenger(car);
-                if (!passenger && !IsBaggage(car)) continue;
+                if (!IsServed(car)) continue;
                 foreach (Door door in InfoFor(car).Doors)
                 {
-                    bool must = (door.EndClosure && Blocked(car, door)) || (closeAll && (passenger || IsBaggage(car)));
+                    bool must = door.Locked || (door.EndClosure && Blocked(car, door)) || closeAll;
                     if (!must || !IsOpen(car, door.Key)) continue;
                     car.KeyValueObject[door.Key] = KeyValue.Runtime.Value.Bool(false);
                     n++;

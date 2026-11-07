@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.5
+
+- **Baggage cars, cabooses and work cars join the station stop.** Their doors open at a station stop and close as each car finishes, like the passenger cars', and are closed before the train moves. (They were only closed before moving, and baggage cars only for end doors.)
+- **Inner vestibule doors and platform gates are locked shut.** On a car that has side doors (for example the 1915 Osgood-Bradley), the front and rear doors into the cabin and the front and rear gates are never opened by the mod, and are closed if they are open; only the side doors work. Controls whose name says "vestibule" or "inner" are locked too.
+- **The baggage car's vestibule doors are now found.** Their definition names are "Door 5" and "Door 6" and only the clicked object is called "Rear Door" and "Front Door", so the end rule (shut beside a locomotive or tender, or at the end of the train) did not see them before. The object name is now read as well.
+
 ## 1.1.4
 
 - **Fix: the observation car's side and vestibule doors were never worked.** Doors and gates were found by the title in the car definition, and the observation car's (`door.b`, `door.e`, `main.door`, `gate`) have no title. The name and the key are now read as well; bathroom, toilet and window controls are still left alone.
