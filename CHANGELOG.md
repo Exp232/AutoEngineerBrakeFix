@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1
+
+- **Fix: the tender headlight came back on while backing.** The game re-lights the locomotive headlight on nearly every update, so switching it off once was undone at once. While the observation car leads and carries the light, the game's own headlight calls (`HeadlightOn`, `HeadlightDim`) are now skipped, so the tender lamp stays off. When the observation car stops leading, the game takes the headlight back.
+
 ## 1.2.0
 
 - **The observation car's headlight takes over from the locomotive's when it leads the train** (backing or pushing). The locomotive's own headlight, the tender lamp facing the train, is switched off through the game's headlight logic while the observation car is lit (bright moving, dim stopped). The game log lists the headlight states it found ("Headlight states: ...") the first time.

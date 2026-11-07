@@ -56,6 +56,7 @@ namespace CollegeEducatedAutoEngineer
             Type element = AccessTools.Inner(typeof(IntegrationSet), "Element");
             return new Dictionary<string, Func<bool>>
             {
+                ["AutoEngineer.HeadlightOn(bool), HeadlightDim()"] = () => Method(AE, "HeadlightOn", new[] { typeof(bool) }, typeof(void)) && Method(AE, "HeadlightDim", Type.EmptyTypes, typeof(void)),
                 ["AutoEngineer.OnEnable()"] = () => Method(AE, "OnEnable", Type.EmptyTypes, typeof(void)),
                 ["AutoEngineer.CalculateLookaheadDistance()"] = () => Method(AE, "CalculateLookaheadDistance", Type.EmptyTypes, typeof(float)),
                 ["AutoEngineer.CalculateMaxVelocityToSlowToSpeedAtDistance(float, float, float totalAvailableBraking)"] =
@@ -281,6 +282,15 @@ namespace CollegeEducatedAutoEngineer
                     TurnOff = () => s.WaterStop = false,
                     Needs = new[] { "AutoEngineer.OnEnable()", "SteamLocomotive.FuelCar()", "AutoEngineerPlanner.Say(string)" },
                     Patches = new[] { typeof(AutoEngineer_OnEnable_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Observation car headlight",
+                    AlwaysPatch = true,
+                    On = () => s.ObservationHeadlight,
+                    TurnOff = () => s.ObservationHeadlight = false,
+                    Needs = new[] { "AutoEngineer.HeadlightOn(bool), HeadlightDim()" },
+                    Patches = new[] { typeof(AutoEngineer_HeadlightOn_Patch), typeof(AutoEngineer_HeadlightDim_Patch) },
                 },
                 new Feature
                 {

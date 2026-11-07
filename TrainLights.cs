@@ -1,3 +1,4 @@
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -125,6 +126,12 @@ namespace CollegeEducatedAutoEngineer
                     SetLocoHeadlightOff(loco);
                 }
             }
+        }
+
+        /// <summary>True while the observation car's headlight stands in for the locomotive's: the game's own headlight calls are skipped.</summary>
+        internal static bool HoldLocoHeadlightOff(AutoEngineer ae)
+        {
+            return Main.Settings.ObservationHeadlight && ae != null && States.TryGetValue(ae, out State s) && s.ObsLit != null;
         }
 
         private static bool _hlResolved, _hlLogged;
@@ -550,5 +557,18 @@ namespace CollegeEducatedAutoEngineer
                 + (rear != null ? $"red (position {Main.Settings.MarkerRedPosition}) on {rear}" : $"no marker lamp at the rear end of {(trailing != null ? trailing.DisplayName : "?")}, none lit")
                 + $", {off} of {lamps} lamp(s) off.");
         }
+    }
+
+    /// <summary>The game re-lights the locomotive headlight on nearly every update; while the observation car leads and carries the light, those calls are skipped.</summary>
+    [HarmonyPatch(typeof(AutoEngineer), "HeadlightOn", new[] { typeof(bool) })]
+    internal static class AutoEngineer_HeadlightOn_Patch
+    {
+        private static bool Prefix(AutoEngineer __instance) { return !(Main.Active && TrainLights.HoldLocoHeadlightOff(__instance)); }
+    }
+
+    [HarmonyPatch(typeof(AutoEngineer), "HeadlightDim", new Type[0])]
+    internal static class AutoEngineer_HeadlightDim_Patch
+    {
+        private static bool Prefix(AutoEngineer __instance) { return !(Main.Active && TrainLights.HoldLocoHeadlightOff(__instance)); }
     }
 }
