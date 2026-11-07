@@ -15,13 +15,13 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Train preparation when the engineer is given a waypoint order (PrepTrain): releases the handbrakes on every car
+    /// Train preparation when the engineer is given an order to move, in any mode (PrepTrain): releases the handbrakes on every car
     /// of the train, connects the air between each pair of coupled cars with both anglecocks open, and closes the
     /// anglecocks at the two ends of the train (the state the engineer's own "check the brake line" test wants).
-    /// It runs once per new waypoint order, when the train is standing. Cars are changed the way the game's own
+    /// It runs once per new order (the engineer switched on, or from stopped to a speed, or a new mode or waypoint), when the train is standing. Cars are changed the way the game's own
     /// controls change them (the car's control properties and end gear), so the game applies its usual rules.
     ///
-    /// LogCarKeys writes logs\carkeys_*.txt once per engineer: every key-value entry on each car of the train, to find the
+    /// LogCarKeys writes logs\carkeys_*.txt on each new order: every key-value entry on each car of the train, to find the
     /// names the game uses for doors, gates and lamps.
     /// </summary>
     internal static class TrainPrep
@@ -29,10 +29,11 @@ namespace CollegeEducatedAutoEngineer
         private sealed class State
         {
             public bool Seen;
+            public AutoEngineerMode Mode;
             public OrderWaypoint? Waypoint;
             public bool Pending;
             public float Next;
-            public bool Dumped;
+            public float NextDump;
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
@@ -48,30 +49,31 @@ namespace CollegeEducatedAutoEngineer
             s.Next = Time.time + 0.5f;
 
             Car loco = ae.Locomotive;
-            if (Main.Settings.LogCarKeys && !s.Dumped)
-            {
-                s.Dumped = true;
-                DumpKeys(loco);
-            }
-            if (!Main.Settings.PrepTrain) return;
-
             Orders orders = new AutoEngineerPersistence(loco.KeyValueObject).Orders;
-            bool waypoint = orders.Mode == AutoEngineerMode.Waypoint && orders.Waypoint.HasValue;
-            if (!waypoint)
+            // "Going": the engineer is on with a speed above 0 (a waypoint order also needs its waypoint).
+            bool going = orders.Enabled && orders.MaxSpeedMph > 0 && (orders.Mode != AutoEngineerMode.Waypoint || orders.Waypoint.HasValue);
+            if (!going)
             {
                 s.Seen = false;
                 s.Pending = false;
                 return;
             }
-            if (!s.Seen || !Equals(s.Waypoint, orders.Waypoint))
+            // New order: the engineer was off or stopped, or its mode or waypoint changed (a new speed alone is not one).
+            if (!s.Seen || s.Mode != orders.Mode || !Equals(s.Waypoint, orders.Waypoint))
             {
                 s.Seen = true;
+                s.Mode = orders.Mode;
                 s.Waypoint = orders.Waypoint;
                 s.Pending = true;
+                if (Main.Settings.LogCarKeys && Time.time >= s.NextDump)
+                {
+                    s.NextDump = Time.time + 20f;
+                    DumpKeys(loco);
+                }
             }
             if (!s.Pending || Mathf.Abs(loco.velocity) > 1f) return;   // wait until the train stands
             s.Pending = false;
-            Prepare(loco);
+            if (Main.Settings.PrepTrain) Prepare(loco);
         }
 
         /// <summary>Walks the couplers from the locomotive: each car with its neighbour on each logical end (null = free end).</summary>

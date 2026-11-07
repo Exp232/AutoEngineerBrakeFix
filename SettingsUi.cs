@@ -87,8 +87,8 @@ namespace CollegeEducatedAutoEngineer
 
                 page.AddSection("Train preparation", b =>
                 {
-                    b.AddFieldToggle("Prepare train on waypoint order", () => s.PrepTrain, v => { s.PrepTrain = v; Save(); });
-                    Note(b, "When a standing train gets a new waypoint order: releases the handbrakes, connects the air between coupled cars with the anglecocks open, and closes the anglecocks at the two ends of the train.");
+                    b.AddFieldToggle("Prepare train on new orders", () => s.PrepTrain, v => { s.PrepTrain = v; Save(); });
+                    Note(b, "When a standing train gets a new order to move (Road, Yard or Waypoint): releases the handbrakes, connects the air between coupled cars with the anglecocks open, and closes the anglecocks at the two ends of the train.");
                 });
 
                 page.AddSection("Stall guard", b =>

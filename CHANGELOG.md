@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.8
+
+- **Train preparation works in every mode** (Road, Yard and Waypoint), not only for waypoint orders. It runs once when the engineer is switched on, set from 0 mph to a speed, or given a new mode or waypoint, and the train is standing.
+- `LogCarKeys` now also writes a new dump on each of those new orders (at most one every 20 seconds), so it can be repeated without restarting the game, for example after opening a door or switching a lamp.
+
 ## 1.0.7
 
 - **Train preparation on a waypoint order** (requested on Nexus; `PrepTrain`, on by default, a toggle in the settings window). When a standing train gets a new waypoint order, the mod releases the handbrake on every coupled car, connects the air between each pair of coupled cars with both anglecocks open, and closes the anglecocks at the two ends of the train. It waits until the train is under about 2 mph, then does it once per order, and logs what it changed to the game log. Cars are changed through the same car controls and end gear the game's own handbrake and anglecock controls use.
