@@ -30,6 +30,9 @@ namespace CollegeEducatedAutoEngineer
             public readonly List<Plan> Plans = new List<Plan>();
             public Car ObsLit;
             public string MarkerHead;
+            public bool HaveHead;
+            public Car.LogicalEnd Head;
+            public float NextIdle;
         }
 
         /// <summary>One car's doors at a stop: when they open, and when they close as the car finishes loading.</summary>
@@ -72,13 +75,36 @@ namespace CollegeEducatedAutoEngineer
 
             Car loco = ae.Locomotive;
             Orders orders = new AutoEngineerPersistence(loco.KeyValueObject).Orders;
-            if (!orders.Enabled) return;
+            bool enabled = orders.Enabled;
+            // The direction of travel is the engineer's; with it off, the last one it had is used (for the marker lamps only).
+            if (enabled)
+            {
+                s.HaveHead = true;
+                s.Head = loco.EndToLogical(orders.Forward ? Car.End.F : Car.End.R);
+            }
+            if (!enabled)
+            {
+                if (!settings.AutoMarkers || !s.HaveHead || Time.time < s.NextIdle) return;
+                s.NextIdle = Time.time + 2f;
+            }
 
             List<Car> cars = TrainPrep.Consist(loco);
-            Car.LogicalEnd head = loco.EndToLogical(orders.Forward ? Car.End.F : Car.End.R);
+            Car.LogicalEnd head = s.Head;
             Car leading = Walk(loco, head, out Car.LogicalEnd leadEnd);
             Car trailing = Walk(loco, Opposite(head), out Car.LogicalEnd trailEnd);
             float speed = Mathf.Abs(loco.velocity);
+
+            if (settings.AutoMarkers)
+            {
+                string signature = (trailEnd == Car.LogicalEnd.A ? "A" : "B") + (trailing != null ? trailing.id : "") + ":" + string.Join(",", cars.ConvertAll(c => c.id));
+                if (signature != s.MarkerHead && speed < 1f)
+                {
+                    s.MarkerHead = signature;
+                    SetMarkers(cars, trailing, trailEnd);
+                }
+            }
+
+            if (!enabled) return;
 
             if (settings.DoorsAtStations) DoorsTick(ae, loco, cars, speed, orders.MaxSpeedMph > 0, s);
 
@@ -95,16 +121,6 @@ namespace CollegeEducatedAutoEngineer
                     int level = speed > 0.3f ? 2 : 1;
                     leading.KeyValueObject["headlight"] = KeyValue.Runtime.Value.Int(level);
                     s.ObsLit = leading;
-                }
-            }
-
-            if (settings.AutoMarkers)
-            {
-                string signature = (trailing != null ? trailing.id : "") + (trailEnd == Car.LogicalEnd.A ? "A" : "B") + cars.Count;
-                if (signature != s.MarkerHead && speed < 1f)
-                {
-                    s.MarkerHead = signature;
-                    SetMarkers(cars, trailing, trailEnd);
                 }
             }
         }

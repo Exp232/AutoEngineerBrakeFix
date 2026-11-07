@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.7
+
+- **Marker lamps are rechecked whenever cars are coupled or uncoupled**, and not only when the engineer is on: the rear of the train is found again every 2 seconds with the engineer off (using the direction it last had) and every half second with it on, and the lamps are redone when the list of cars, the rear car or the direction changes and the train is standing. (The check compared only the car count and the rear car before.)
+- **`MarkerRedPosition` defaults to 3** (the value tested; it was 2). Your own `Settings.xml` value is kept.
+
 ## 1.1.6
 
 - **All doors open at a station stop; only the vestibule door or gate immediately behind the locomotive is kept shut.** The locks from 1.1.5 (side-door cars, "vestibule" and "inner" names) and the free-end rule are gone. Every door and gate of the passenger, baggage, caboose and work cars now opens, bathroom and toilet doors included (windows are still left alone), except the gate or "Front Door"/"Rear Door" on a car end coupled to a locomotive or tender, which stays shut and is closed if open.
