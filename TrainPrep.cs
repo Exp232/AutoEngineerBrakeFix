@@ -77,7 +77,7 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>Walks the couplers from the locomotive: each car with its neighbour on each logical end (null = free end).</summary>
-        private static List<Car> Consist(Car loco)
+        internal static List<Car> Consist(Car loco)
         {
             var cars = new List<Car> { loco };
             var seen = new HashSet<Car> { loco };

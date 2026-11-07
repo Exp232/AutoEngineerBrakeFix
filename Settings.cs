@@ -251,6 +251,18 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Also write logs\carkeys_*.txt on each new order (at most every 20 s): every key-value entry on each car of the train (to find the names for doors, gates and lamps). Settings.xml only.</summary>
         public bool LogCarKeys = false;
 
+        /// <summary>Open the doors and gates of passenger cars while the engineer is stopped at a station stop, and close them when the train moves off.</summary>
+        public bool DoorsAtStations = true;
+
+        /// <summary>When the observation car (or another car with its own headlight) leads the train, light its headlight like the locomotive's: bright moving, dim stopped, off when it stops leading.</summary>
+        public bool ObservationHeadlight = true;
+
+        /// <summary>Marker lamps (off: they are the player's): show red at the rear end of the train and switch every other marker lamp on the train off. Settings.xml only.</summary>
+        public bool AutoMarkers = false;
+
+        /// <summary>The marker lamp position (0 to 3, each a quarter turn of the lens) that shows red outward. Settings.xml only.</summary>
+        public int MarkerRedPosition = 2;
+
         /// <summary>Also write logs\fuel_summary_*.csv: coal, water and distance per engineer about once a minute, split by powered, coasting, braking and "both" (throttle open while braked), with brake applications counted.</summary>
         public bool LogFuelSummary = false;
 

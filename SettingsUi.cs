@@ -88,7 +88,9 @@ namespace CollegeEducatedAutoEngineer
                 page.AddSection("Train preparation", b =>
                 {
                     b.AddFieldToggle("Prepare train on new orders", () => s.PrepTrain, v => { s.PrepTrain = v; Save(); });
-                    Note(b, "When a standing train gets a new order to move (Road, Yard or Waypoint): releases the handbrakes, connects the air between coupled cars with the anglecocks open, and closes the anglecocks at the two ends of the train.");
+                    b.AddFieldToggle("Doors at station stops", () => s.DoorsAtStations, v => { s.DoorsAtStations = v; Save(); });
+                    b.AddFieldToggle("Observation car headlight", () => s.ObservationHeadlight, v => { s.ObservationHeadlight = v; Save(); });
+                    Note(b, "When a standing train gets a new order to move (Road, Yard or Waypoint): releases the handbrakes, connects the air between coupled cars with the anglecocks open, and closes the anglecocks at the two ends of the train. Doors and gates of passenger cars open at station stops, and an observation car that leads the train lights its headlight.");
                 });
 
                 page.AddSection("Stall guard", b =>
@@ -190,6 +192,8 @@ namespace CollegeEducatedAutoEngineer
             s.CoastBandMph = d.CoastBandMph;
             s.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
             s.PrepTrain = d.PrepTrain;
+            s.DoorsAtStations = d.DoorsAtStations;
+            s.ObservationHeadlight = d.ObservationHeadlight;
             s.StallGuard = d.StallGuard;
             s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
             s.SmoothThrottle = d.SmoothThrottle;

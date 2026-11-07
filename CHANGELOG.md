@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.9
+
+- **Doors and gates open at station stops** (`DoorsAtStations`, on, a toggle in the settings window). While the engineer is stopped at a station stop (the game's own passenger-stop check), the doors and gates of the passenger cars open; they close when the train moves off. The key names come from each car's definition (title "Door", "Gate" or "Gates"; bathroom and toilet doors and windows are left alone), so every car model works.
+- **Observation car headlight** (`ObservationHeadlight`, on, a toggle in the settings window). When a car with its own headlight leads the train (the observation car when the engineer backs the train), the headlight is bright (2) while moving and dim (1) while stopped, like the locomotive's, and goes off (0) when the car stops leading.
+- **Marker lamps** (`AutoMarkers`, `Settings.xml` only, off: marker lamps are the player's). When on, the marker lamp at the rear end of the train shows red (`MarkerRedPosition`, 2 by default; each position is a quarter turn of the lens) and every other marker lamp on the train is switched off. Set when the train is standing and the train or its direction changes.
+
 ## 1.0.8
 
 - **Train preparation works in every mode** (Road, Yard and Waypoint), not only for waypoint orders. It runs once when the engineer is switched on, set from 0 mph to a speed, or given a new mode or waypoint, and the train is standing.

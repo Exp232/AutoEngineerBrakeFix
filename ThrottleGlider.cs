@@ -32,6 +32,7 @@ namespace CollegeEducatedAutoEngineer
             if (_ae != null && Main.Active && _ae.isActiveAndEnabled)
             {
                 try { StallGuard.Tick(_ae); } catch (Exception) { /* never let the guard break the frame */ }
+                try { TrainLights.Tick(_ae); } catch (Exception) { /* lamps and doors are never worth a frame */ }
                 try { TrainPrep.Tick(_ae); } catch (Exception e) { if (!_loggedPrepError) { _loggedPrepError = true; Main.Mod.Logger.Log("Train prep error: " + e.Message); } }
             }
             if (_ae == null || !Main.Active || StallGuard.IsLatched(_ae) || !Main.Settings.SmoothThrottle || !Main.Settings.GlideThrottle) return;
