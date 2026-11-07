@@ -43,6 +43,9 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Also move the lever continuously between the AI's half-second updates.</summary>
         public bool GlideThrottle = true;
 
+        /// <summary>No throttle smoothing while the target speed is under this many mph or a coupling approach is within 60 m (0 = always smooth). Settings.xml only.</summary>
+        public float CrawlSmoothingMaxMph = 6f;
+
         /// <summary>Stand still once within a couple of metres of a stop target instead of creeping past it.</summary>
         public bool HoldStopAtStopTargets = true;
 

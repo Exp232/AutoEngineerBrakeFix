@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.6
+
+- **No throttle smoothing at crawling speeds** (reported on Nexus: the engineer slows down too much to couple, mostly on curved or slow industry track with an SW1 or other diesel). The smoothing and glide lag the lever by a second or two and limit its rise to 0.2 a second, which is enough for a diesel creeping at 3 mph to lose its speed before the notch comes up. Now the controller's own throttle goes through unfiltered while the target speed is under 6 mph, or a coupling approach is within 60 m (`CrawlSmoothingMaxMph` in `Settings.xml`; 0 = smooth always, as before). Not yet confirmed against a log.
+
 ## 1.0.5
 
 - **Water stop looks again every second when it finds no column** (it waited 5 s between looks), so a column that comes into range is picked up at once.

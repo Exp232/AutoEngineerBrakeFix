@@ -30,6 +30,23 @@ namespace CollegeEducatedAutoEngineer
             return States.GetValue(ae, a => new PidInfo { Engineer = a, Kind = PidKind.Throttle });
         }
 
+        /// <summary>True when the target is under CrawlSmoothingMaxMph, or a coupling approach is within 60 m.</summary>
+        private static bool CrawlingSpeed(AutoEngineer ae, float targetMps)
+        {
+            float maxMph = Main.Settings.CrawlSmoothingMaxMph;
+            if (maxMph <= 0f) return false;
+            if (targetMps * MpsToMph < maxMph) return true;
+            var targets = BrakeTaps.FTargetsField?.GetValue(ae) as AutoEngineer.Targets;
+            var list = targets?.AllTargets as System.Collections.Generic.IList<AutoEngineer.Targets.Target>;
+            if (list == null) return false;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var t = list[i];
+                if (t.Reason != null && t.Reason.StartsWith("Couple", StringComparison.Ordinal) && t.Distance < 60f) return true;
+            }
+            return false;
+        }
+
         /// <summary>Returns true when the command's throttle was changed.</summary>
         internal static bool Filter(object loop, ref RolloutCommand command)
         {
@@ -59,6 +76,16 @@ namespace CollegeEducatedAutoEngineer
             if (BrakeTaps.FContextualField != null)
             {
                 targetMps = Mathf.Abs(Convert.ToSingle(BrakeTaps.FContextualField.GetValue(ae)));
+            }
+
+            // Crawling (a coupling approach, yard or curve speed): the lever lag would let the train bleed off its
+            // speed, so the controller's own notch goes through and the filter starts over.
+            if (CrawlingSpeed(ae, targetMps))
+            {
+                info.HasLast = false;
+                info.Gliding = false;
+                info.Floor = 0f;
+                return false;
             }
             float error = targetMps - speedMps;
 
