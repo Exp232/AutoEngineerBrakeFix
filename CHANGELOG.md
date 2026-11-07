@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.8
+
+- **The game log now says what the marker lamps were set to**, each time they are redone: the train, how many cars have marker lamps, which end of which car was set red (and the position used), and how many other lamps were switched off, or that the rear car has no marker lamp. This is to tell from a log whether the lamps are being written, since a dump cannot tell the mod's changes from the player's.
+
 ## 1.1.7
 
 - **Marker lamps are rechecked whenever cars are coupled or uncoupled**, and not only when the engineer is on: the rear of the train is found again every 2 seconds with the engineer off (using the direction it last had) and every half second with it on, and the lamps are redone when the list of cars, the rear car or the direction changes and the train is standing. (The check compared only the car count and the rear car before.)

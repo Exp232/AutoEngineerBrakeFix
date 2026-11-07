@@ -100,7 +100,7 @@ namespace CollegeEducatedAutoEngineer
                 if (signature != s.MarkerHead && speed < 1f)
                 {
                     s.MarkerHead = signature;
-                    SetMarkers(cars, trailing, trailEnd);
+                    SetMarkers(loco, cars, trailing, trailEnd);
                 }
             }
 
@@ -438,17 +438,30 @@ namespace CollegeEducatedAutoEngineer
             return n;
         }
 
-        private static void SetMarkers(List<Car> cars, Car trailing, Car.LogicalEnd trailEnd)
+        private static void SetMarkers(Car loco, List<Car> cars, Car trailing, Car.LogicalEnd trailEnd)
         {
+            int lamps = 0, off = 0, withLamps = 0;
+            string rear = null;
             foreach (Car car in cars)
             {
-                foreach (string letter in InfoFor(car).MarkerLetters)
+                Info info = InfoFor(car);
+                if (info.MarkerLetters.Count > 0) withLamps++;
+                foreach (string letter in info.MarkerLetters)
                 {
+                    lamps++;
                     bool isRear = car == trailing && (car.EndToLogical(letter == "f" ? Car.End.F : Car.End.R) == trailEnd);
                     car.KeyValueObject["marker-" + letter + ".lit"] = KeyValue.Runtime.Value.Bool(isRear);
-                    if (isRear) car.KeyValueObject["marker-" + letter + ".position"] = KeyValue.Runtime.Value.Int(Main.Settings.MarkerRedPosition);
+                    if (isRear)
+                    {
+                        car.KeyValueObject["marker-" + letter + ".position"] = KeyValue.Runtime.Value.Int(Main.Settings.MarkerRedPosition);
+                        rear = car.DisplayName + " " + letter.ToUpperInvariant() + " end";
+                    }
+                    else off++;
                 }
             }
+            Main.Mod.Logger.Log($"Marker lamps for {loco.DisplayName}'s train ({cars.Count} cars, {withLamps} with marker lamps): "
+                + (rear != null ? $"red (position {Main.Settings.MarkerRedPosition}) on {rear}" : $"no marker lamp on the rear car {(trailing != null ? trailing.DisplayName : "?")}, none lit")
+                + $", {off} of {lamps} lamp(s) off.");
         }
     }
 }
