@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.7
+
+- **Train preparation on a waypoint order** (requested on Nexus; `PrepTrain`, on by default, a toggle in the settings window). When a standing train gets a new waypoint order, the mod releases the handbrake on every coupled car, connects the air between each pair of coupled cars with both anglecocks open, and closes the anglecocks at the two ends of the train. It waits until the train is under about 2 mph, then does it once per order, and logs what it changed to the game log. Cars are changed through the same car controls and end gear the game's own handbrake and anglecock controls use.
+- `LogCarKeys` (`Settings.xml` only, off): writes `logs\carkeys_*.txt` with every key-value entry on each car of the train. This is to find the key names for passenger doors and gates and for lamps, which the next release will set at station stops. Run it with a passenger train, then a caboose and an observation car.
+
 ## 1.0.6
 
 - **No throttle smoothing at crawling speeds** (reported on Nexus: the engineer slows down too much to couple, mostly on curved or slow industry track with an SW1 or other diesel). The smoothing and glide lag the lever by a second or two and limit its rise to 0.2 a second, which is enough for a diesel creeping at 3 mph to lose its speed before the notch comes up. Now the controller's own throttle goes through unfiltered while the target speed is under 6 mph, or a coupling approach is within 60 m (`CrawlSmoothingMaxMph` in `Settings.xml`; 0 = smooth always, as before). Not yet confirmed against a log.

@@ -245,6 +245,12 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Also write logs\ctc_dump_*.txt once per session: every CTC block's track spans and every signal's position and protected blocks (read-only; for tracking down signals that drop to Stop early).</summary>
         public bool LogCtc = false;
 
+        /// <summary>When the engineer gets a new waypoint order and the train is standing: release the handbrakes on every car, connect the air between coupled cars with the anglecocks open, and close the anglecocks at the two ends of the train.</summary>
+        public bool PrepTrain = true;
+
+        /// <summary>Also write logs\carkeys_*.txt once per engineer: every key-value entry on each car of the train (to find the names for doors, gates and lamps). Settings.xml only.</summary>
+        public bool LogCarKeys = false;
+
         /// <summary>Also write logs\fuel_summary_*.csv: coal, water and distance per engineer about once a minute, split by powered, coasting, braking and "both" (throttle open while braked), with brake applications counted.</summary>
         public bool LogFuelSummary = false;
 

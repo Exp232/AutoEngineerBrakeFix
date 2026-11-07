@@ -47,6 +47,9 @@ The auto-engineer's speed controller scores simulated plans. Five multipliers sc
 - **Coasting band**: a new brake application on a steady limit waits until the train is 1 mph over it.
 - Stops are not shifted. In Waypoint and Yard modes the game's own stopping accuracy is kept; the stay-stopped fix is Road mode only.
 
+## Train preparation (on by default)
+When a standing train gets a new waypoint order, the mod releases the handbrake on every car, connects the air between each pair of coupled cars with both anglecocks open, and closes the anglecocks at the two ends of the train. It waits until the train is under about 2 mph and does it once per order. Switch it off in the settings window ("Prepare train on waypoint order"). `LogCarKeys` in `Settings.xml` writes a dump of each car's key-value entries to `logs\carkeys_*.txt` (used to find the names the game uses for doors, gates and lamps).
+
 ## Stall guard
 The game has no stall check: on a grade the train cannot climb, the AI cycles between full throttle and light braking while rolling back. The mod latches the guard in three cases: the train **rolls back** more than 0.5 mph against its order (at once, once it has moved the ordered way or had power on while standing); it has been at full throttle for 10 s (`StallSeconds` in `Settings.xml`) under 4 mph on a climb of 1% or more without gaining speed; or it cannot start at all (under 0.5 mph with the throttle at 50% or more and the brakes off for the same time, on any grade). When it latches it closes the throttle, holds the brakes (train brake, plus the locomotive brake once nearly stopped) and tells you in the console and as a notice. In Waypoint and Road modes it also **sets the speed order to 0 mph**; set a speed again to retry. The hold ends when you change the engineer's direction, mode or waypoint, set a speed order again, or switch the engineer off and on.
 

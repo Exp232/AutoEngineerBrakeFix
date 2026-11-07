@@ -85,6 +85,12 @@ namespace CollegeEducatedAutoEngineer
                     Note(b, "How much the planner dislikes using the locomotive brake. Higher = it slows with the train brake instead; 1 = the game's value.");
                 });
 
+                page.AddSection("Train preparation", b =>
+                {
+                    b.AddFieldToggle("Prepare train on waypoint order", () => s.PrepTrain, v => { s.PrepTrain = v; Save(); });
+                    Note(b, "When a standing train gets a new waypoint order: releases the handbrakes, connects the air between coupled cars with the anglecocks open, and closes the anglecocks at the two ends of the train.");
+                });
+
                 page.AddSection("Stall guard", b =>
                 {
                     b.AddFieldToggle("Stall guard", () => s.StallGuard, v => { s.StallGuard = v; Save(); });
@@ -183,6 +189,7 @@ namespace CollegeEducatedAutoEngineer
             s.BrakeTapSuppressMph = d.BrakeTapSuppressMph;
             s.CoastBandMph = d.CoastBandMph;
             s.AvoidPowerIntoReductions = d.AvoidPowerIntoReductions;
+            s.PrepTrain = d.PrepTrain;
             s.StallGuard = d.StallGuard;
             s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
             s.SmoothThrottle = d.SmoothThrottle;
