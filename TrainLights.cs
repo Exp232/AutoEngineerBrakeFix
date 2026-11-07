@@ -30,6 +30,7 @@ namespace CollegeEducatedAutoEngineer
             public float Arrived;
             public readonly List<Plan> Plans = new List<Plan>();
             public Car ObsLit;
+            public int ObsLevel;
             public string MarkerHead;
             public bool HaveHead;
             public Car.LogicalEnd Head;
@@ -119,9 +120,13 @@ namespace CollegeEducatedAutoEngineer
                 }
                 if (leads)
                 {
-                    int level = speed > 0.3f ? 2 : 1;
-                    leading.KeyValueObject["headlight"] = KeyValue.Runtime.Value.Int(level);
-                    s.ObsLit = leading;
+                    if (s.ObsLit != leading)
+                    {
+                        // After this the game's own headlight calls set the level (HoldLocoHeadlightOff).
+                        s.ObsLevel = speed > 0.3f ? 2 : 1;
+                        leading.KeyValueObject["headlight"] = KeyValue.Runtime.Value.Int(s.ObsLevel);
+                        s.ObsLit = leading;
+                    }
                     // The observation car's headlight takes over the locomotive's lamp that faces the train.
                     SetLocoHeadlightOff(loco);
                 }
@@ -129,9 +134,20 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>True while the observation car's headlight stands in for the locomotive's: the game's own headlight calls are skipped.</summary>
-        internal static bool HoldLocoHeadlightOff(AutoEngineer ae)
+        internal static bool HoldLocoHeadlightOff(AutoEngineer ae, int level)
         {
-            return Main.Settings.ObservationHeadlight && ae != null && States.TryGetValue(ae, out State s) && s.ObsLit != null;
+            if (!Main.Settings.ObservationHeadlight || ae == null || !States.TryGetValue(ae, out State s) || s.ObsLit == null) return false;
+            // The game's call (bright when it has somewhere to go, dim when it stops) is passed on to the observation car at once.
+            try
+            {
+                if (s.ObsLevel != level)
+                {
+                    s.ObsLevel = level;
+                    s.ObsLit.KeyValueObject["headlight"] = KeyValue.Runtime.Value.Int(level);
+                }
+            }
+            catch (Exception) { }
+            return true;
         }
 
         private static bool _hlResolved, _hlLogged;
@@ -563,12 +579,12 @@ namespace CollegeEducatedAutoEngineer
     [HarmonyPatch(typeof(AutoEngineer), "HeadlightOn", new[] { typeof(bool) })]
     internal static class AutoEngineer_HeadlightOn_Patch
     {
-        private static bool Prefix(AutoEngineer __instance) { return !(Main.Active && TrainLights.HoldLocoHeadlightOff(__instance)); }
+        private static bool Prefix(AutoEngineer __instance) { return !(Main.Active && TrainLights.HoldLocoHeadlightOff(__instance, 2)); }
     }
 
     [HarmonyPatch(typeof(AutoEngineer), "HeadlightDim", new Type[0])]
     internal static class AutoEngineer_HeadlightDim_Patch
     {
-        private static bool Prefix(AutoEngineer __instance) { return !(Main.Active && TrainLights.HoldLocoHeadlightOff(__instance)); }
+        private static bool Prefix(AutoEngineer __instance) { return !(Main.Active && TrainLights.HoldLocoHeadlightOff(__instance, 1)); }
     }
 }
